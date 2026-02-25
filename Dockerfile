@@ -8,7 +8,6 @@ RUN npm ci
 
 COPY . .
 
-# Build-time env var for Java API
 ENV API_BASE_URL="http://host.docker.internal:8080"
 
 RUN npm run build
@@ -16,19 +15,21 @@ RUN npm run build
 # ===== Production Stage =====
 FROM nginx:alpine AS production
 
-# Install openssl for self-signed cert generation
-RUN apk add --no-cache openssl
+# Install openssl and generate self-signed cert (browser will show warning)
+RUN apk add --no-cache openssl && \
+    mkdir -p /etc/nginx/ssl && \
+    openssl req -x509 -nodes -days 3650 \
+    -newkey rsa:2048 \
+    -keyout /etc/nginx/ssl/key.pem \
+    -out /etc/nginx/ssl/cert.pem \
+    -subj "/CN=tv-presentation"
 
-# Copy built static files to nginx
+# Copy built static files
 COPY --from=builder /app/dist /usr/share/nginx/html
 
-# Copy nginx config as template (envsubst will process it at startup)
-COPY nginx.conf /etc/nginx/conf.d/default.conf.template
-
-# Copy entrypoint script
-COPY docker-entrypoint.sh /docker-entrypoint.sh
-RUN chmod +x /docker-entrypoint.sh
+# Copy nginx config
+COPY nginx.conf /etc/nginx/conf.d/default.conf
 
 EXPOSE 80 443
 
-ENTRYPOINT ["/docker-entrypoint.sh"]
+CMD ["nginx", "-g", "daemon off;"]
