@@ -3,11 +3,17 @@ services:
   frontend:
     build:
       context: .
-      dockerfile: ./Tv-presentation/Dockerfile
+      dockerfile: Dockerfile
     container_name: tv-frontend
     restart: unless-stopped
     ports:
       - "${HOST_IP:-0.0.0.0}:${HOST_PORT:-8083}:80"
+      - "${HOST_IP:-0.0.0.0}:${HTTPS_PORT:-8443}:443"
+    environment:
+      - HTTPS_PORT=${HTTPS_PORT:-8443}
+    volumes:
+      # Persist SSL certificates across restarts
+      - ssl-certs:/etc/nginx/ssl
 
   # ===== Java Backend (placeholder for later) =====
   # backend:
@@ -34,5 +40,7 @@ services:
   #     POSTGRES_PASSWORD: changeme
   #   volumes:
   #     - db-data:/var/lib/postgresql/data
-# volumes:
-#   db-data:
+
+volumes:
+  ssl-certs:
+  # db-data:
