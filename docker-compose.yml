@@ -9,28 +9,12 @@ services:
     ports:
       - "${HOST_PORT:-8083}:80"
 
-  # ===== Data Fetcher Backend =====
+  # ===== Data Fetcher Backend (Node.js Scraper) =====
   data-fetcher:
     build:
-      context: ./Data-fetcher
+      context: ./data-fetcher
       dockerfile: Dockerfile
     container_name: tv-data-fetcher
     restart: unless-stopped
     ports:
       - "8085:8080"
-
-  # ===== SQL Database (placeholder for later) =====
-  # database:
-  #   image: postgres:17-alpine
-  #   container_name: tv-database
-  #   restart: unless-stopped
-  #   ports:
-  #     - "5432:5432"
-  #   environment:
-  #     POSTGRES_DB: tv_presentation
-  #     POSTGRES_USER: tvadmin
-  #     POSTGRES_PASSWORD: changeme
-  #   volumes:
-  #     - db-data:/var/lib/postgresql/data
-# volumes:
-#   db-data:

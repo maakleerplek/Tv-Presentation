@@ -1,0 +1,209 @@
+---
+import config from '../data/tv-config.json';
+
+export interface Props {
+  title?: string;
+}
+
+const drinksConfig = config.drinks;
+const { title = drinksConfig.title } = Astro.props;
+const items = drinksConfig.items || [];
+
+// Split items into two columns
+const midpoint = Math.ceil(items.length / 2);
+const column1 = items.slice(0, midpoint);
+const column2 = items.slice(midpoint);
+---
+
+<div class="drinks-slide">
+  <div class="slide-header">
+    <span class="material-symbols-outlined slide-icon">local_cafe</span>
+    <h2>{title}</h2>
+  </div>
+
+  <div class="drinks-layout">
+    <!-- Drink Menu -->
+    <div class="menu-section">
+      <div class="menu-columns">
+        <div class="menu-column">
+          {column1.map((item) => (
+            <div class="menu-item">
+              <span class="item-name">{item.name}</span>
+              <span class="item-dots"></span>
+              <span class="item-price">{item.price}</span>
+            </div>
+          ))}
+        </div>
+        <div class="menu-column">
+          {column2.map((item) => (
+            <div class="menu-item">
+              <span class="item-name">{item.name}</span>
+              <span class="item-dots"></span>
+              <span class="item-price">{item.price}</span>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+
+    <!-- QR Codes -->
+    <div class="qr-section">
+      <div class="qr-card elevation-2">
+        <div class="qr-code-wrap">
+          <img
+            id="order-qr"
+            alt="Bestel QR Code"
+            class="qr-image"
+            loading="lazy"
+          />
+        </div>
+        <p class="qr-label">{drinksConfig.qrOrderLabel}</p>
+      </div>
+
+      <div class="qr-card elevation-2">
+        <div class="qr-code-wrap">
+          <img
+            id="payconiq-qr"
+            alt="Payconiq QR Code"
+            class="qr-image"
+            loading="lazy"
+          />
+        </div>
+        <p class="qr-label">{drinksConfig.qrPayconiqLabel}</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script define:vars={{ orderUrl: drinksConfig.qrOrderUrl, payconiqUrl: drinksConfig.qrPayconiqUrl }}>
+  // Generate QR codes from URLs using a free QR API
+  document.addEventListener("DOMContentLoaded", () => {
+    const qrApiBase = "https://api.qrserver.com/v1/create-qr-code/?size=200x200&bgcolor=ffffff";
+
+    const orderQr = document.getElementById("order-qr");
+    if (orderQr && orderUrl) {
+      orderQr.src = `${qrApiBase}&color=008080&data=${encodeURIComponent(orderUrl)}`;
+    }
+
+    const payconiqQr = document.getElementById("payconiq-qr");
+    if (payconiqQr && payconiqUrl) {
+      payconiqQr.src = `${qrApiBase}&color=FF4785&data=${encodeURIComponent(payconiqUrl)}`;
+    }
+  });
+</script>
+
+<style>
+  .drinks-slide {
+    flex: 1;
+    padding: 0 48px 24px;
+    overflow: hidden;
+  }
+
+  .slide-header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 28px;
+  }
+
+  .slide-icon {
+    font-size: 32px;
+    color: var(--primary);
+  }
+
+  .slide-header h2 {
+    font-size: 1.75rem;
+    font-weight: 500;
+    color: var(--text-primary);
+  }
+
+  .drinks-layout {
+    display: flex;
+    gap: 48px;
+    align-items: flex-start;
+    height: calc(100vh - 200px);
+  }
+
+  /* ===== Menu Section ===== */
+  .menu-section {
+    flex: 1;
+  }
+
+  .menu-columns {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 24px 48px;
+  }
+
+  .menu-item {
+    display: flex;
+    align-items: baseline;
+    padding: 12px 0;
+    border-bottom: 1px solid var(--border-light);
+  }
+
+  .item-name {
+    font-size: 1.1rem;
+    font-weight: 400;
+    color: var(--text-primary);
+    white-space: nowrap;
+  }
+
+  .item-dots {
+    flex: 1;
+    border-bottom: 2px dotted var(--text-tertiary);
+    margin: 0 8px;
+    opacity: 0.3;
+    min-width: 20px;
+  }
+
+  .item-price {
+    font-size: 1.1rem;
+    font-weight: 500;
+    color: var(--primary);
+    white-space: nowrap;
+  }
+
+  /* ===== QR Codes ===== */
+  .qr-section {
+    display: flex;
+    flex-direction: column;
+    gap: 24px;
+    align-items: center;
+    flex-shrink: 0;
+  }
+
+  .qr-card {
+    background: var(--surface);
+    border-radius: var(--radius-lg);
+    padding: 24px;
+    text-align: center;
+    border: 1px solid var(--border-light);
+    width: 220px;
+  }
+
+  .qr-code-wrap {
+    width: 160px;
+    height: 160px;
+    margin: 0 auto 12px;
+    border-radius: var(--radius-md);
+    overflow: hidden;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: #f5f5f5;
+  }
+
+  .qr-image {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+  }
+
+  .qr-label {
+    font-size: 0.85rem;
+    font-weight: 500;
+    color: var(--text-secondary);
+    margin-top: 4px;
+  }
+</style>

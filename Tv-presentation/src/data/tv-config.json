@@ -1,0 +1,81 @@
+{
+    "slideshow": {
+        "intervalSeconds": 15,
+        "transitionEffect": "fade",
+        "autoRefreshMinutes": 30
+    },
+    "branding": {
+        "primaryColor": "#008080",
+        "accentColor": "#00A89D",
+        "backgroundColor": "#FAFAFA",
+        "textPrimary": "#1C1B1F",
+        "textSecondary": "#49454F",
+        "organizationName": "maakleerplek",
+        "tagline": "Samen Leren Maken"
+    },
+    "calendar": {
+        "maxEventsToShow": 8,
+        "showDescription": true,
+        "title": "Kalender"
+    },
+    "news": {
+        "maxItems": 4,
+        "maxAgeDays": 14,
+        "title": "Nieuws"
+    },
+    "drinks": {
+        "title": "Drankenkaart",
+        "items": [
+            {
+                "name": "Koffie",
+                "price": "€1.50"
+            },
+            {
+                "name": "Thee",
+                "price": "€1.50"
+            },
+            {
+                "name": "Water (plat/bruis)",
+                "price": "€1.00"
+            },
+            {
+                "name": "Cola / Fanta / Sprite",
+                "price": "€2.00"
+            },
+            {
+                "name": "Jupiler",
+                "price": "€2.50"
+            },
+            {
+                "name": "Duvel",
+                "price": "€3.50"
+            },
+            {
+                "name": "Leffe Blond",
+                "price": "€3.00"
+            },
+            {
+                "name": "Wijn (rood/wit)",
+                "price": "€3.00"
+            },
+            {
+                "name": "Chocomelk",
+                "price": "€2.00"
+            },
+            {
+                "name": "Verse jus",
+                "price": "€2.50"
+            }
+        ],
+        "qrOrderUrl": "https://maakleerplek.be",
+        "qrOrderLabel": "Bestel hier",
+        "qrPayconiqUrl": "https://payconiq.com/merchant/maakleerplek",
+        "qrPayconiqLabel": "Betaal met Payconiq"
+    },
+    "dataFetcher": {
+        "baseUrl": "http://data-fetcher:8080",
+        "browserBaseUrl": "http://localhost:8085",
+        "calendarEndpoint": "/api/calendar",
+        "newsEndpoint": "/api/news"
+    }
+}
