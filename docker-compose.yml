@@ -3,7 +3,7 @@ services:
   frontend:
     build:
       context: .
-      dockerfile: Dockerfile
+      dockerfile: ./Tv-presentation/Dockerfile
     container_name: tv-frontend
     restart: unless-stopped
     ports:
