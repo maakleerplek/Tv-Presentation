@@ -7,7 +7,7 @@ services:
     container_name: tv-frontend
     restart: unless-stopped
     ports:
-      - "3000:80"
+      - "${HOST_IP:-0.0.0.0}:${HOST_PORT:-8083}:80"
 
   # ===== Java Backend (placeholder for later) =====
   # backend:
