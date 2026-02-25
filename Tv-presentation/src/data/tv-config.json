@@ -1,6 +1,6 @@
 {
     "slideshow": {
-        "intervalSeconds": 15,
+        "intervalSeconds": 50,
         "transitionEffect": "fade",
         "autoRefreshMinutes": 30
     },
@@ -25,50 +25,62 @@
     },
     "drinks": {
         "title": "Drankenkaart",
+        "subtitle": "Geniet van een drankje in de kantine!",
+        "infoText": "Betaal aan de toog of scan de QR-code om online te bestellen. Welkom bij maakleerplek — samen leren, maken én genieten! 🎉",
         "items": [
             {
                 "name": "Koffie",
-                "price": "€1.50"
+                "price": "€1.50",
+                "emoji": "☕"
             },
             {
                 "name": "Thee",
-                "price": "€1.50"
+                "price": "€1.50",
+                "emoji": "🍵"
             },
             {
-                "name": "Water (plat/bruis)",
-                "price": "€1.00"
+                "name": "Water",
+                "price": "€1.00",
+                "emoji": "💧"
             },
             {
                 "name": "Cola / Fanta / Sprite",
-                "price": "€2.00"
+                "price": "€2.00",
+                "emoji": "🥤"
             },
             {
                 "name": "Jupiler",
-                "price": "€2.50"
+                "price": "€2.50",
+                "emoji": "🍺"
             },
             {
                 "name": "Duvel",
-                "price": "€3.50"
+                "price": "€3.50",
+                "emoji": "🍺"
             },
             {
                 "name": "Leffe Blond",
-                "price": "€3.00"
+                "price": "€3.00",
+                "emoji": "🍺"
             },
             {
                 "name": "Wijn (rood/wit)",
-                "price": "€3.00"
+                "price": "€3.00",
+                "emoji": "🍷"
             },
             {
                 "name": "Chocomelk",
-                "price": "€2.00"
+                "price": "€2.00",
+                "emoji": "🍫"
             },
             {
                 "name": "Verse jus",
-                "price": "€2.50"
+                "price": "€2.50",
+                "emoji": "🍊"
             }
         ],
         "qrOrderUrl": "https://maakleerplek.be",
-        "qrOrderLabel": "Bestel hier",
+        "qrOrderLabel": "Meer info",
         "qrPayconiqUrl": "https://payconiq.com/merchant/maakleerplek",
         "qrPayconiqLabel": "Betaal met Payconiq"
     },

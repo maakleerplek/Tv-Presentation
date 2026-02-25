@@ -30,12 +30,14 @@ const { title = "TV Presentation — maakleerplek" } = Astro.props;
       rel="stylesheet"
       href="https://cdn.jsdelivr.net/npm/swiper@11/swiper-bundle.min.css"
     />
+    <script
+      src="https://cdn.jsdelivr.net/npm/swiper@11/swiper-bundle.min.js"
+      defer></script>
 
     <title>{title}</title>
   </head>
   <body>
     <slot />
-    <script src="https://cdn.jsdelivr.net/npm/swiper@11/swiper-bundle.min.js"></script>
   </body>
 </html>
 
@@ -70,13 +72,13 @@ const { title = "TV Presentation — maakleerplek" } = Astro.props;
   /* ===== CSS Custom Properties (Brand Colors) ===== */
   :root {
     --primary: #008080;
-    --primary-light: #00A89D;
+    --primary-light: #00a89d;
     --primary-dark: #006666;
-    --bg-color: #FAFAFA;
-    --surface: #FFFFFF;
-    --text-primary: #1C1B1F;
-    --text-secondary: #49454F;
-    --text-tertiary: #79747E;
+    --bg-color: #fafafa;
+    --surface: #ffffff;
+    --text-primary: #1c1b1f;
+    --text-secondary: #49454f;
+    --text-tertiary: #79747e;
     --border-light: rgba(0, 0, 0, 0.06);
     --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.08), 0 1px 2px rgba(0, 0, 0, 0.06);
     --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.08), 0 2px 4px rgba(0, 0, 0, 0.04);

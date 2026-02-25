@@ -1,209 +1,296 @@
 ---
-import config from '../data/tv-config.json';
+import config from "../data/tv-config.json";
 
 export interface Props {
   title?: string;
 }
 
-const drinksConfig = config.drinks;
-const { title = drinksConfig.title } = Astro.props;
-const items = drinksConfig.items || [];
+const d = config.drinks;
+const { title = d.title } = Astro.props;
 
 // Split items into two columns
-const midpoint = Math.ceil(items.length / 2);
-const column1 = items.slice(0, midpoint);
-const column2 = items.slice(midpoint);
+const mid = Math.ceil(d.items.length / 2);
+const col1 = d.items.slice(0, mid);
+const col2 = d.items.slice(mid);
 ---
 
 <div class="drinks-slide">
-  <div class="slide-header">
-    <span class="material-symbols-outlined slide-icon">local_cafe</span>
-    <h2>{title}</h2>
-  </div>
-
-  <div class="drinks-layout">
-    <!-- Drink Menu -->
-    <div class="menu-section">
-      <div class="menu-columns">
-        <div class="menu-column">
-          {column1.map((item) => (
-            <div class="menu-item">
-              <span class="item-name">{item.name}</span>
-              <span class="item-dots"></span>
-              <span class="item-price">{item.price}</span>
-            </div>
-          ))}
-        </div>
-        <div class="menu-column">
-          {column2.map((item) => (
-            <div class="menu-item">
-              <span class="item-name">{item.name}</span>
-              <span class="item-dots"></span>
-              <span class="item-price">{item.price}</span>
-            </div>
-          ))}
-        </div>
+  <!-- ===== Left: Menu ===== -->
+  <div class="menu-panel">
+    <div class="menu-header">
+      <span class="material-symbols-outlined menu-icon">local_bar</span>
+      <div>
+        <h2>{title}</h2>
+        {d.subtitle && <p class="subtitle">{d.subtitle}</p>}
       </div>
     </div>
 
-    <!-- QR Codes -->
-    <div class="qr-section">
-      <div class="qr-card elevation-2">
-        <div class="qr-code-wrap">
-          <img
-            id="order-qr"
-            alt="Bestel QR Code"
-            class="qr-image"
-            loading="lazy"
-          />
+    <div class="menu-columns">
+      <ul class="menu-list">
+        {
+          col1.map((item) => (
+            <li class="menu-item">
+              <span class="item-emoji">{item.emoji || "•"}</span>
+              <span class="item-name">{item.name}</span>
+              <span class="item-dots" />
+              <span class="item-price">{item.price}</span>
+            </li>
+          ))
+        }
+      </ul>
+      <ul class="menu-list">
+        {
+          col2.map((item) => (
+            <li class="menu-item">
+              <span class="item-emoji">{item.emoji || "•"}</span>
+              <span class="item-name">{item.name}</span>
+              <span class="item-dots" />
+              <span class="item-price">{item.price}</span>
+            </li>
+          ))
+        }
+      </ul>
+    </div>
+  </div>
+
+  <!-- ===== Right: QR + Info ===== -->
+  <div class="side-panel">
+    <!-- Custom info text block -->
+    {
+      d.infoText && (
+        <div class="info-box">
+          <span class="material-symbols-outlined info-icon">info</span>
+          <p>{d.infoText}</p>
         </div>
-        <p class="qr-label">{drinksConfig.qrOrderLabel}</p>
+      )
+    }
+
+    <!-- QR Codes -->
+    <div class="qr-stack">
+      <div class="qr-card">
+        <div class="qr-wrap">
+          <img id="order-qr" alt="Website QR" class="qr-img" />
+        </div>
+        <p class="qr-label">{d.qrOrderLabel}</p>
       </div>
 
-      <div class="qr-card elevation-2">
-        <div class="qr-code-wrap">
-          <img
-            id="payconiq-qr"
-            alt="Payconiq QR Code"
-            class="qr-image"
-            loading="lazy"
-          />
+      <div class="qr-card payconiq-card">
+        <div class="qr-wrap">
+          <img id="payconiq-qr" alt="Payconiq QR" class="qr-img" />
         </div>
-        <p class="qr-label">{drinksConfig.qrPayconiqLabel}</p>
+        <p class="qr-label">{d.qrPayconiqLabel}</p>
       </div>
     </div>
   </div>
 </div>
 
-<script define:vars={{ orderUrl: drinksConfig.qrOrderUrl, payconiqUrl: drinksConfig.qrPayconiqUrl }}>
-  // Generate QR codes from URLs using a free QR API
+<script
+  define:vars={{
+    orderUrl: d.qrOrderUrl,
+    payconiqUrl: d.qrPayconiqUrl,
+  }}
+>
   document.addEventListener("DOMContentLoaded", () => {
-    const qrApiBase = "https://api.qrserver.com/v1/create-qr-code/?size=200x200&bgcolor=ffffff";
-
-    const orderQr = document.getElementById("order-qr");
-    if (orderQr && orderUrl) {
-      orderQr.src = `${qrApiBase}&color=008080&data=${encodeURIComponent(orderUrl)}`;
-    }
-
-    const payconiqQr = document.getElementById("payconiq-qr");
-    if (payconiqQr && payconiqUrl) {
-      payconiqQr.src = `${qrApiBase}&color=FF4785&data=${encodeURIComponent(payconiqUrl)}`;
-    }
+    const base =
+      "https://api.qrserver.com/v1/create-qr-code/?size=220x220&bgcolor=ffffff";
+    const oqr = document.getElementById("order-qr");
+    if (oqr && orderUrl)
+      oqr.src = `${base}&color=008080&data=${encodeURIComponent(orderUrl)}`;
+    const pqr = document.getElementById("payconiq-qr");
+    if (pqr && payconiqUrl)
+      pqr.src = `${base}&color=FF4785&data=${encodeURIComponent(payconiqUrl)}`;
   });
 </script>
 
 <style>
   .drinks-slide {
+    display: flex;
+    height: 100%;
+    gap: 0;
+  }
+
+  /* ===== Left Menu Panel ===== */
+  .menu-panel {
     flex: 1;
-    padding: 0 48px 24px;
+    padding: 36px 48px 36px 56px;
+    display: flex;
+    flex-direction: column;
+    gap: 28px;
+    border-right: 1px solid var(--border-light);
     overflow: hidden;
   }
 
-  .slide-header {
+  .menu-header {
     display: flex;
-    align-items: center;
-    gap: 12px;
-    margin-bottom: 28px;
-  }
-
-  .slide-icon {
-    font-size: 32px;
-    color: var(--primary);
-  }
-
-  .slide-header h2 {
-    font-size: 1.75rem;
-    font-weight: 500;
-    color: var(--text-primary);
-  }
-
-  .drinks-layout {
-    display: flex;
-    gap: 48px;
     align-items: flex-start;
-    height: calc(100vh - 200px);
+    gap: 16px;
   }
 
-  /* ===== Menu Section ===== */
-  .menu-section {
-    flex: 1;
+  .menu-icon {
+    font-size: 40px;
+    color: var(--primary);
+    margin-top: 4px;
+    flex-shrink: 0;
+  }
+
+  .menu-header h2 {
+    font-size: 2rem;
+    font-weight: 600;
+    color: var(--text-primary);
+    line-height: 1.1;
+    margin: 0;
+  }
+
+  .subtitle {
+    font-size: 0.95rem;
+    color: var(--text-tertiary);
+    margin-top: 4px;
+    font-weight: 300;
   }
 
   .menu-columns {
     display: grid;
     grid-template-columns: 1fr 1fr;
-    gap: 24px 48px;
+    gap: 0 40px;
+    flex: 1;
+  }
+
+  .menu-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0;
   }
 
   .menu-item {
     display: flex;
     align-items: baseline;
-    padding: 12px 0;
-    border-bottom: 1px solid var(--border-light);
+    padding: 11px 0;
+    border-bottom: 1px solid rgba(0, 0, 0, 0.06);
+    gap: 10px;
+  }
+
+  .item-emoji {
+    font-size: 1.2rem;
+    flex-shrink: 0;
+    width: 1.6rem;
+    text-align: center;
   }
 
   .item-name {
-    font-size: 1.1rem;
-    font-weight: 400;
+    font-size: 1.05rem;
     color: var(--text-primary);
+    font-weight: 400;
     white-space: nowrap;
+    min-width: 0;
   }
 
   .item-dots {
     flex: 1;
-    border-bottom: 2px dotted var(--text-tertiary);
-    margin: 0 8px;
-    opacity: 0.3;
-    min-width: 20px;
+    border-bottom: 2px dotted rgba(0, 0, 0, 0.12);
+    margin: 0 6px;
+    min-width: 12px;
+    position: relative;
+    top: -4px;
   }
 
   .item-price {
     font-size: 1.1rem;
-    font-weight: 500;
+    font-weight: 700;
     color: var(--primary);
     white-space: nowrap;
+    letter-spacing: -0.01em;
   }
 
-  /* ===== QR Codes ===== */
-  .qr-section {
+  /* ===== Right Side Panel ===== */
+  .side-panel {
+    width: 280px;
+    flex-shrink: 0;
+    padding: 36px 28px;
     display: flex;
     flex-direction: column;
     gap: 24px;
-    align-items: center;
+    background: linear-gradient(160deg, rgba(0, 128, 128, 0.04) 0%, #fff 100%);
+  }
+
+  /* Info text box */
+  .info-box {
+    background: rgba(0, 128, 128, 0.08);
+    border: 1px solid rgba(0, 128, 128, 0.18);
+    border-radius: var(--radius-lg);
+    padding: 16px;
+    display: flex;
+    gap: 12px;
+    align-items: flex-start;
+  }
+
+  .info-icon {
+    color: var(--primary);
+    font-size: 20px;
     flex-shrink: 0;
+    margin-top: 1px;
+  }
+
+  .info-box p {
+    font-size: 0.88rem;
+    color: var(--text-secondary);
+    line-height: 1.55;
+    margin: 0;
+  }
+
+  /* QR codes */
+  .qr-stack {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    flex: 1;
+    justify-content: center;
   }
 
   .qr-card {
     background: var(--surface);
-    border-radius: var(--radius-lg);
-    padding: 24px;
-    text-align: center;
     border: 1px solid var(--border-light);
-    width: 220px;
+    border-radius: var(--radius-lg);
+    padding: 18px;
+    text-align: center;
+    box-shadow: var(--shadow-sm);
   }
 
-  .qr-code-wrap {
-    width: 160px;
-    height: 160px;
-    margin: 0 auto 12px;
+  .payconiq-card {
+    border-color: rgba(255, 71, 133, 0.25);
+    background: rgba(255, 71, 133, 0.03);
+  }
+
+  .qr-wrap {
+    width: 150px;
+    height: 150px;
+    margin: 0 auto 10px;
     border-radius: var(--radius-md);
     overflow: hidden;
+    background: #f8f8f8;
     display: flex;
     align-items: center;
     justify-content: center;
-    background: #f5f5f5;
   }
 
-  .qr-image {
+  .qr-img {
     width: 100%;
     height: 100%;
     object-fit: contain;
   }
 
   .qr-label {
-    font-size: 0.85rem;
-    font-weight: 500;
+    font-size: 0.82rem;
+    font-weight: 600;
     color: var(--text-secondary);
-    margin-top: 4px;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    margin: 0;
+  }
+
+  .payconiq-card .qr-label {
+    color: #e0005a;
   }
 </style>
