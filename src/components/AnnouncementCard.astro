@@ -1,0 +1,112 @@
+---
+export interface Props {
+  title: string;
+  content: string;
+  category?: string;
+  date?: string;
+  icon?: string;
+}
+
+const {
+  title,
+  content,
+  category = "General",
+  date,
+  icon = "campaign",
+} = Astro.props;
+
+const categoryColors: Record<string, string> = {
+  General: "#6750a4",
+  Urgent: "#b3261e",
+  Event: "#006c4c",
+  Info: "#0061a4",
+};
+
+const color = categoryColors[category] ?? categoryColors["General"];
+---
+
+<article class="card elevation-2">
+  <div class="card-header">
+    <div class="card-icon" style={`background: ${color};`}>
+      <span class="material-symbols-outlined">{icon}</span>
+    </div>
+    <div class="card-meta">
+      <span class="card-category" style={`color: ${color};`}>{category}</span>
+      {date && <span class="card-date">{date}</span>}
+    </div>
+  </div>
+  <h2 class="card-title">{title}</h2>
+  <p class="card-content">{content}</p>
+</article>
+
+<style>
+  .card {
+    background: #ffffff;
+    border-radius: 16px;
+    padding: 28px 32px;
+    transition:
+      box-shadow 0.25s ease,
+      transform 0.25s ease;
+    border: 1px solid rgba(0, 0, 0, 0.04);
+  }
+
+  .card:hover {
+    box-shadow:
+      0 10px 20px rgba(0, 0, 0, 0.08),
+      0 3px 6px rgba(0, 0, 0, 0.05);
+    transform: translateY(-2px);
+  }
+
+  .card-header {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    margin-bottom: 18px;
+  }
+
+  .card-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 48px;
+    height: 48px;
+    border-radius: 14px;
+    color: white;
+    flex-shrink: 0;
+  }
+
+  .card-icon .material-symbols-outlined {
+    font-size: 26px;
+  }
+
+  .card-meta {
+    display: flex;
+    flex-direction: column;
+  }
+
+  .card-category {
+    font-size: 0.8rem;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+  }
+
+  .card-date {
+    font-size: 0.78rem;
+    color: #79747e;
+  }
+
+  .card-title {
+    font-size: 1.5rem;
+    font-weight: 500;
+    line-height: 1.3;
+    margin-bottom: 10px;
+    color: #1c1b1f;
+  }
+
+  .card-content {
+    font-size: 1rem;
+    line-height: 1.65;
+    color: #49454f;
+  }
+</style>

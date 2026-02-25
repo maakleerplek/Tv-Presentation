@@ -1,0 +1,205 @@
+---
+import Layout from "../layouts/Layout.astro";
+import AnnouncementCard from "../components/AnnouncementCard.astro";
+
+// Fetch announcements from Java backend API
+// Falls back to sample data if the API is not available
+const API_URL = import.meta.env.API_BASE_URL || "http://localhost:8080";
+
+interface Announcement {
+  id: string;
+  title: string;
+  content: string;
+  category: string;
+  icon: string;
+  date: string;
+}
+
+let announcements: Announcement[] = [];
+
+try {
+  const response = await fetch(`${API_URL}/api/announcements`);
+  if (response.ok) {
+    announcements = await response.json();
+  }
+} catch {
+  // API not available — use fallback data
+}
+
+// Fallback sample announcements
+if (announcements.length === 0) {
+  announcements = [
+    {
+      id: "1",
+      title: "Q1 Planning Meeting this Friday",
+      content:
+        "Join us for the quarterly planning meeting in the main conference room. We will discuss the roadmap for the upcoming months and assign new project leads. Lunch will be provided.",
+      category: "Event",
+      icon: "event",
+      date: "Friday, February 27",
+    },
+    {
+      id: "2",
+      title: "New Parking Policy Starting March 1st",
+      content:
+        "Please be aware that the parking lot will switch to reserved spots starting next month. Register your vehicle on the facilities portal before the deadline to secure your spot.",
+      category: "Info",
+      icon: "info",
+      date: "March 1, 2026",
+    },
+  ];
+}
+
+const now = new Date();
+const timeString = now.toLocaleTimeString("nl-BE", {
+  hour: "2-digit",
+  minute: "2-digit",
+});
+const dateString = now.toLocaleDateString("nl-BE", {
+  weekday: "long",
+  day: "numeric",
+  month: "long",
+  year: "numeric",
+});
+---
+
+<Layout title="TV Presentation">
+  <div class="page">
+    <!-- Top Bar -->
+    <header class="topbar">
+      <div class="topbar-left">
+        <span class="material-symbols-outlined topbar-icon">tv</span>
+        <h1 class="topbar-title">Announcements</h1>
+      </div>
+      <div class="topbar-right">
+        <span class="topbar-time">{timeString}</span>
+        <span class="topbar-date">{dateString}</span>
+      </div>
+    </header>
+
+    <!-- Announcements Grid -->
+    <main class="content">
+      <div class="grid">
+        {
+          announcements.map((a) => (
+            <AnnouncementCard
+              title={a.title}
+              content={a.content}
+              category={a.category}
+              icon={a.icon}
+              date={a.date}
+            />
+          ))
+        }
+      </div>
+    </main>
+
+    <!-- Footer -->
+    <footer class="footer">
+      <span class="footer-dot"></span>
+      <span class="footer-text">Live</span>
+    </footer>
+  </div>
+</Layout>
+
+<style>
+  .page {
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 32px 40px;
+  }
+
+  /* ===== Top Bar ===== */
+  .topbar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 48px;
+  }
+
+  .topbar-left {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+
+  .topbar-icon {
+    font-size: 32px;
+    color: #6750a4;
+  }
+
+  .topbar-title {
+    font-size: 1.5rem;
+    font-weight: 500;
+    color: #1c1b1f;
+  }
+
+  .topbar-right {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+  }
+
+  .topbar-time {
+    font-size: 2rem;
+    font-weight: 500;
+    color: #6750a4;
+    line-height: 1;
+  }
+
+  .topbar-date {
+    font-size: 0.85rem;
+    color: #79747e;
+    text-transform: capitalize;
+  }
+
+  /* ===== Content Grid ===== */
+  .content {
+    flex: 1;
+  }
+
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+    gap: 24px;
+  }
+
+  /* ===== Footer ===== */
+  .footer {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    padding-top: 40px;
+    padding-bottom: 16px;
+  }
+
+  .footer-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: #006c4c;
+    animation: pulse 2s infinite;
+  }
+
+  .footer-text {
+    font-size: 0.8rem;
+    font-weight: 500;
+    color: #79747e;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+  }
+
+  @keyframes pulse {
+    0%,
+    100% {
+      opacity: 1;
+    }
+    50% {
+      opacity: 0.4;
+    }
+  }
+</style>
