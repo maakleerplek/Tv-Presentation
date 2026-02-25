@@ -2,9 +2,9 @@
 import Layout from "../layouts/Layout.astro";
 import AnnouncementCard from "../components/AnnouncementCard.astro";
 
-// Fetch announcements from Java backend API
-// Falls back to sample data if the API is not available
-const API_URL = import.meta.env.API_BASE_URL || "http://localhost:8080";
+// Fetch events from Java Data-Fetcher API
+// Maps to the 'data-fetcher' service in docker-compose
+const FETCHER_URL = "http://localhost:8085";
 
 interface Announcement {
   id: string;
@@ -13,17 +13,29 @@ interface Announcement {
   category: string;
   icon: string;
   date: string;
+  imageUrl?: string;
+  location?: string;
 }
 
 let announcements: Announcement[] = [];
 
 try {
-  const response = await fetch(`${API_URL}/api/announcements`);
+  const response = await fetch(`${FETCHER_URL}/api/latest-event`);
   if (response.ok) {
-    announcements = await response.json();
+    const rawEvents = await response.json();
+    announcements = rawEvents.map((e: any, index: number) => ({
+      id: String(index),
+      title: e.title,
+      content: e.location ? `Location: ${e.location}` : "No details available",
+      category: "Event",
+      icon: "calendar_month",
+      date: e.date,
+      imageUrl: e.imageUrl,
+      location: e.location,
+    }));
   }
 } catch {
-  // API not available — use fallback data
+  // Data-Fetcher not available — use fallback data
 }
 
 // Fallback sample announcements
@@ -72,8 +84,8 @@ const dateString = now.toLocaleDateString("nl-BE", {
         <h1 class="topbar-title">Announcements</h1>
       </div>
       <div class="topbar-right">
-        <span class="topbar-time">{timeString}</span>
-        <span class="topbar-date">{dateString}</span>
+        <span id="live-time" class="topbar-time">{timeString}</span>
+        <span id="live-date" class="topbar-date">{dateString}</span>
       </div>
     </header>
 
@@ -88,6 +100,8 @@ const dateString = now.toLocaleDateString("nl-BE", {
               category={a.category}
               icon={a.icon}
               date={a.date}
+              imageUrl={a.imageUrl}
+              location={a.location}
             />
           ))
         }
@@ -101,6 +115,38 @@ const dateString = now.toLocaleDateString("nl-BE", {
     </footer>
   </div>
 </Layout>
+
+<script>
+  function updateClock() {
+    const now = new Date();
+
+    // Time format (nl-BE, Europe/Brussels)
+    const timeString = now.toLocaleTimeString("nl-BE", {
+      hour: "2-digit",
+      minute: "2-digit",
+      timeZone: "Europe/Brussels",
+    });
+
+    // Date format (nl-BE, Europe/Brussels)
+    const dateString = now.toLocaleDateString("nl-BE", {
+      weekday: "long",
+      day: "numeric",
+      month: "long",
+      year: "numeric",
+      timeZone: "Europe/Brussels",
+    });
+
+    const timeElement = document.getElementById("live-time");
+    const dateElement = document.getElementById("live-date");
+
+    if (timeElement) timeElement.textContent = timeString;
+    if (dateElement) dateElement.textContent = dateString;
+  }
+
+  // Update immediately and then every second
+  updateClock();
+  setInterval(updateClock, 1000);
+</script>
 
 <style>
   .page {

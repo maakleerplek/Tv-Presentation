@@ -1,28 +1,24 @@
 # ===== Build Stage =====
-FROM node:22-slim AS builder
+FROM node:22-alpine AS builder
 
 WORKDIR /app
 
+# Copy package files
 COPY package.json package-lock.json ./
 RUN npm ci
 
+# Copy project files
 COPY . .
 
-ENV API_BASE_URL="http://host.docker.internal:8080"
-
+# Build the Astro project
 RUN npm run build
 
 # ===== Production Stage =====
 FROM nginx:alpine AS production
 
-# Install openssl and generate self-signed cert (browser will show warning)
-RUN apk add --no-cache openssl && \
-    mkdir -p /etc/nginx/ssl && \
-    openssl req -x509 -nodes -days 3650 \
-    -newkey rsa:2048 \
-    -keyout /etc/nginx/ssl/key.pem \
-    -out /etc/nginx/ssl/cert.pem \
-    -subj "/CN=tv-presentation"
+# Set timezone
+ENV TZ=Europe/Brussels
+RUN apk add --no-cache tzdata
 
 # Copy built static files
 COPY --from=builder /app/dist /usr/share/nginx/html
@@ -30,6 +26,6 @@ COPY --from=builder /app/dist /usr/share/nginx/html
 # Copy nginx config
 COPY nginx.conf /etc/nginx/conf.d/default.conf
 
-EXPOSE 80 443
+EXPOSE 80
 
 CMD ["nginx", "-g", "daemon off;"]
