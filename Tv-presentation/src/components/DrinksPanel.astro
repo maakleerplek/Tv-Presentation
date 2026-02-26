@@ -1,0 +1,84 @@
+---
+import config from "../data/tv-config.json";
+
+export interface Props {
+  title?: string;
+}
+
+const d = config.drinks;
+const { title = d.title } = Astro.props;
+---
+
+<div class="flex flex-col h-full" id="drinks-panel">
+  <!-- Section Header -->
+  <div class="flex items-center gap-2 mb-3 px-1">
+    <span class="material-symbols-outlined text-primary text-2xl"
+      >local_bar</span
+    >
+    <div>
+      <h2 class="text-lg font-semibold text-text-primary leading-tight">
+        {title}
+      </h2>
+      {d.subtitle && <p class="text-xs text-text-tertiary">{d.subtitle}</p>}
+    </div>
+  </div>
+
+  <!-- Menu Items -->
+  <div class="flex-1 overflow-hidden mt-2">
+    <ul class="columns-2 gap-4">
+      {
+        d.items.map((item) => (
+          <li class="flex items-baseline gap-1.5 py-1.5 border-b border-border/40 break-inside-avoid">
+            <span class="text-sm flex-shrink-0 w-5 text-center">
+              {item.emoji || "•"}
+            </span>
+            <span class="text-sm font-medium text-text-primary whitespace-nowrap">
+              {item.name}
+            </span>
+            <span class="flex-1 border-b border-dotted border-border/60 relative -top-1 min-w-2" />
+            <span class="text-sm font-bold text-primary whitespace-nowrap">
+              {item.price}
+            </span>
+          </li>
+        ))
+      }
+    </ul>
+  </div>
+
+  <!-- Single QR Code -->
+  <div
+    class="mt-4 flex items-center bg-surface-variant/50 rounded-xl p-3 border border-border"
+  >
+    <div class="flex-1 pr-3">
+      <h3 class="text-sm font-semibold text-text-primary mb-1">
+        Dorst gekregen?
+      </h3>
+      <p class="text-xs text-text-secondary leading-snug">
+        Scan de code om het volledige aanbod te bekijken of te bestellen.
+      </p>
+    </div>
+    <div
+      class="w-16 h-16 flex-shrink-0 bg-surface rounded-lg p-1 shadow-sm border border-border"
+    >
+      <img
+        id="order-qr"
+        alt="Website QR"
+        class="w-full h-full object-contain"
+      />
+    </div>
+  </div>
+</div>
+
+<script
+  define:vars={{
+    orderUrl: d.qrOrderUrl,
+  }}
+>
+  document.addEventListener("DOMContentLoaded", () => {
+    const base =
+      "https://api.qrserver.com/v1/create-qr-code/?size=150x150&bgcolor=ffffff";
+    const oqr = document.getElementById("order-qr");
+    if (oqr && orderUrl)
+      oqr.src = `${base}&color=008080&data=${encodeURIComponent(orderUrl)}`;
+  });
+</script>

@@ -1,72 +1,90 @@
 ---
 import Layout from "../layouts/Layout.astro";
-import CalendarSlide from "../components/CalendarSlide.astro";
-import NewsSlide from "../components/NewsSlide.astro";
-import DrinksSlide from "../components/DrinksSlide.astro";
+import CalendarPanel from "../components/CalendarPanel.astro";
+import NewsCarousel from "../components/NewsCarousel.astro";
+import DrinksPanel from "../components/DrinksPanel.astro";
+import TipsBox from "../components/TipsBox.astro";
 import config from "../data/tv-config.json";
 ---
 
 <Layout>
-  <!-- ===== Top Bar with logo, name, clock ===== -->
-  <header class="top-bar">
-    <div class="brand">
+  <!-- ===== Top Bar ===== -->
+  <header
+    class="flex items-center justify-between px-8 py-3 bg-surface border-b border-border shadow-card relative z-10"
+  >
+    <div class="flex items-center gap-3">
       <img
         src="/maakleerplek-logo.png"
-        alt="Maakleerplek-HTL"
-        class="brand-logo animated-logo"
+        alt="Maakleerplek"
+        class="w-10 h-10 rounded-lg object-contain animate-pulse-gentle"
       />
-      <div class="brand-text">
-        <span class="brand-name">{config.branding.organizationName}</span>
-        <span class="brand-tagline">{config.branding.tagline}</span>
+      <div class="flex flex-col">
+        <span class="text-xl font-semibold text-primary tracking-tight"
+          >{config.branding.organizationName}</span
+        >
+        <span
+          class="text-[0.65rem] text-text-tertiary font-light uppercase tracking-widest"
+          >{config.branding.tagline}</span
+        >
       </div>
     </div>
-    <div class="header-right">
-      <div class="live-clock" id="live-clock"></div>
+    <div class="flex items-center gap-6">
+      <div
+        class="text-sm font-normal text-text-secondary capitalize"
+        id="live-clock"
+      >
+      </div>
     </div>
   </header>
 
-  <!-- ===== Swiper Slideshow ===== -->
-  <div class="swiper tv-swiper" id="tv-swiper">
-    <div class="swiper-wrapper">
-      <!-- Slide 1: Calendar (skeleton, populated by JS) -->
-      <div class="swiper-slide">
-        <CalendarSlide
-          events={[]}
-          title={config.calendar.title}
-          maxEvents={config.calendar.maxEventsToShow}
-        />
+  <!-- ===== Main Three-Panel Layout ===== -->
+  <main class="flex h-[calc(100vh-64px)] overflow-hidden">
+    <!-- Left Sidebar: Calendar -->
+    <aside
+      class="w-[18%] min-w-[220px] border-r border-border bg-surface p-4 overflow-hidden flex flex-col"
+    >
+      <CalendarPanel />
+    </aside>
+
+    <!-- Center: News Carousel -->
+    <section class="flex-1 bg-background p-4 overflow-hidden flex flex-col">
+      <NewsCarousel />
+    </section>
+
+    <!-- Right Sidebar: Drinks + Tips -->
+    <aside
+      class="w-[26%] min-w-[280px] border-l border-border bg-surface p-4 overflow-hidden flex flex-col"
+    >
+      <div class="flex-1 overflow-hidden">
+        <DrinksPanel />
       </div>
-
-      <!-- Slide 2: News (skeleton, populated by JS) -->
-      <div class="swiper-slide">
-        <NewsSlide
-          newsItems={[]}
-          title={config.news.title}
-          maxItems={config.news.maxItems}
-        />
+      <div class="mt-3">
+        <TipsBox />
       </div>
-
-      <!-- Slide 3: Drinks & QR -->
-      <div class="swiper-slide">
-        <DrinksSlide title={config.drinks.title} />
-      </div>
-    </div>
-
-    <!-- Pagination dots -->
-    <div class="swiper-pagination"></div>
-
-    <!-- Slide progress bar -->
-    <div class="slide-progress">
-      <div class="slide-progress-bar" id="slide-progress-bar"></div>
-    </div>
-  </div>
+    </aside>
+  </main>
 </Layout>
+
+<style>
+  @keyframes pulse-gentle {
+    0%,
+    100% {
+      transform: scale(1);
+    }
+    50% {
+      transform: scale(1.04);
+    }
+  }
+  .animate-pulse-gentle {
+    animation: pulse-gentle 4s ease-in-out infinite;
+  }
+</style>
 
 <script
   define:vars={{
-    intervalSeconds: config.slideshow.intervalSeconds,
-    transitionEffect: config.slideshow.transitionEffect,
-    autoRefreshMinutes: config.slideshow.autoRefreshMinutes,
+    intervalSeconds: config.carousel.intervalSeconds,
+    transitionSpeedMs: config.carousel.transitionSpeedMs,
+    autoRefreshMinutes: config.carousel.autoRefreshMinutes,
     apiBase: config.dataFetcher.browserBaseUrl,
     calendarEndpoint: config.dataFetcher.calendarEndpoint,
     newsEndpoint: config.dataFetcher.newsEndpoint,
@@ -92,39 +110,6 @@ import config from "../data/tv-config.json";
     updateClock();
     setInterval(updateClock, 1000);
 
-    // ── Swiper Init ─────────────────────────────────────────
-    const swiperEl = document.getElementById("tv-swiper");
-    if (swiperEl && typeof Swiper !== "undefined") {
-      const swiper = new Swiper("#tv-swiper", {
-        effect: transitionEffect,
-        fadeEffect: { crossFade: true },
-        loop: true,
-        speed: 800,
-        autoplay: {
-          delay: intervalSeconds * 1000,
-          disableOnInteraction: false,
-        },
-        pagination: {
-          el: ".swiper-pagination",
-          clickable: true,
-        },
-      });
-
-      // Progress bar animation
-      const progressBar = document.getElementById("slide-progress-bar");
-      if (progressBar) {
-        function resetProgress() {
-          progressBar.style.transition = "none";
-          progressBar.style.width = "0%";
-          void progressBar.offsetWidth;
-          progressBar.style.transition = `width ${intervalSeconds}s linear`;
-          progressBar.style.width = "100%";
-        }
-        resetProgress();
-        swiper.on("slideChange", resetProgress);
-      }
-    }
-
     // ── Auto Refresh ────────────────────────────────────────
     if (autoRefreshMinutes > 0) {
       setInterval(
@@ -135,10 +120,7 @@ import config from "../data/tv-config.json";
       );
     }
 
-    // ═══════════════════════════════════════════════════════
-    //  Client-Side Data Fetching & Rendering
-    // ═══════════════════════════════════════════════════════
-
+    // ── Utility functions ───────────────────────────────────
     const LOCATION_COLORS = {
       "high tech lab": "#0077B6",
       textiellab: "#E76F51",
@@ -152,12 +134,12 @@ import config from "../data/tv-config.json";
     };
 
     function getLocationColor(location) {
-      if (!location) return "var(--primary)";
+      if (!location) return "#008080";
       const lower = location.toLowerCase();
       for (const [key, color] of Object.entries(LOCATION_COLORS)) {
         if (lower.includes(key)) return color;
       }
-      return "var(--primary)";
+      return "#008080";
     }
 
     function formatDateHeader(dateText) {
@@ -169,8 +151,8 @@ import config from "../data/tv-config.json";
       const dayMatch = cleaned.match(/\w+\s+(\d+)\s+(\w+)/);
       if (dayMatch) {
         const day = parseInt(dayMatch[1], 10);
-        if (day === today.getDate()) return "Vandaag";
-        if (day === tomorrow.getDate()) return "Morgen";
+        if (day === today.getDate()) return "Today";
+        if (day === tomorrow.getDate()) return "Tomorrow";
       }
       return dateText.charAt(0).toUpperCase() + dateText.slice(1);
     }
@@ -187,135 +169,221 @@ import config from "../data/tv-config.json";
       return el.innerHTML;
     }
 
-    // ── Render Calendar ─────────────────────────────────────
+    // ══════════════════════════════════════════════════════════
+    //  Render Calendar Panel
+    // ══════════════════════════════════════════════════════════
     function renderCalendar(events) {
-      const slide = document.querySelector(".calendar-slide");
-      if (!slide) return;
-
-      // Remove existing dynamic content
-      const old = slide.querySelector(".timeline");
-      const empty = slide.querySelector(".empty-state");
-      if (old) old.remove();
-      if (empty) empty.remove();
+      const container = document.getElementById("calendar-events");
+      if (!container) return;
+      container.innerHTML = "";
 
       if (!events || events.length === 0) {
-        slide.insertAdjacentHTML(
-          "beforeend",
-          '<div class="empty-state"><span class="material-symbols-outlined empty-icon">event_busy</span><p>Geen komende evenementen gevonden</p></div>',
-        );
+        container.innerHTML =
+          '<div class="flex flex-col items-center justify-center h-full text-text-tertiary gap-2">' +
+          '<span class="material-symbols-outlined text-4xl">event_busy</span>' +
+          '<p class="text-sm">No upcoming events</p>' +
+          "</div>";
         return;
       }
 
-      // Group by date
-      const grouped = {};
-      for (const ev of events.slice(0, maxEvents)) {
-        const key = ev.date || "Onbekend";
-        if (!grouped[key]) grouped[key] = [];
-        grouped[key].push(ev);
-      }
+      const display = events.slice(0, maxEvents);
+      let html = "";
 
-      let html = '<div class="timeline">';
-      for (const [date, dayEvents] of Object.entries(grouped)) {
+      for (const ev of display) {
+        const color = getLocationColor(ev.location);
+        const dateLabel = ev.date ? formatDateHeader(ev.date) : "";
+
         html +=
-          '<div class="day-group"><div class="day-header"><div class="day-dot"></div><h3>' +
-          esc(formatDateHeader(date)) +
-          '</h3></div><div class="day-events">';
-        for (const ev of dayEvents) {
-          const color = getLocationColor(ev.location);
-          html += '<div class="event-card elevation-1">';
-          if (ev.imageUrl) {
-            html +=
-              '<div class="event-image-wrap"><img src="' +
-              esc(ev.imageUrl) +
-              '" alt="' +
-              esc(ev.title) +
-              '" class="event-image" loading="lazy" /></div>';
-          }
-          html += '<div class="event-content"><div class="event-top-row">';
-          if (ev.location) {
-            html +=
-              '<span class="location-badge" style="background:' +
-              color +
-              "15;color:" +
-              color +
-              ';"><span class="material-symbols-outlined badge-icon">location_on</span>' +
-              esc(ev.location) +
-              "</span>";
-          }
-          if (ev.time) {
-            html +=
-              '<span class="event-time"><span class="material-symbols-outlined badge-icon">schedule</span>' +
-              esc(ev.time) +
-              "</span>";
-          }
-          html += '</div><h4 class="event-title">' + esc(ev.title) + "</h4>";
-          if (ev.description) {
-            html +=
-              '<p class="event-description">' +
-              esc(truncate(ev.description, 120)) +
-              "</p>";
-          }
-          html += "</div></div>";
-        }
-        html += "</div></div>";
-      }
-      html += "</div>";
-      slide.insertAdjacentHTML("beforeend", html);
-    }
+          '<div class="bg-surface rounded-xl p-3 border border-border shadow-card hover:shadow-card-md transition-shadow">' +
+          '<div class="flex items-center gap-2 mb-1.5 flex-wrap">';
 
-    // ── Render News ─────────────────────────────────────────
-    function renderNews(items) {
-      const slide = document.querySelector(".news-slide");
-      if (!slide) return;
-
-      const grid = slide.querySelector(".news-grid");
-      const empty = slide.querySelector(".empty-state");
-      if (grid) grid.remove();
-      if (empty) empty.remove();
-
-      const display = (items || []).slice(0, maxNews);
-
-      if (display.length === 0) {
-        slide.insertAdjacentHTML(
-          "beforeend",
-          '<div class="empty-state"><span class="material-symbols-outlined empty-icon">article</span><p>Geen recent nieuws gevonden</p></div>',
-        );
-        return;
-      }
-
-      let html = '<div class="news-grid">';
-      display.forEach((item, i) => {
-        const feat = i === 0 ? " featured" : "";
-        html += '<article class="news-card elevation-2' + feat + '">';
-        if (item.imageUrl) {
+        if (dateLabel) {
           html +=
-            '<div class="news-image-wrap"><img src="' +
-            esc(item.imageUrl) +
-            '" alt="' +
-            esc(item.title) +
-            '" class="news-image" loading="lazy" /><div class="image-gradient"></div></div>';
-        }
-        html += '<div class="news-content">';
-        if (item.date) {
-          html +=
-            '<span class="news-date"><span class="material-symbols-outlined date-icon">calendar_today</span>' +
-            esc(item.date) +
+            '<span class="text-[0.65rem] font-semibold text-primary uppercase tracking-wider">' +
+            esc(dateLabel) +
             "</span>";
         }
-        html += '<h3 class="news-title">' + esc(item.title) + "</h3>";
-        if (item.description) {
+        if (ev.time) {
           html +=
-            '<p class="news-description">' +
-            esc(truncate(item.description, 150)) +
-            "</p>";
+            '<span class="text-[0.65rem] text-text-tertiary flex items-center gap-0.5">' +
+            '<span class="material-symbols-outlined text-xs">schedule</span>' +
+            esc(ev.time) +
+            "</span>";
         }
-        html += "</div></article>";
-      });
-      html += "</div>";
-      slide.insertAdjacentHTML("beforeend", html);
+
+        html +=
+          "</div>" +
+          '<h4 class="text-sm font-medium text-text-primary leading-snug mb-1">' +
+          esc(truncate(ev.title, 60)) +
+          "</h4>";
+
+        if (ev.location) {
+          html +=
+            '<span class="inline-flex items-center gap-0.5 text-[0.6rem] font-medium px-1.5 py-0.5 rounded-full" style="background:' +
+            color +
+            "12;color:" +
+            color +
+            ';">' +
+            '<span class="material-symbols-outlined text-xs">location_on</span>' +
+            esc(ev.location) +
+            "</span>";
+        }
+
+        html += "</div>";
+      }
+
+      container.innerHTML = html;
     }
 
-    // ── Fetch Data from API ─────────────────────────────────
+    // ══════════════════════════════════════════════════════════
+    //  Render News Carousel
+    // ══════════════════════════════════════════════════════════
+    let currentSlide = 0;
+    let newsItems = [];
+    let carouselInterval = null;
+
+    function createSlideHtml(item) {
+      const imageHtml = item.imageUrl
+        ? '<img src="' +
+          esc(item.imageUrl) +
+          '" alt="' +
+          esc(item.title) +
+          '" class="w-full h-full object-cover" loading="lazy" />'
+        : '<div class="w-full h-full flex items-center justify-center bg-surface-variant">' +
+          '<img src="/htl-logo.svg" alt="HTL Logo" class="w-24 h-24 opacity-30" />' +
+          "</div>";
+
+      return (
+        '<div class="bg-surface rounded-2xl shadow-card-md border border-border w-full max-w-2xl h-[80%] flex overflow-hidden">' +
+        '<div class="w-2/5 flex-shrink-0 overflow-hidden bg-surface-variant">' +
+        imageHtml +
+        "</div>" +
+        '<div class="flex-1 p-6 flex flex-col justify-center">' +
+        (item.date
+          ? '<span class="text-xs text-text-tertiary uppercase tracking-wider flex items-center gap-1 mb-2">' +
+            '<span class="material-symbols-outlined text-sm">calendar_today</span>' +
+            esc(item.date) +
+            "</span>"
+          : "") +
+        '<h3 class="text-lg font-semibold text-text-primary leading-snug mb-3">' +
+        esc(item.title) +
+        "</h3>" +
+        (item.description
+          ? '<p class="text-sm text-text-secondary leading-relaxed">' +
+            esc(truncate(item.description, 200)) +
+            "</p>"
+          : "") +
+        "</div>" +
+        "</div>"
+      );
+    }
+
+    function renderNewsCarousel(items) {
+      const viewport = document.getElementById("carousel-viewport");
+      const dotsContainer = document.getElementById("carousel-dots");
+      if (!viewport || !dotsContainer) return;
+
+      newsItems = (items || []).slice(0, maxNews);
+
+      if (newsItems.length === 0) {
+        viewport.innerHTML =
+          '<div class="flex flex-col items-center justify-center h-full text-text-tertiary gap-2">' +
+          '<span class="material-symbols-outlined text-5xl">article</span>' +
+          '<p class="text-base">No recent news found</p>' +
+          "</div>";
+        dotsContainer.innerHTML = "";
+        return;
+      }
+
+      // Create slides
+      let slidesHtml = "";
+      for (let i = 0; i < newsItems.length; i++) {
+        const state =
+          i === 0
+            ? "active"
+            : i === newsItems.length - 1
+              ? "prev"
+              : i === 1
+                ? "next"
+                : "hidden";
+        slidesHtml +=
+          '<div class="carousel-slide" data-state="' +
+          state +
+          '" data-index="' +
+          i +
+          '">' +
+          createSlideHtml(newsItems[i]) +
+          "</div>";
+      }
+      viewport.innerHTML = slidesHtml;
+
+      // Create dots
+      let dotsHtml = "";
+      for (let i = 0; i < newsItems.length; i++) {
+        const activeClass = i === 0 ? "w-6 bg-primary" : "w-2 bg-primary/30";
+        dotsHtml +=
+          '<button class="h-2 rounded-full transition-all duration-500 ' +
+          activeClass +
+          '" data-dot="' +
+          i +
+          '"></button>';
+      }
+      dotsContainer.innerHTML = dotsHtml;
+
+      // Start auto-advance
+      currentSlide = 0;
+      startCarousel();
+    }
+
+    function updateSlideStates() {
+      const slides = document.querySelectorAll(".carousel-slide");
+      const dots = document.querySelectorAll("[data-dot]");
+
+      slides.forEach((slide) => {
+        const idx = parseInt(slide.getAttribute("data-index"));
+        const total = newsItems.length;
+
+        const prevIdx = (currentSlide - 1 + total) % total;
+        const nextIdx = (currentSlide + 1) % total;
+
+        if (idx === currentSlide) {
+          slide.setAttribute("data-state", "active");
+        } else if (idx === prevIdx) {
+          slide.setAttribute("data-state", "prev");
+        } else if (idx === nextIdx) {
+          slide.setAttribute("data-state", "next");
+        } else {
+          slide.setAttribute("data-state", "hidden");
+        }
+      });
+
+      dots.forEach((dot) => {
+        const idx = parseInt(dot.getAttribute("data-dot"));
+        if (idx === currentSlide) {
+          dot.className =
+            "h-2 rounded-full transition-all duration-500 w-6 bg-primary";
+        } else {
+          dot.className =
+            "h-2 rounded-full transition-all duration-500 w-2 bg-primary/30";
+        }
+      });
+    }
+
+    function advanceSlide() {
+      currentSlide = (currentSlide + 1) % newsItems.length;
+      updateSlideStates();
+    }
+
+    function startCarousel() {
+      if (carouselInterval) clearInterval(carouselInterval);
+      if (newsItems.length > 1) {
+        carouselInterval = setInterval(advanceSlide, intervalSeconds * 1000);
+      }
+    }
+
+    // ══════════════════════════════════════════════════════════
+    //  Fetch Data
+    // ══════════════════════════════════════════════════════════
     async function fetchData() {
       try {
         const calRes = await fetch(apiBase + calendarEndpoint);
@@ -326,7 +394,7 @@ import config from "../data/tv-config.json";
 
       try {
         const newsRes = await fetch(apiBase + newsEndpoint);
-        if (newsRes.ok) renderNews(await newsRes.json());
+        if (newsRes.ok) renderNewsCarousel(await newsRes.json());
       } catch (e) {
         console.warn("[TV] News fetch failed:", e.message);
       }
@@ -335,119 +403,3 @@ import config from "../data/tv-config.json";
     fetchData();
   });
 </script>
-
-<style>
-  /* ===== Top Bar ===== */
-  .top-bar {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: 16px 48px;
-    background: var(--surface);
-    border-bottom: 1px solid var(--border-light);
-    box-shadow: var(--shadow-sm);
-    position: relative;
-    z-index: 10;
-  }
-
-  .brand {
-    display: flex;
-    align-items: center;
-    gap: 14px;
-  }
-
-  .brand-logo {
-    width: 44px;
-    height: 44px;
-    border-radius: var(--radius-sm);
-    object-fit: contain;
-  }
-
-  .brand-text {
-    display: flex;
-    flex-direction: column;
-  }
-
-  .brand-name {
-    font-size: 1.5rem;
-    font-weight: 500;
-    color: var(--primary);
-    letter-spacing: -0.02em;
-  }
-
-  .brand-tagline {
-    font-size: 0.8rem;
-    color: var(--text-tertiary);
-    font-weight: 300;
-    text-transform: uppercase;
-    letter-spacing: 0.1em;
-  }
-
-  .live-clock {
-    font-size: 1.15rem;
-    font-weight: 400;
-    color: var(--text-secondary);
-    text-transform: capitalize;
-  }
-
-  .header-right {
-    display: flex;
-    align-items: center;
-    gap: 28px;
-  }
-
-  .htl-logo {
-    height: 36px;
-    width: auto;
-    filter: brightness(0) saturate(100%) invert(36%) sepia(99%) saturate(500%)
-      hue-rotate(154deg);
-    opacity: 0.7;
-  }
-
-  /* Subtle pulse animation on the maakleerplek cube logo */
-  .animated-logo {
-    animation: gentle-pulse 4s ease-in-out infinite;
-  }
-
-  @keyframes gentle-pulse {
-    0%,
-    100% {
-      transform: scale(1);
-    }
-    50% {
-      transform: scale(1.05);
-    }
-  }
-
-  /* ===== Swiper Overrides ===== */
-  .tv-swiper {
-    height: calc(100vh - 78px);
-  }
-
-  .tv-swiper .swiper-slide {
-    padding-top: 28px;
-  }
-
-  /* ===== Slide Progress Bar ===== */
-  .slide-progress {
-    position: absolute;
-    bottom: 0;
-    left: 0;
-    right: 0;
-    height: 3px;
-    background: rgba(0, 0, 0, 0.05);
-    z-index: 20;
-  }
-
-  .slide-progress-bar {
-    height: 100%;
-    width: 0%;
-    background: linear-gradient(90deg, var(--primary), var(--primary-light));
-    border-radius: 0 2px 2px 0;
-  }
-
-  /* Bottom padding for pagination */
-  .tv-swiper .swiper-pagination {
-    bottom: 12px !important;
-  }
-</style>

@@ -1,7 +1,7 @@
 {
-    "slideshow": {
-        "intervalSeconds": 50,
-        "transitionEffect": "fade",
+    "carousel": {
+        "intervalSeconds": 12,
+        "transitionSpeedMs": 800,
         "autoRefreshMinutes": 30
     },
     "branding": {
@@ -11,30 +11,29 @@
         "textPrimary": "#1C1B1F",
         "textSecondary": "#49454F",
         "organizationName": "maakleerplek",
-        "tagline": "Samen Leren Maken"
+        "tagline": "LEARNING & MAKING TOGETHER"
     },
     "calendar": {
-        "maxEventsToShow": 8,
-        "showDescription": true,
-        "title": "Kalender"
+        "maxEventsToShow": 3,
+        "showDescription": false,
+        "title": "Upcoming Events"
     },
     "news": {
-        "maxItems": 4,
+        "maxItems": 6,
         "maxAgeDays": 14,
-        "title": "Nieuws"
+        "title": "News"
     },
     "drinks": {
-        "title": "Drankenkaart",
-        "subtitle": "Geniet van een drankje in de kantine!",
-        "infoText": "Betaal aan de toog of scan de QR-code om online te bestellen. Welkom bij maakleerplek — samen leren, maken én genieten! 🎉",
+        "title": "Drinks Menu",
+        "subtitle": "Enjoy a drink!",
         "items": [
             {
-                "name": "Koffie",
+                "name": "Coffee",
                 "price": "€1.50",
                 "emoji": "☕"
             },
             {
-                "name": "Thee",
+                "name": "Tea",
                 "price": "€1.50",
                 "emoji": "🍵"
             },
@@ -64,25 +63,37 @@
                 "emoji": "🍺"
             },
             {
-                "name": "Wijn (rood/wit)",
+                "name": "Wine (red/white)",
                 "price": "€3.00",
                 "emoji": "🍷"
             },
             {
-                "name": "Chocomelk",
+                "name": "Chocolate Milk",
                 "price": "€2.00",
                 "emoji": "🍫"
             },
             {
-                "name": "Verse jus",
+                "name": "Fresh Juice",
                 "price": "€2.50",
                 "emoji": "🍊"
             }
         ],
         "qrOrderUrl": "https://maakleerplek.be",
-        "qrOrderLabel": "Meer info",
+        "qrOrderLabel": "More info",
         "qrPayconiqUrl": "https://payconiq.com/merchant/maakleerplek",
-        "qrPayconiqLabel": "Betaal met Payconiq"
+        "qrPayconiqLabel": "Pay with Payconiq"
+    },
+    "tips": {
+        "title": "Tip",
+        "intervalSeconds": 10,
+        "items": [
+            "Did you know you can use our 3D printer for free? Ask at the front desk!",
+            "Do you have a broken device? Bring it to the Electro Repair Hub!",
+            "Every month we organize a guided tour — check the calendar!",
+            "You can also co-work here in an inspiring environment.",
+            "Our laser cutter is at your disposal. Book a time slot via the website.",
+            "Follow us on Instagram for the latest updates and workshops!"
+        ]
     },
     "dataFetcher": {
         "baseUrl": "http://data-fetcher:8080",

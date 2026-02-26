@@ -1,0 +1,92 @@
+---
+import config from "../data/tv-config.json";
+
+export interface Props {
+  title?: string;
+}
+
+const { title = config.news.title } = Astro.props;
+---
+
+<div class="flex flex-col h-full" id="news-carousel-container">
+  <!-- Section Header -->
+  <div class="flex items-center gap-2 mb-4 px-1">
+    <span class="material-symbols-outlined text-primary text-3xl"
+      >newspaper</span
+    >
+    <h2 class="text-xl font-semibold text-text-primary">{title}</h2>
+  </div>
+
+  <!-- Carousel Area -->
+  <div class="flex-1 relative overflow-hidden" id="carousel-viewport">
+    <!-- Slides will be dynamically injected here -->
+    <div class="flex items-center justify-center h-full" id="carousel-track">
+      <!-- Skeleton slide -->
+      <div class="w-full h-full flex items-center justify-center">
+        <div
+          class="bg-surface rounded-2xl shadow-card-md border border-border w-full max-w-2xl h-[80%] flex overflow-hidden animate-pulse"
+        >
+          <div class="w-2/5 bg-surface-variant"></div>
+          <div class="flex-1 p-8 flex flex-col justify-center gap-4">
+            <div class="h-3 bg-border rounded w-24"></div>
+            <div class="h-6 bg-border rounded w-full"></div>
+            <div class="h-4 bg-border rounded w-3/4"></div>
+            <div class="h-4 bg-border rounded w-1/2"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Progress indicator -->
+  <div class="flex items-center justify-center gap-2 mt-3" id="carousel-dots">
+    <!-- Dots injected by JS -->
+  </div>
+</div>
+
+<style>
+  /* Carousel slide states */
+  .carousel-slide {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition:
+      transform 0.8s cubic-bezier(0.4, 0, 0.2, 1),
+      opacity 0.8s cubic-bezier(0.4, 0, 0.2, 1),
+      filter 0.8s cubic-bezier(0.4, 0, 0.2, 1);
+    will-change: transform, opacity, filter;
+  }
+
+  .carousel-slide[data-state="active"] {
+    transform: translateX(0) scale(1);
+    opacity: 1;
+    filter: blur(0);
+    z-index: 3;
+  }
+
+  .carousel-slide[data-state="prev"] {
+    transform: translateX(-75%) scale(0.8);
+    opacity: 0.5;
+    filter: blur(4px);
+    z-index: 2;
+  }
+
+  .carousel-slide[data-state="next"] {
+    transform: translateX(75%) scale(0.8);
+    opacity: 0.5;
+    filter: blur(4px);
+    z-index: 2;
+  }
+
+  .carousel-slide[data-state="hidden"] {
+    transform: translateX(100%) scale(0.7);
+    opacity: 0;
+    filter: blur(8px);
+    z-index: 1;
+  }
+</style>

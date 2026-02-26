@@ -1,0 +1,42 @@
+---
+import config from "../data/tv-config.json";
+
+export interface Props {
+  title?: string;
+  maxEvents?: number;
+}
+
+const {
+  title = config.calendar.title,
+  maxEvents = config.calendar.maxEventsToShow,
+} = Astro.props;
+---
+
+<div class="flex flex-col h-full" id="calendar-panel">
+  <!-- Section Header -->
+  <div class="flex items-center gap-2 mb-4 px-1">
+    <span class="material-symbols-outlined text-primary text-2xl"
+      >calendar_month</span
+    >
+    <h2 class="text-lg font-semibold text-text-primary">{title}</h2>
+  </div>
+
+  <!-- Events List (populated by JS) -->
+  <div class="flex-1 flex flex-col gap-3 overflow-hidden" id="calendar-events">
+    <!-- Skeleton placeholders -->
+    {
+      Array.from({ length: maxEvents }).map(() => (
+        <div class="bg-surface-variant rounded-xl p-3 animate-pulse">
+          <div class="h-3 bg-border rounded w-20 mb-2" />
+          <div class="h-4 bg-border rounded w-full mb-1" />
+          <div class="h-3 bg-border rounded w-16" />
+        </div>
+      ))
+    }
+  </div>
+</div>
+
+<script define:vars={{ maxEvents }}>
+  // Calendar rendering is handled by the parent index.astro
+  // This component just provides the skeleton structure
+</script>
