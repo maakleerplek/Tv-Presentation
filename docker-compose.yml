@@ -16,5 +16,7 @@ services:
       dockerfile: Dockerfile
     container_name: tv-data-fetcher
     restart: unless-stopped
+    env_file:
+      - .env
     ports:
       - "8085:8080"

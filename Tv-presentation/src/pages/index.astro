@@ -5,6 +5,9 @@ import NewsCarousel from "../components/NewsCarousel.astro";
 import DrinksPanel from "../components/DrinksPanel.astro";
 import TipsBox from "../components/TipsBox.astro";
 import config from "../data/tv-config.json";
+
+const apiIp = import.meta.env.API_IP || "";
+const browserBaseUrl = "/api";
 ---
 
 <Layout>
@@ -85,9 +88,10 @@ import config from "../data/tv-config.json";
     intervalSeconds: config.carousel.intervalSeconds,
     transitionSpeedMs: config.carousel.transitionSpeedMs,
     autoRefreshMinutes: config.carousel.autoRefreshMinutes,
-    apiBase: config.dataFetcher.browserBaseUrl,
-    calendarEndpoint: config.dataFetcher.calendarEndpoint,
-    newsEndpoint: config.dataFetcher.newsEndpoint,
+    apiBase: browserBaseUrl,
+    calendarEndpoint: "/calendar",
+    newsEndpoint: "/news",
+    drinksEndpoint: "/drinks",
     maxEvents: config.calendar.maxEventsToShow,
     maxNews: config.news.maxItems,
   }}
@@ -169,6 +173,13 @@ import config from "../data/tv-config.json";
       return el.innerHTML;
     }
 
+    function stripHtml(html) {
+      if (!html) return "";
+      const tmp = document.createElement("DIV");
+      tmp.innerHTML = html;
+      return tmp.textContent || tmp.innerText || "";
+    }
+
     // ══════════════════════════════════════════════════════════
     //  Render Calendar Panel
     // ══════════════════════════════════════════════════════════
@@ -194,37 +205,32 @@ import config from "../data/tv-config.json";
         const dateLabel = ev.date ? formatDateHeader(ev.date) : "";
 
         html +=
-          '<div class="bg-surface rounded-xl p-3 border border-border shadow-card hover:shadow-card-md transition-shadow">' +
-          '<div class="flex items-center gap-2 mb-1.5 flex-wrap">';
+          '<div class="bg-surface rounded-md px-2 py-1.5 border border-border/80 shadow-sm transition-all mb-1.5">' +
+          '<div class="flex items-center justify-between gap-1 mb-0.5 flex-wrap">';
 
         if (dateLabel) {
           html +=
-            '<span class="text-[0.65rem] font-semibold text-primary uppercase tracking-wider">' +
+            '<span class="text-[0.55rem] font-bold text-primary uppercase tracking-tighter">' +
             esc(dateLabel) +
             "</span>";
         }
         if (ev.time) {
           html +=
-            '<span class="text-[0.65rem] text-text-tertiary flex items-center gap-0.5">' +
-            '<span class="material-symbols-outlined text-xs">schedule</span>' +
+            '<span class="text-[0.55rem] text-text-tertiary font-bold">' +
             esc(ev.time) +
             "</span>";
         }
 
         html +=
           "</div>" +
-          '<h4 class="text-sm font-medium text-text-primary leading-snug mb-1">' +
-          esc(truncate(ev.title, 60)) +
+          '<h4 class="text-[0.75rem] font-medium text-text-primary leading-tight mb-1 truncate">' +
+          esc(ev.title) +
           "</h4>";
 
         if (ev.location) {
           html +=
-            '<span class="inline-flex items-center gap-0.5 text-[0.6rem] font-medium px-1.5 py-0.5 rounded-full" style="background:' +
-            color +
-            "12;color:" +
-            color +
-            ';">' +
-            '<span class="material-symbols-outlined text-xs">location_on</span>' +
+            '<span class="inline-flex items-center gap-0.5 text-[0.5rem] font-medium px-1 rounded-sm py-0 bg-surface-variant text-text-tertiary">' +
+            '<span class="material-symbols-outlined text-[0.6rem]">location_on</span>' +
             esc(ev.location) +
             "</span>";
         }
@@ -250,27 +256,31 @@ import config from "../data/tv-config.json";
           esc(item.title) +
           '" class="w-full h-full object-cover" loading="lazy" />'
         : '<div class="w-full h-full flex items-center justify-center bg-surface-variant">' +
-          '<img src="/htl-logo.svg" alt="HTL Logo" class="w-24 h-24 opacity-30" />' +
+          '<span class="material-symbols-outlined text-border text-6xl">newspaper</span>' +
           "</div>";
 
       return (
-        '<div class="bg-surface rounded-2xl shadow-card-md border border-border w-full max-w-2xl h-[80%] flex overflow-hidden">' +
-        '<div class="w-2/5 flex-shrink-0 overflow-hidden bg-surface-variant">' +
+        '<div class="bg-surface rounded-2xl shadow-card w-full h-full flex flex-row p-8 gap-10 overflow-hidden">' +
+        // Left Column: Image + Date
+        '<div class="w-[45%] flex flex-col gap-4 flex-shrink-0">' +
+        '<div class="flex-1 rounded-2xl overflow-hidden bg-surface-variant relative shadow-sm">' +
         imageHtml +
         "</div>" +
-        '<div class="flex-1 p-6 flex flex-col justify-center">' +
         (item.date
-          ? '<span class="text-xs text-text-tertiary uppercase tracking-wider flex items-center gap-1 mb-2">' +
-            '<span class="material-symbols-outlined text-sm">calendar_today</span>' +
+          ? '<div class="text-base font-medium text-text-secondary flex items-center gap-2 pl-2">' +
+            '<span class="material-symbols-outlined text-xl">calendar_today</span>' +
             esc(item.date) +
-            "</span>"
+            "</div>"
           : "") +
-        '<h3 class="text-lg font-semibold text-text-primary leading-snug mb-3">' +
-        esc(item.title) +
+        "</div>" +
+        // Right Column: Title + Description
+        '<div class="flex-1 flex flex-col justify-center overflow-hidden py-4">' +
+        '<h3 class="text-3xl font-bold text-text-primary leading-tight mb-6">' +
+        esc(truncate(item.title, 100)) +
         "</h3>" +
         (item.description
-          ? '<p class="text-sm text-text-secondary leading-relaxed">' +
-            esc(truncate(item.description, 200)) +
+          ? '<p class="text-lg text-text-secondary leading-relaxed line-clamp-6">' +
+            esc(truncate(stripHtml(item.description), 500)) +
             "</p>"
           : "") +
         "</div>" +
@@ -280,8 +290,7 @@ import config from "../data/tv-config.json";
 
     function renderNewsCarousel(items) {
       const viewport = document.getElementById("carousel-viewport");
-      const dotsContainer = document.getElementById("carousel-dots");
-      if (!viewport || !dotsContainer) return;
+      if (!viewport) return;
 
       newsItems = (items || []).slice(0, maxNews);
 
@@ -291,82 +300,53 @@ import config from "../data/tv-config.json";
           '<span class="material-symbols-outlined text-5xl">article</span>' +
           '<p class="text-base">No recent news found</p>' +
           "</div>";
-        dotsContainer.innerHTML = "";
         return;
       }
 
       // Create slides
       let slidesHtml = "";
       for (let i = 0; i < newsItems.length; i++) {
-        const state =
-          i === 0
-            ? "active"
-            : i === newsItems.length - 1
-              ? "prev"
-              : i === 1
-                ? "next"
-                : "hidden";
         slidesHtml +=
-          '<div class="carousel-slide" data-state="' +
-          state +
-          '" data-index="' +
+          '<div class="carousel-slide" data-state="hidden" data-index="' +
           i +
           '">' +
           createSlideHtml(newsItems[i]) +
           "</div>";
       }
-      viewport.innerHTML = slidesHtml;
+      viewport.innerHTML =
+        '<div class="carousel-3d-stage" id="carousel-track">' +
+        slidesHtml +
+        "</div>";
 
-      // Create dots
-      let dotsHtml = "";
-      for (let i = 0; i < newsItems.length; i++) {
-        const activeClass = i === 0 ? "w-6 bg-primary" : "w-2 bg-primary/30";
-        dotsHtml +=
-          '<button class="h-2 rounded-full transition-all duration-500 ' +
-          activeClass +
-          '" data-dot="' +
-          i +
-          '"></button>';
-      }
-      dotsContainer.innerHTML = dotsHtml;
-
-      // Start auto-advance
+      // Set initial states
       currentSlide = 0;
+      updateSlideStates();
       startCarousel();
     }
 
     function updateSlideStates() {
       const slides = document.querySelectorAll(".carousel-slide");
-      const dots = document.querySelectorAll("[data-dot]");
+      const total = newsItems.length;
 
       slides.forEach((slide) => {
         const idx = parseInt(slide.getAttribute("data-index"));
-        const total = newsItems.length;
-
-        const prevIdx = (currentSlide - 1 + total) % total;
-        const nextIdx = (currentSlide + 1) % total;
 
         if (idx === currentSlide) {
+          // The slide that is currently showing
           slide.setAttribute("data-state", "active");
-        } else if (idx === prevIdx) {
+        } else if (idx === (currentSlide - 1 + total) % total) {
+          // The slide that just finished showing (moves left)
           slide.setAttribute("data-state", "prev");
-        } else if (idx === nextIdx) {
+        } else if (idx === (currentSlide + 1) % total) {
+          // The slide that will show next (staged on the right)
           slide.setAttribute("data-state", "next");
         } else {
+          // All other slides hidden
           slide.setAttribute("data-state", "hidden");
         }
       });
 
-      dots.forEach((dot) => {
-        const idx = parseInt(dot.getAttribute("data-dot"));
-        if (idx === currentSlide) {
-          dot.className =
-            "h-2 rounded-full transition-all duration-500 w-6 bg-primary";
-        } else {
-          dot.className =
-            "h-2 rounded-full transition-all duration-500 w-2 bg-primary/30";
-        }
-      });
+      resetProgressBar();
     }
 
     function advanceSlide() {
@@ -374,30 +354,143 @@ import config from "../data/tv-config.json";
       updateSlideStates();
     }
 
+    // --- Manual Transition Polling ---
+    let lastTransitionTime = 0;
+    async function checkManualTransition() {
+      try {
+        const res = await fetch(apiBase + "/api/transition/check");
+        if (res.ok) {
+          const data = await res.json();
+          if (lastTransitionTime === 0) {
+            lastTransitionTime = data.forceTransitionTime;
+          } else if (data.forceTransitionTime > lastTransitionTime) {
+            lastTransitionTime = data.forceTransitionTime;
+            advanceSlide();
+          }
+        }
+      } catch (e) {
+        // silently ignore fetch errors for the manual trigger
+      }
+    }
+
+    // Check every 2 seconds for a manual transition trigger
+    setInterval(checkManualTransition, 2000);
+
+    let progressAnimFrame;
+    let slideStartTime;
+
+    function resetProgressBar() {
+      const bar = document.getElementById("news-progress-bar");
+      if (!bar) return;
+
+      if (progressAnimFrame) cancelAnimationFrame(progressAnimFrame);
+
+      slideStartTime = Date.now();
+      const durationMs = intervalSeconds * 1000;
+
+      function updateProgress() {
+        const elapsed = Date.now() - slideStartTime;
+        let p = Math.min((elapsed / durationMs) * 100, 100);
+        bar.style.width = p + "%";
+
+        if (elapsed < durationMs) {
+          progressAnimFrame = requestAnimationFrame(updateProgress);
+        }
+      }
+
+      progressAnimFrame = requestAnimationFrame(updateProgress);
+    }
+
     function startCarousel() {
       if (carouselInterval) clearInterval(carouselInterval);
       if (newsItems.length > 1) {
+        resetProgressBar();
         carouselInterval = setInterval(advanceSlide, intervalSeconds * 1000);
       }
     }
 
     // ══════════════════════════════════════════════════════════
-    //  Fetch Data
+    //  Render Drinks Panel
     // ══════════════════════════════════════════════════════════
-    async function fetchData() {
-      try {
-        const calRes = await fetch(apiBase + calendarEndpoint);
-        if (calRes.ok) renderCalendar(await calRes.json());
-      } catch (e) {
-        console.warn("[TV] Calendar fetch failed:", e.message);
+    function renderDrinks(drinks) {
+      const container = document.getElementById("drinks-list");
+      if (!container) return;
+      container.innerHTML = "";
+
+      if (!drinks || drinks.length === 0) {
+        container.innerHTML =
+          '<li class="flex flex-col items-center justify-center h-full text-text-tertiary gap-2 py-4">' +
+          '<span class="material-symbols-outlined text-4xl">local_bar</span>' +
+          '<p class="text-sm">Menu unavailable</p>' +
+          "</li>";
+        return;
       }
 
-      try {
-        const newsRes = await fetch(apiBase + newsEndpoint);
-        if (newsRes.ok) renderNewsCarousel(await newsRes.json());
-      } catch (e) {
-        console.warn("[TV] News fetch failed:", e.message);
+      let html = "";
+      for (const item of drinks) {
+        // Fallback for missing/broken images: A generic icon.
+        // Also added an onerror handler to fallback gracefully if image fails to load.
+        const imageHtml = item.imageUrl
+          ? '<img src="' +
+            esc(item.imageUrl) +
+            '" onerror="this.outerHTML=\'<div class=\\\'w-8 h-8 flex-shrink-0 rounded-md bg-surface-variant border border-border/50 flex flex-col items-center justify-center\\\'><span class=\\\'material-symbols-outlined text-sm text-text-tertiary\\\'>local_bar</span></div>\'" class="w-8 h-8 flex-shrink-0 rounded-md object-cover border border-border/50 bg-white" alt="drink" />'
+          : '<div class="w-8 h-8 flex-shrink-0 rounded-md bg-surface-variant border border-border/50 flex flex-col items-center justify-center"><span class="material-symbols-outlined text-sm text-text-tertiary">local_bar</span></div>';
+
+        const stockHtml =
+          item.stock > 0
+            ? '<span class="text-[0.6rem] px-1 py-0.5 rounded-sm text-white bg-primary whitespace-nowrap">' +
+              parseInt(item.stock) +
+              " in stock</span>"
+            : '<span class="text-[0.6rem] px-1 py-0.5 rounded-sm text-white bg-error whitespace-nowrap">Out of stock</span>';
+
+        html +=
+          '<li class="flex items-start gap-3 py-2 border-b border-border/40 break-inside-avoid w-full">' +
+          imageHtml +
+          '<div class="flex-1 min-w-0 flex flex-col">' +
+          '<div class="flex items-baseline justify-between gap-1 w-full">' +
+          '<span class="text-sm font-semibold text-text-primary truncate">' +
+          esc(item.name) +
+          "</span>" +
+          '<span class="text-sm font-bold text-primary whitespace-nowrap">' +
+          esc(item.price) +
+          "</span>" +
+          "</div>" +
+          '<div class="mt-1 flex items-center">' +
+          stockHtml +
+          "</div>" +
+          "</div>" +
+          "</li>";
       }
+
+      container.innerHTML = html;
+    }
+
+    // ══════════════════════════════════════════════════════════
+    //  Fetch Data (Parallel execution for faster load)
+    // ══════════════════════════════════════════════════════════
+    async function fetchData() {
+      const drinksEndpoint = "/api/drinks";
+
+      Promise.allSettled([
+        fetch(apiBase + calendarEndpoint).then(async (res) => {
+          if (res.ok) renderCalendar(await res.json());
+          else throw new Error("Calendar fetch failed");
+        }),
+        fetch(apiBase + newsEndpoint).then(async (res) => {
+          if (res.ok) renderNewsCarousel(await res.json());
+          else throw new Error("News fetch failed");
+        }),
+        fetch(apiBase + drinksEndpoint).then(async (res) => {
+          if (res.ok) renderDrinks(await res.json());
+          else throw new Error("Drinks fetch failed");
+        }),
+      ]).then((results) => {
+        results.forEach((r, idx) => {
+          if (r.status === "rejected") {
+            console.warn(`[TV] Fetch ${idx} failed:`, r.reason);
+          }
+        });
+      });
     }
 
     fetchData();

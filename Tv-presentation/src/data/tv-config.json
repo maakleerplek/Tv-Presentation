@@ -1,6 +1,6 @@
 {
     "carousel": {
-        "intervalSeconds": 12,
+        "intervalSeconds": 300,
         "transitionSpeedMs": 800,
         "autoRefreshMinutes": 30
     },
@@ -14,7 +14,7 @@
         "tagline": "LEARNING & MAKING TOGETHER"
     },
     "calendar": {
-        "maxEventsToShow": 3,
+        "maxEventsToShow": 10,
         "showDescription": false,
         "title": "Upcoming Events"
     },
@@ -26,58 +26,6 @@
     "drinks": {
         "title": "Drinks Menu",
         "subtitle": "Enjoy a drink!",
-        "items": [
-            {
-                "name": "Coffee",
-                "price": "€1.50",
-                "emoji": "☕"
-            },
-            {
-                "name": "Tea",
-                "price": "€1.50",
-                "emoji": "🍵"
-            },
-            {
-                "name": "Water",
-                "price": "€1.00",
-                "emoji": "💧"
-            },
-            {
-                "name": "Cola / Fanta / Sprite",
-                "price": "€2.00",
-                "emoji": "🥤"
-            },
-            {
-                "name": "Jupiler",
-                "price": "€2.50",
-                "emoji": "🍺"
-            },
-            {
-                "name": "Duvel",
-                "price": "€3.50",
-                "emoji": "🍺"
-            },
-            {
-                "name": "Leffe Blond",
-                "price": "€3.00",
-                "emoji": "🍺"
-            },
-            {
-                "name": "Wine (red/white)",
-                "price": "€3.00",
-                "emoji": "🍷"
-            },
-            {
-                "name": "Chocolate Milk",
-                "price": "€2.00",
-                "emoji": "🍫"
-            },
-            {
-                "name": "Fresh Juice",
-                "price": "€2.50",
-                "emoji": "🍊"
-            }
-        ],
         "qrOrderUrl": "https://maakleerplek.be",
         "qrOrderLabel": "More info",
         "qrPayconiqUrl": "https://payconiq.com/merchant/maakleerplek",
@@ -97,8 +45,9 @@
     },
     "dataFetcher": {
         "baseUrl": "http://data-fetcher:8080",
-        "browserBaseUrl": "http://localhost:8085",
+        "browserBaseUrl": "http://host.docker.internal:8085",
         "calendarEndpoint": "/api/calendar",
-        "newsEndpoint": "/api/news"
+        "newsEndpoint": "/api/news",
+        "drinksEndpoint": "/api/drinks"
     }
 }

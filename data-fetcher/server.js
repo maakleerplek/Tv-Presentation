@@ -1,18 +1,26 @@
 import express from 'express';
 import cors from 'cors';
 import * as cheerio from 'cheerio';
+import https from 'https';
 
 const app = express();
 app.use(cors());
 
+// Global bypass for self-signed certificates (InvenTree)
+process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
+
 const CALENDAR_URL = 'https://maakleerplek.be/kalender/';
 const HOMEPAGE_URL = 'https://maakleerplek.be/';
-const CACHE_DURATION_MS = 15 * 60 * 1000; // 15 minutes
+const CACHE_DURATION_MS = 15 * 60 * 1000;
+
+// State for manual transitions via /api/transition
+let forceTransitionTime = Date.now(); // 15 minutes
 const NEWS_MAX_AGE_DAYS = 14; // Only show news from the last 2 weeks
 
 // ── In-memory cache ──────────────────────────────────────────────
 let calendarCache = { data: null, timestamp: 0 };
 let newsCache = { data: null, timestamp: 0 };
+let drinksCache = { data: null, timestamp: 0 };
 
 function isCacheValid(cache) {
     return cache.data && (Date.now() - cache.timestamp < CACHE_DURATION_MS);
@@ -65,15 +73,35 @@ async function fetchEventDetail(url) {
         const imageUrl = $('meta[property="og:image"]').attr('content') || '';
 
         // Try to extract time from the detail page content
-        // Look for patterns like "18:00-22:00" or "14:00-16:00"
-        const bodyText = $('.kalender_single_content, .entry-content, .single_content, main').text();
-        const timeMatch = bodyText.match(/(\d{1,2}[:.]\d{2})\s*[-–]\s*(\d{1,2}[:.]\d{2})/);
-        const time = timeMatch ? `${timeMatch[1]} - ${timeMatch[2]}` : '';
+        // Try to find the time specifically near the time icon if it exists
+        const timeIcon = $('img[src*="icon-time.svg"]');
+        let time = '';
+        if (timeIcon.length > 0) {
+            const timeText = timeIcon[0].nextSibling?.nodeValue?.trim() || '';
+            // Example: "26/02/2026 14:00-16:00" -> we want "14:00-16:00"
+            const match = timeText.match(/(\d{1,2}[:.]\d{2}[^ ]*)/);
+            if (match) time = match[0];
+            else time = timeText.split(' ').pop() || '';
+        }
+
+        if (!time) {
+            // Try to extract time from the detail page content as fallback
+            const bodyText = $('.kalender_single_content, .entry-content, .single_content, main').text();
+            // Match formats like 14:00-16:00, 14.00-16.00, 14-16u
+            const timeMatch = bodyText.match(/(\d{1,2}[:.]\d{2})\s*[-–]\s*(\d{1,2}[:.]\d{2})/) ||
+                bodyText.match(/(\d{1,2})\s*[-–]\s*(\d{1,2}u)/);
+            time = timeMatch ? (timeMatch[0]) : '';
+        }
 
         // Try to get the target group / audience
         const targetGroup = $('.kalender_single_doelgroep, .target-group').text().trim();
 
-        return { description, imageUrl, time, targetGroup };
+        return {
+            description: truncate(stripHtml(description), 150),
+            imageUrl,
+            time: time.replace(/\./g, ':'),
+            targetGroup
+        };
     } catch {
         return {};
     }
@@ -188,6 +216,19 @@ async function scrapeNews() {
             const articleHtml = await resp.text();
             const $a = cheerio.load(articleHtml);
 
+            // Get the REAL title from og:title (most reliable)
+            const ogTitle = $a('meta[property="og:title"]').attr('content') || '';
+            const pageTitle = $a('title').text().trim().split('|')[0].trim();
+            const h1Title = $a('h1.entry-title, h1.post-title, h1').first().text().trim();
+
+            // Pick the best title: og:title > h1 > page title > clean scraped title > slug
+            let cleanTitle = ogTitle || h1Title || pageTitle;
+            if (!cleanTitle || cleanTitle.startsWith('<')) {
+                // Fallback: extract title from URL slug
+                const slug = item.link.replace(/\/$/, '').split('/').pop() || '';
+                cleanTitle = slug.replace(/-/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+            }
+
             const description = $a('meta[property="og:description"]').attr('content') || '';
             const imageUrl = $a('meta[property="og:image"]').attr('content') || '';
             const modifiedTime = $a('meta[property="article:modified_time"]').attr('content') || '';
@@ -200,9 +241,10 @@ async function scrapeNews() {
 
             enrichedItems.push({
                 ...item,
+                title: cleanTitle,
                 description,
                 imageUrl,
-                date: modifiedTime ? new Date(modifiedTime).toLocaleDateString('nl-BE') : '',
+                date: modifiedTime ? new Date(modifiedTime).toLocaleDateString('en-GB') : '',
             });
         } catch {
             // Skip articles that fail to fetch
@@ -212,6 +254,131 @@ async function scrapeNews() {
     newsCache = { data: enrichedItems, timestamp: Date.now() };
     console.log(`[News] Found ${enrichedItems.length} recent news items`);
     return enrichedItems;
+}
+
+// ── Inventree Drinks Scraper ───────────────────────────────────────
+const INVENTREE_URL = process.env.INVENTREE_URL || 'https://10.72.3.68:8443';
+const INVENTREE_TOKEN = process.env.INVENTREE_TOKEN;
+const INVENTREE_DRINKS_CATEGORY = process.env.INVENTREE_DRINKS_CATEGORY || 'drinks';
+const INVENTREE_DRINKS_LOCATION = process.env.INVENTREE_DRINKS_LOCATION || '';
+
+// Helper function to fetch with a timeout
+const fetchWithTimeout = async (resource, options = {}, timeout = 5000) => {
+    const controller = new AbortController();
+    const id = setTimeout(() => controller.abort(), timeout);
+
+    try {
+        const response = await fetch(resource, {
+            ...options,
+            signal: controller.signal
+        });
+        clearTimeout(id);
+        return response;
+    } catch (err) {
+        clearTimeout(id);
+        throw err;
+    }
+};
+
+async function fetchDrinks() {
+    if (isCacheValid(drinksCache)) return drinksCache.data;
+    if (!INVENTREE_TOKEN) {
+        console.warn('[Drinks] No INVENTREE_TOKEN configured');
+        return [];
+    }
+
+    console.log('[Drinks] Fetching from Inventree', INVENTREE_URL);
+    try {
+        // Fetch stock items with part and location details
+        const stockRes = await fetchWithTimeout(`${INVENTREE_URL}/api/stock/?part_detail=true&location_detail=true`, {
+            headers: { 'Authorization': `Token ${INVENTREE_TOKEN}` }
+        }, 5000);
+
+        if (!stockRes.ok) {
+            console.error('[Drinks] Failed to fetch stock', stockRes.status);
+            return [];
+        }
+
+        const stockData = await stockRes.json();
+        const stockItems = Array.isArray(stockData) ? stockData : (stockData.results || []);
+
+        console.log('[Drinks] Found', stockItems.length, 'total stock items');
+        if (stockItems.length > 0 && INVENTREE_DRINKS_LOCATION) {
+            const locs = new Set(stockItems.map(i => i.location_detail?.name).filter(Boolean));
+            console.log('[Drinks] Available locations:', Array.from(locs).join(', '));
+        }
+
+        // Map and group by part ID to aggregate stock
+        const drinksMap = new Map();
+        const categoryNameLower = INVENTREE_DRINKS_CATEGORY ? INVENTREE_DRINKS_CATEGORY.toLowerCase() : '';
+        const targetLocationLower = INVENTREE_DRINKS_LOCATION ? INVENTREE_DRINKS_LOCATION.toLowerCase() : '';
+
+        for (const item of stockItems) {
+            const partDetail = item.part_detail || {};
+            const locDetail = item.location_detail || {};
+
+            // Allow filtering by location if provided
+            if (targetLocationLower) {
+                const locName = (locDetail.name || '').toLowerCase();
+                const locPath = (locDetail.pathstring || '').toLowerCase();
+                if (!locName.includes(targetLocationLower) && !locPath.includes(targetLocationLower)) {
+                    continue; // Skip items not in the configured location
+                }
+            }
+
+            // Exclude items without a valid part name
+            if (!partDetail.name) continue;
+
+            const partId = item.part;
+            const quantity = parseFloat(item.quantity || 0);
+
+            if (!drinksMap.has(partId)) {
+                // Determine price
+                let price = "-";
+                // In part_detail from stock, pricing might be in pricing_min or sell_price
+                if (partDetail.pricing_min) {
+                    price = '€' + parseFloat(partDetail.pricing_min).toFixed(2);
+                } else if (partDetail.pricing_min_string) {
+                    price = partDetail.pricing_min_string;
+                } else if (partDetail.sell_price) {
+                    price = '€' + parseFloat(partDetail.sell_price).toFixed(2);
+                } else if (partDetail.description && partDetail.description.toLowerCase() !== partDetail.name.toLowerCase()) {
+                    price = partDetail.description;
+                }
+
+                // Proxy image URL
+                let imageUrl = null;
+                const imgSource = partDetail.thumbnail || partDetail.image;
+                if (imgSource) {
+                    // Ensure it's an absolute URL
+                    const fullImgUrl = imgSource.startsWith('/') ? `${INVENTREE_URL}${imgSource}` : imgSource;
+                    imageUrl = `/api/proxy-image?url=${encodeURIComponent(fullImgUrl)}`;
+                }
+
+                drinksMap.set(partId, {
+                    name: partDetail.name,
+                    price: price,
+                    stock: quantity,
+                    imageUrl: imageUrl
+                });
+            } else {
+                // If we have multiple stock items for the same part, aggregate the quantity
+                const existing = drinksMap.get(partId);
+                existing.stock += quantity;
+            }
+        }
+
+        const formattedDrinks = Array.from(drinksMap.values());
+
+        console.log('[Drinks] Successfully mapped', formattedDrinks.length, 'unique drink items');
+        drinksCache = { data: formattedDrinks, timestamp: Date.now() };
+        console.log(`[Drinks] Fetched ${formattedDrinks.length} drinks`);
+        return formattedDrinks;
+
+    } catch (err) {
+        console.error('[Drinks] Exception fetching drinks:', err.message);
+        return [];
+    }
 }
 
 // ── API Routes ───────────────────────────────────────────────────
@@ -235,12 +402,62 @@ app.get('/api/news', async (_req, res) => {
     }
 });
 
+app.get('/api/drinks', async (_req, res) => {
+    try {
+        const drinks = await fetchDrinks();
+        res.json(drinks);
+    } catch (e) {
+        console.error('[Drinks] Error in endpoint:', e);
+        res.status(500).json({ error: 'Failed to fetch drinks' });
+    }
+});
+
+// --- Transition Testing Endpoints ---
+
+app.get('/api/transition', (req, res) => {
+    forceTransitionTime = Date.now();
+    console.log(`[Transition] Triggered at ${forceTransitionTime}`);
+    res.json({ success: true, message: "Transition triggered", timestamp: forceTransitionTime });
+});
+
+app.get('/api/transition/check', (req, res) => {
+    res.json({ forceTransitionTime });
+});
+
+app.get('/api/proxy-image', async (req, res) => {
+    const targetUrl = req.query.url;
+    if (!targetUrl) return res.status(400).send('Missing url parameter');
+
+    try {
+        const response = await fetch(targetUrl, {
+            headers: {
+                'Authorization': `Token ${INVENTREE_TOKEN}`,
+            }
+        });
+
+        if (!response.ok) {
+            return res.status(response.status).send(`Failed to fetch image: ${response.status}`);
+        }
+
+        const buffer = await response.arrayBuffer();
+        const contentType = response.headers.get('content-type') || 'image/jpeg';
+
+        res.setHeader('Content-Type', contentType);
+        res.setHeader('Cache-Control', 'public, max-age=3600'); // Cache for 1 hour
+        res.send(Buffer.from(buffer));
+    } catch (err) {
+        console.error('[Image Proxy] Error fetching image:', err.message);
+        res.status(500).send('Error proxying image');
+    }
+});
+
 app.get('/api/health', (_req, res) => {
     res.json({
         status: 'ok',
         cache: {
             calendar: isCacheValid(calendarCache) ? 'valid' : 'stale',
             news: isCacheValid(newsCache) ? 'valid' : 'stale',
+            drinks: isCacheValid(drinksCache) ? 'valid' : 'stale',
         },
     });
 });
@@ -252,4 +469,5 @@ app.listen(PORT, () => {
     // Pre-warm caches on startup
     scrapeCalendar().catch(err => console.error('[Calendar] Pre-warm failed:', err.message));
     scrapeNews().catch(err => console.error('[News] Pre-warm failed:', err.message));
+    fetchDrinks().catch(err => console.error('[Drinks] Pre-warm failed:', err.message));
 });

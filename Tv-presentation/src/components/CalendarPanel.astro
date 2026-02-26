@@ -22,7 +22,10 @@ const {
   </div>
 
   <!-- Events List (populated by JS) -->
-  <div class="flex-1 flex flex-col gap-3 overflow-hidden" id="calendar-events">
+  <div
+    class="flex-1 flex flex-col gap-1.5 overflow-hidden"
+    id="calendar-events"
+  >
     <!-- Skeleton placeholders -->
     {
       Array.from({ length: maxEvents }).map(() => (

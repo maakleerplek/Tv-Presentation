@@ -25,23 +25,15 @@ const { title = d.title } = Astro.props;
 
   <!-- Menu Items -->
   <div class="flex-1 overflow-hidden mt-2">
-    <ul class="columns-2 gap-4">
-      {
-        d.items.map((item) => (
-          <li class="flex items-baseline gap-1.5 py-1.5 border-b border-border/40 break-inside-avoid">
-            <span class="text-sm flex-shrink-0 w-5 text-center">
-              {item.emoji || "•"}
-            </span>
-            <span class="text-sm font-medium text-text-primary whitespace-nowrap">
-              {item.name}
-            </span>
-            <span class="flex-1 border-b border-dotted border-border/60 relative -top-1 min-w-2" />
-            <span class="text-sm font-bold text-primary whitespace-nowrap">
-              {item.price}
-            </span>
-          </li>
-        ))
-      }
+    <ul id="drinks-list" class="columns-2 gap-4">
+      <li
+        class="flex items-center justify-center h-full text-text-tertiary gap-2 py-4"
+      >
+        <span class="material-symbols-outlined animate-spin text-xl"
+          >refresh</span
+        >
+        <span class="text-sm">Loading Menu...</span>
+      </li>
     </ul>
   </div>
 
@@ -50,11 +42,9 @@ const { title = d.title } = Astro.props;
     class="mt-4 flex items-center bg-surface-variant/50 rounded-xl p-3 border border-border"
   >
     <div class="flex-1 pr-3">
-      <h3 class="text-sm font-semibold text-text-primary mb-1">
-        Dorst gekregen?
-      </h3>
+      <h3 class="text-sm font-semibold text-text-primary mb-1">Thirsty?</h3>
       <p class="text-xs text-text-secondary leading-snug">
-        Scan de code om het volledige aanbod te bekijken of te bestellen.
+        Scan the code to view the full menu or to order.
       </p>
     </div>
     <div
