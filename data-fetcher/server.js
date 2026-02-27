@@ -147,8 +147,8 @@ async function scrapeCalendar() {
         });
     });
 
-    // Fetch detail info for the first 10 events (to avoid hammering the server)
-    const detailPromises = events.slice(0, 10).map(async (event) => {
+    // Fetch detail info for the first 30 events (to ensure workshops get details over longer period)
+    const detailPromises = events.slice(0, 30).map(async (event) => {
         if (event.link) {
             const detail = await fetchEventDetail(event.link);
             return { ...event, ...detail };
@@ -409,6 +409,58 @@ app.get('/api/drinks', async (_req, res) => {
     } catch (e) {
         console.error('[Drinks] Error in endpoint:', e);
         res.status(500).json({ error: 'Failed to fetch drinks' });
+    }
+});
+
+app.get('/api/screen-data', async (_req, res) => {
+    try {
+        // Fetch all data sources concurrently
+        const [calendar, news, drinks] = await Promise.all([
+            scrapeCalendar(),
+            scrapeNews(),
+            fetchDrinks()
+        ]);
+
+        const workshops = [];
+        const recurringEvents = [];
+        const recurringTitles = new Set();
+
+        // Keywords to catch recurring events even if only 1 is currently in the calendar window
+        const recurringKeywords = ['openlab', 'young maker', 'repair'];
+
+        // Count title occurrences to detect repeating events
+        const titleCounts = {};
+        for (const event of calendar) {
+            titleCounts[event.title] = (titleCounts[event.title] || 0) + 1;
+        }
+
+        for (const event of calendar) {
+            const isRecurringByCount = titleCounts[event.title] > 1;
+            const isRecurringByKeyword = recurringKeywords.some(kw => event.title.toLowerCase().includes(kw));
+
+            if (isRecurringByCount || isRecurringByKeyword) {
+                // Only show the next instance of a recurring event
+                if (!recurringTitles.has(event.title)) {
+                    recurringTitles.add(event.title);
+                    recurringEvents.push({ ...event, type: 'recurring' });
+                }
+            } else {
+                workshops.push({ ...event, type: 'workshop' });
+            }
+        }
+
+        // Add type tag to news for easy combining on the frontend
+        const newsWithType = news.map(item => ({ ...item, type: 'news' }));
+
+        res.json({
+            workshops,
+            news: newsWithType,
+            recurringEvents,
+            drinks
+        });
+    } catch (err) {
+        console.error('[Screen-Data] Error:', err.message);
+        res.status(500).json({ error: 'Failed to aggregate screen data' });
     }
 });
 
