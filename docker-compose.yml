@@ -1,13 +1,13 @@
 services:
-  # ===== Astro Frontend =====
+  # ===== Next.js Frontend (Reworked Website) =====
   frontend:
     build:
-      context: ./Tv-presentation
+      context: "./Reworked website"
       dockerfile: Dockerfile
     container_name: tv-frontend
     restart: unless-stopped
     ports:
-      - "${HOST_PORT:-8083}:80"
+      - "${HOST_PORT:-8083}:3000"
 
   # ===== Data Fetcher Backend (Node.js Scraper) =====
   data-fetcher:
