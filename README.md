@@ -24,3 +24,5 @@ Frontend: `http://localhost:8083` · Data-fetcher API: `http://localhost:8085`
 
 All settings in `Reworked website/src/data/tv-config.json` — slide timing, drinks menu, tips, branding, and API endpoints.
 or in .env.example _Copy this file and rename it to .env and fill in your configuration_
+
+![Image of the website](Public/image.png)
