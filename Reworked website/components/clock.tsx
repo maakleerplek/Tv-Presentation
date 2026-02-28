@@ -6,8 +6,8 @@ export function Clock() {
   const [time, setTime] = useState<Date | null>(null);
 
   useEffect(() => {
-    setTime(new Date());
     const timer = setInterval(() => setTime(new Date()), 1000);
+    setTimeout(() => setTime(new Date()), 0); // Avoid synchronous setState warning
     return () => clearInterval(timer);
   }, []);
 

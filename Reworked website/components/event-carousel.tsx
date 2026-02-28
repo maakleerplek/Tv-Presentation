@@ -18,6 +18,7 @@ function shuffleArray<T>(array: T[]): T[] {
 
 export function EventCarousel() {
   const { data, loading, error } = useScreenData();
+  const transitionTime = data?.config?.transitionTime || 15;
   const [currentIndex, setCurrentIndex] = useState(0);
   const [carouselItems, setCarouselItems] = useState<any[]>([]);
 
@@ -26,12 +27,23 @@ export function EventCarousel() {
     if (data) {
       // News items don't have location/time usually, so adapt them slightly to fit the card UI
       const combined = [
-        ...data.workshops.map(w => ({ ...w, _icon: Calendar, _color: '#FEF08A' })),
-        ...data.recurringEvents.map(r => ({ ...r, _icon: Repeat, _color: '#BFDBFE' })),
-        ...data.news.map(n => ({ ...n, _icon: Newspaper, _color: '#BBF7D0', location: 'News Article' }))
-      ];
-      setCarouselItems(shuffleArray(combined));
-      setCurrentIndex(0);
+        ...data.workshops.map((w: any) => ({ ...w, _icon: Calendar, _color: '#FEF08A' })),
+        ...data.recurringEvents.map((r: any) => ({ ...r, _icon: Repeat, _color: '#BFDBFE' })),
+        ...data.news.map((n: any) => ({ ...n, _icon: Newspaper, _color: '#BBF7D0', location: 'News Article' }))
+      ].map((item: any) => {
+        let title = item.title || '';
+        let subtitle = '';
+        if (title.includes(':')) {
+          const parts = title.split(':');
+          title = parts[0].trim();
+          subtitle = parts.slice(1).join(':').trim();
+        }
+        return { ...item, title, subtitle };
+      });
+      setTimeout(() => {
+        setCarouselItems(shuffleArray(combined));
+        setCurrentIndex(0);
+      }, 0); // Avoid synchronous setState warning
     }
   }, [data]);
 
@@ -40,9 +52,9 @@ export function EventCarousel() {
 
     const timer = setInterval(() => {
       setCurrentIndex((prev) => (prev + 1) % carouselItems.length);
-    }, 15000); // Change every 15 seconds
+    }, transitionTime * 1000);
     return () => clearInterval(timer);
-  }, [carouselItems.length]);
+  }, [carouselItems.length, transitionTime]);
 
   if (loading) {
     return (
@@ -62,20 +74,34 @@ export function EventCarousel() {
 
   const currentItem = carouselItems[currentIndex];
   // Determine if it has a valid image string or a default fallback
-  const fallbackImage = `https://picsum.photos/seed/${currentItem.title.replace(/[^a-zA-Z]/g, '')}/1200/800`;
-  const displayImage = currentItem.imageUrl || fallbackImage;
+  const fallbackImage = `https://picsum.photos/seed/${currentItem.title.replace(/[^a-zA-Z]/g, '') || 'maakleerplek'}/1200/800`;
+  let displayImage = currentItem.imageUrl || fallbackImage;
 
+  if (displayImage.startsWith('/')) {
+    // Note: since frontend is running in Docker alongside data-fetcher, relative paths
+    // need to be pointed directly to the image origin or data-fetcher for SSR to work.
+    if (currentItem.type === 'drinks') {
+      displayImage = `http://data-fetcher:8080${displayImage}`;
+    } else {
+      displayImage = `https://maakleerplek.be${displayImage}`;
+    }
+  }
+
+  // ... existing code ...
   return (
     <div className="flex-1 relative flex flex-col bg-[#F5F2EB] overflow-hidden">
-      <div className="absolute top-0 left-0 z-30 bg-[#2C1E16] text-[#F5F2EB] px-4 py-2 border-b-2 border-r-2 border-[#2C1E16]">
-        <h2 className="uppercase tracking-widest text-xs font-black flex items-center gap-2">
-          <currentItem._icon className="w-4 h-4" />
-          {currentItem.type === 'workshop' ? 'Upcoming Workshop' :
-            currentItem.type === 'recurring' ? 'Recurring Event' : 'Latest News'}
-        </h2>
+      {/* Top Progress Bar */}
+      <div className="absolute top-0 left-0 right-0 h-1.5 bg-[#E5E0D8] z-50">
+        <motion.div
+          key={currentIndex}
+          initial={{ width: "0%" }}
+          animate={{ width: "100%" }}
+          transition={{ duration: transitionTime, ease: "linear" }}
+          className="h-full bg-[#2C1E16]"
+        />
       </div>
 
-      <div className="flex-1 relative h-full">
+      <div className="flex-1 relative h-full mt-1.5">
         <AnimatePresence mode="wait">
           <motion.div
             key={currentIndex}
@@ -86,43 +112,64 @@ export function EventCarousel() {
             className="absolute inset-0 flex flex-col"
           >
             {/* Top half: Image */}
-            <div className="h-1/2 relative border-b-2 border-[#2C1E16]">
+            <div className="h-[45%] relative border-b-2 border-[#2C1E16] bg-[#2C1E16]">
               <Image
                 src={displayImage}
                 alt={currentItem.title}
                 fill
-                className="object-cover"
+                className="object-cover opacity-90"
                 referrerPolicy="no-referrer"
+                unoptimized
               />
             </div>
 
             {/* Bottom half: Content */}
-            <div className="h-1/2 p-8 flex flex-col justify-center bg-[#F5F2EB]">
-              <h3 className="text-5xl font-black mb-6 leading-none text-[#2C1E16] uppercase tracking-tighter line-clamp-2 title-hyphenation">
+            <div className="h-[55%] p-6 flex flex-col justify-center bg-[#F5F2EB]">
+              {/* Event Type Tag */}
+              <div className="mb-2">
+                <span
+                  className="inline-flex items-center gap-2 px-3 py-1 text-[10px] xl:text-xs font-black uppercase tracking-widest text-[#2C1E16] border-2 border-[#2C1E16]"
+                  style={{ backgroundColor: currentItem._color }}
+                >
+                  <currentItem._icon className="w-3 h-3" />
+                  {currentItem.type === 'workshop' ? 'Upcoming Workshop' : currentItem.type === 'recurring' ? 'Recurring Event' : 'Latest News'}
+                </span>
+              </div>
+
+              <h3 className="text-2xl xl:text-3xl font-black mb-1 leading-tight text-[#2C1E16] uppercase tracking-tighter line-clamp-2 title-hyphenation">
                 {currentItem.title}
               </h3>
 
-              <div className="flex flex-row gap-6 mb-6 flex-wrap">
+              {currentItem.subtitle && (
+                <h4 className="text-lg xl:text-xl font-bold mb-3 leading-tight text-[#2C1E16] opacity-80 line-clamp-2">
+                  {currentItem.subtitle}
+                </h4>
+              )}
+
+              <div className="flex flex-row gap-4 mb-3 flex-wrap">
                 {(currentItem.time || currentItem.date) && (
                   <div
-                    className="flex items-center gap-2 text-lg font-black text-[#2C1E16] border-2 border-[#2C1E16] px-4 py-2"
-                    style={{ backgroundColor: currentItem._color }}
+                    className="flex items-center gap-2 text-sm font-black text-[#2C1E16] border-2 border-[#2C1E16] px-3 py-1.5 bg-[#F5F2EB]"
                   >
-                    <ClockIcon className="w-5 h-5" />
+                    <ClockIcon className="w-4 h-4" />
                     <span>{currentItem.date} {currentItem.time ? `- ${currentItem.time}` : ''}</span>
                   </div>
                 )}
                 {currentItem.location && (
-                  <div className="flex items-center gap-2 text-lg font-black text-[#2C1E16] border-2 border-[#2C1E16] px-4 py-2 bg-[#F5F2EB]">
-                    <MapPin className="w-5 h-5" />
+                  <div className="flex items-center gap-2 text-sm font-black text-[#2C1E16] border-2 border-[#2C1E16] px-3 py-1.5 bg-[#F5F2EB]">
+                    <MapPin className="w-4 h-4" />
                     <span>{currentItem.location}</span>
                   </div>
                 )}
               </div>
 
-              <p className="text-2xl text-[#2C1E16] font-medium leading-snug max-w-2xl line-clamp-3">
-                {currentItem.description}
-              </p>
+              {currentItem.description ? (
+                <p className="text-base xl:text-lg text-[#2C1E16] font-medium leading-normal max-w-2xl line-clamp-3">
+                  {currentItem.description}
+                </p>
+              ) : (
+                <div className="flex-1" />
+              )}
             </div>
           </motion.div>
         </AnimatePresence>

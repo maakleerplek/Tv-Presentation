@@ -1,3 +1,5 @@
+'use client';
+
 import { Coffee, QrCode } from 'lucide-react';
 import QRCode from 'react-qr-code';
 import Image from 'next/image';
@@ -49,7 +51,7 @@ export function DrinksList() {
               <div className="w-8 h-8 relative border border-[#2C1E16] shrink-0 bg-[#E6D5B8]">
                 <Image
                   // Use the proxy image URL if available, else a fallback
-                  src={drink.imageUrl ? `http://localhost:8085${drink.imageUrl}` : `https://picsum.photos/seed/${drink.name}/40/40`}
+                  src={drink.imageUrl ? `http://data-fetcher:8080${drink.imageUrl}` : `https://picsum.photos/seed/${drink.name}/40/40`}
                   alt={drink.name}
                   fill
                   className="object-cover grayscale opacity-80 mix-blend-multiply"

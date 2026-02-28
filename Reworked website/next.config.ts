@@ -30,6 +30,10 @@ const nextConfig: NextConfig = {
       {
         protocol: 'https',
         hostname: '10.72.3.68',
+      },
+      {
+        protocol: 'http',
+        hostname: 'data-fetcher',
       }
     ],
   },

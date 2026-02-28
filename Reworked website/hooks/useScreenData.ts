@@ -1,3 +1,5 @@
+'use client';
+
 import { useState, useEffect } from 'react';
 
 export type ScreenData = {
@@ -5,6 +7,9 @@ export type ScreenData = {
     news: any[];
     recurringEvents: any[];
     drinks: any[];
+    config?: {
+        transitionTime: number;
+    }
 };
 
 export function useScreenData() {

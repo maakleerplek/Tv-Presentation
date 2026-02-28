@@ -1,9 +1,11 @@
+
 'use client';
 
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Lightbulb } from 'lucide-react';
 import QRCode from 'react-qr-code';
+import Image from 'next/image';
 
 const TIPS = [
   "Please clean up your workspace after you are done. A clean space is a safe space!",
@@ -36,13 +38,13 @@ export function TipsFooter() {
         </div>
       </div>
 
-      {/* Right side: Tips */}
+      {/* Center: Tips */}
       <div className="flex-1 flex items-center h-full overflow-hidden gap-6">
         <div className="flex items-center gap-3 font-black uppercase tracking-widest text-sm shrink-0 bg-[#FECACA] text-[#2C1E16] px-4 py-2 border-2 border-[#2C1E16]">
           <Lightbulb className="w-5 h-5" />
           <span>Tip of the day</span>
         </div>
-        
+
         <div className="flex-1 relative h-full flex items-center overflow-hidden">
           <AnimatePresence mode="wait">
             <motion.div
@@ -57,6 +59,17 @@ export function TipsFooter() {
             </motion.div>
           </AnimatePresence>
         </div>
+      </div>
+
+      {/* Right side: HTL Logo */}
+      <div className="shrink-0 flex items-center h-full py-4 bg-[#F5F2EB] mix-blend-difference invert mr-4">
+        <Image
+          src="/HTL_logo_CMYK_white-04.svg"
+          alt="HTL Logo"
+          width={180}
+          height={60}
+          className="object-contain max-h-full"
+        />
       </div>
     </div>
   );

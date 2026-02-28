@@ -64,20 +64,36 @@ function parseDutchDate(text) {
  */
 async function fetchEventDetail(url) {
     try {
-        const response = await fetch(url);
-        if (!response.ok) return {};
+        const response = await fetch(url, {
+            headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36' }
+        });
+        if (!response.ok) {
+            console.error(`[fetchEventDetail] Failed ${url}: ${response.status}`);
+            return {};
+        }
         const html = await response.text();
         const $ = cheerio.load(html);
 
         const description = $('meta[property="og:description"]').attr('content') || '';
-        const imageUrl = $('meta[property="og:image"]').attr('content') || '';
+        let imageUrl = $('meta[property="og:image"]').attr('content') ||
+            $('.wp-post-image').attr('src') ||
+            $('.post-thumbnail img').attr('src') ||
+            $('.elementor-post__thumbnail img').attr('src') ||
+            $('article img').first().attr('src') ||
+            $('main img').first().attr('src') || '';
+
+        if (imageUrl.startsWith('http://')) {
+            imageUrl = imageUrl.replace('http://', 'https://');
+        } else if (imageUrl && !imageUrl.startsWith('http') && !imageUrl.startsWith('/')) {
+            imageUrl = '/' + imageUrl;
+        }
 
         // Try to extract time from the detail page content
         // Try to find the time specifically near the time icon if it exists
         const timeIcon = $('img[src*="icon-time.svg"]');
         let time = '';
         if (timeIcon.length > 0) {
-            const timeText = timeIcon[0].nextSibling?.nodeValue?.trim() || '';
+            const timeText = timeIcon.parent().text().trim() || timeIcon[0].nextSibling?.nodeValue?.trim() || '';
             // Example: "26/02/2026 14:00-16:00" -> we want "14:00-16:00"
             const match = timeText.match(/(\d{1,2}[:.]\d{2}[^ ]*)/);
             if (match) time = match[0];
@@ -96,11 +112,22 @@ async function fetchEventDetail(url) {
         // Try to get the target group / audience
         const targetGroup = $('.kalender_single_doelgroep, .target-group').text().trim();
 
+        // Try to extract location from the detail page
+        const locationIcon = $('img[src*="icon-location.svg"]');
+        let location = '';
+        if (locationIcon.length > 0) {
+            location = locationIcon.parent().text().trim() || locationIcon[0].nextSibling?.nodeValue?.trim() || '';
+            if (location) {
+                location = location.replace(/^Locatie\s*/i, '').trim();
+            }
+        }
+
         return {
             description: truncate(stripHtml(description), 150),
             imageUrl,
             time: time.replace(/\./g, ':'),
-            targetGroup
+            targetGroup,
+            location
         };
     } catch {
         return {};
@@ -112,7 +139,9 @@ async function scrapeCalendar() {
     if (isCacheValid(calendarCache)) return calendarCache.data;
 
     console.log('[Calendar] Scraping', CALENDAR_URL);
-    const response = await fetch(CALENDAR_URL);
+    const response = await fetch(CALENDAR_URL, {
+        headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36' }
+    });
     const html = await response.text();
     const $ = cheerio.load(html);
 
@@ -132,13 +161,24 @@ async function scrapeCalendar() {
         // Each .agenda_item is one event
         $(dayEl).find('.agenda_item').each((_, itemEl) => {
             const title = $(itemEl).find('.agenda_item_title').text().trim();
-            const location = $(itemEl).find('.agenda_item_time').text().trim();
+            const timeRaw = $(itemEl).find('.agenda_item_time').text().trim();
             const link = $(itemEl).find('a').attr('href') || '';
+
+            // The calendar list HTML uses `.agenda_item_time` for either the exact time OR the location!
+            let timeStr = '';
+            let locationStr = '';
+            // If the string contains a digit, it's a time (e.g. 18:00 - 20:00). Otherwise, it's a location (e.g. "Grafisch Lab").
+            if (/(\d{1,2}[:.]\d{2})/.test(timeRaw)) {
+                timeStr = timeRaw;
+            } else {
+                locationStr = timeRaw;
+            }
 
             if (title) {
                 events.push({
                     title,
-                    location,
+                    location: locationStr,
+                    time: timeStr,
                     date: dateText,
                     dateISO: date.toISOString().split('T')[0],
                     link,
@@ -151,7 +191,12 @@ async function scrapeCalendar() {
     const detailPromises = events.slice(0, 30).map(async (event) => {
         if (event.link) {
             const detail = await fetchEventDetail(event.link);
-            return { ...event, ...detail };
+            return {
+                ...event,
+                ...detail,
+                time: detail.time || event.time,
+                location: detail.location || event.location || 'maakleerplek'
+            };
         }
         return event;
     });
@@ -173,7 +218,9 @@ async function scrapeNews() {
     if (isCacheValid(newsCache)) return newsCache.data;
 
     console.log('[News] Scraping', HOMEPAGE_URL);
-    const response = await fetch(HOMEPAGE_URL);
+    const response = await fetch(HOMEPAGE_URL, {
+        headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36' }
+    });
     const html = await response.text();
     const $ = cheerio.load(html);
 
@@ -190,13 +237,11 @@ async function scrapeNews() {
 
         // Filter: skip navigation links, only keep article-like links  
         if (!href || !title || title.length < 10) return;
-        if (href.includes('/kalender/') || href.includes('/wp-content/') ||
-            href.includes('/wp-admin/') || href.includes('/wp-json/') ||
+        if (href.includes('/wp-admin/') || href.includes('/wp-json/') ||
             href.includes('#') || href.includes('?lang=') ||
             href.includes('/partners/') || href.includes('/deelplekken/') ||
             href.includes('/contact/') || href.includes('/zoeken') ||
             href.includes('/nieuwsbrief') || href.includes('/leefregels/') ||
-            href.includes('/machine-reserveren/') || href.includes('/kantine-2/') ||
             href.includes('/foto-studio/') || href.includes('/word-vrijwilliger/') ||
             href.includes('/wat-is-maakleerplek/') || href.includes('/wat-kan-ik-er-komen-doen/') ||
             href.includes('/verhalen/') || href.includes('/leuven-river-upcycling/')) return;
@@ -211,7 +256,9 @@ async function scrapeNews() {
     const enrichedItems = [];
     for (const item of newsItems.slice(0, 6)) {
         try {
-            const resp = await fetch(item.link);
+            const resp = await fetch(item.link, {
+                headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36' }
+            });
             if (!resp.ok) continue;
             const articleHtml = await resp.text();
             const $a = cheerio.load(articleHtml);
@@ -230,7 +277,18 @@ async function scrapeNews() {
             }
 
             const description = $a('meta[property="og:description"]').attr('content') || '';
-            const imageUrl = $a('meta[property="og:image"]').attr('content') || '';
+            let imageUrl = $a('meta[property="og:image"]').attr('content') ||
+                $a('.wp-post-image').attr('src') ||
+                $a('.post-thumbnail img').attr('src') ||
+                $a('.elementor-post__thumbnail img').attr('src') ||
+                $a('article img').first().attr('src') ||
+                $a('main img').first().attr('src') || '';
+
+            if (imageUrl.startsWith('http://')) {
+                imageUrl = imageUrl.replace('http://', 'https://');
+            } else if (imageUrl && !imageUrl.startsWith('http') && !imageUrl.startsWith('/')) {
+                imageUrl = '/' + imageUrl;
+            }
             const modifiedTime = $a('meta[property="article:modified_time"]').attr('content') || '';
 
             // Check if article is within the last 2 weeks
@@ -292,7 +350,7 @@ async function fetchDrinks() {
         // Fetch stock items with part and location details
         const stockRes = await fetchWithTimeout(`${INVENTREE_URL}/api/stock/?part_detail=true&location_detail=true`, {
             headers: { 'Authorization': `Token ${INVENTREE_TOKEN}` }
-        }, 5000);
+        }, 15000);
 
         if (!stockRes.ok) {
             console.error('[Drinks] Failed to fetch stock', stockRes.status);
@@ -452,12 +510,17 @@ app.get('/api/screen-data', async (_req, res) => {
         // Add type tag to news for easy combining on the frontend
         const newsWithType = news.map(item => ({ ...item, type: 'news' }));
 
-        res.json({
+        const responseObj = {
             workshops,
             news: newsWithType,
             recurringEvents,
             drinks
-        });
+        };
+
+        // DUMPING EXACT JSON TO LOGS PER USER REQUEST
+        console.log(`[ScreenData API] First event raw dump:`, JSON.stringify(workshops[0] || recurringEvents[0], null, 2));
+
+        res.json(responseObj);
     } catch (err) {
         console.error('[Screen-Data] Error:', err.message);
         res.status(500).json({ error: 'Failed to aggregate screen data' });

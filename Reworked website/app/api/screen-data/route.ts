@@ -3,15 +3,20 @@ import { NextResponse } from 'next/server';
 export async function GET() {
     try {
         // Proxy the request to the internal data-fetcher docker container
-        const res = await fetch('http://data-fetcher:8080/api/screen-data', {
-            // Revalidate every 5 minutes (300 seconds)
-            next: { revalidate: 300 }
-        });
+        let res;
+        try {
+            res = await fetch('http://data-fetcher:8080/api/screen-data', {
+                // Fetch dynamically every time for the presentation
+                cache: 'no-store'
+            });
+        } catch (e) {
+            // failed to connect to docker container
+        }
 
-        if (!res.ok) {
+        if (!res || !res.ok) {
             // Fallback to localhost if not in docker network
             const localRes = await fetch('http://localhost:8085/api/screen-data', {
-                next: { revalidate: 300 }
+                cache: 'no-store'
             });
             if (!localRes.ok) {
                 throw new Error('Failed to fetch from data fetcher');
