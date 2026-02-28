@@ -62,13 +62,13 @@ export function TipsFooter() {
       </div>
 
       {/* Right side: HTL Logo */}
-      <div className="shrink-0 flex items-center h-full py-4 bg-[#F5F2EB] mix-blend-difference invert mr-4">
+      <div className="shrink-0 flex items-center h-full py-4 bg-[#F5F2EB] mr-4">
         <Image
           src="/HTL_logo_CMYK_white-04.svg"
           alt="HTL Logo"
           width={180}
           height={60}
-          className="object-contain max-h-full"
+          className="object-contain max-h-full brightness-0 opacity-80"
         />
       </div>
     </div>
