@@ -59,6 +59,17 @@ function parseDutchDate(text) {
     return date;
 }
 
+/** Strip HTML tags from a string. */
+function stripHtml(str) {
+    return str.replace(/<[^>]*>/g, ' ').replace(/\s{2,}/g, ' ').trim();
+}
+
+/** Truncate a string to maxLen characters, adding ellipsis if needed. */
+function truncate(str, maxLen) {
+    if (!str || str.length <= maxLen) return str;
+    return str.slice(0, maxLen).trimEnd() + '…';
+}
+
 /**
  * Fetch event detail page for extra info (description, image, time).
  */
@@ -75,61 +86,71 @@ async function fetchEventDetail(url) {
         const $ = cheerio.load(html);
 
         const description = $('meta[property="og:description"]').attr('content') || '';
+
+        // og:image is the most reliable; images on this site use http:// — normalise to https://
         let imageUrl = $('meta[property="og:image"]').attr('content') ||
             $('.wp-post-image').attr('src') ||
             $('.post-thumbnail img').attr('src') ||
-            $('.elementor-post__thumbnail img').attr('src') ||
             $('article img').first().attr('src') ||
             $('main img').first().attr('src') || '';
 
+        // Normalise URL: http → https, relative → absolute
         if (imageUrl.startsWith('http://')) {
             imageUrl = imageUrl.replace('http://', 'https://');
-        } else if (imageUrl && !imageUrl.startsWith('http') && !imageUrl.startsWith('/')) {
-            imageUrl = '/' + imageUrl;
+        } else if (imageUrl && !imageUrl.startsWith('https://') && imageUrl.startsWith('/')) {
+            imageUrl = 'https://maakleerplek.be' + imageUrl;
+        } else if (imageUrl && !imageUrl.startsWith('http')) {
+            imageUrl = 'https://maakleerplek.be/' + imageUrl;
         }
 
-        // Try to extract time from the detail page content
-        // Try to find the time specifically near the time icon if it exists
-        const timeIcon = $('img[src*="icon-time.svg"]');
+        // ── Time extraction ────────────────────────────────────────────
+        // The detail page uses lazy-loading: the real src is in data-src, not src.
+        // Example markup:
+        //   <img data-src=".../icon-time.svg" class="lazyload" src="data:image/gif...">
+        //   <noscript><img src=".../icon-time.svg"></noscript>
+        // The surrounding <p> text is: "04/03/2026 19:00-22:00"
         let time = '';
+        const timeIcon = $('img[src*="icon-time.svg"], img[data-src*="icon-time.svg"]');
         if (timeIcon.length > 0) {
-            const timeText = timeIcon.parent().text().trim() || timeIcon[0].nextSibling?.nodeValue?.trim() || '';
-            // Example: "26/02/2026 14:00-16:00" -> we want "14:00-16:00"
-            const match = timeText.match(/(\d{1,2}[:.]\d{2}[^ ]*)/);
-            if (match) time = match[0];
-            else time = timeText.split(' ').pop() || '';
+            // The icon and its text are siblings inside a <p>
+            const parentText = timeIcon.closest('p').text().trim();
+            // Format is "DD/MM/YYYY HH:MM-HH:MM" — extract the time range after the date
+            const timeMatch = parentText.match(/\d{1,2}[:.]\d{2}\s*[-–]\s*\d{1,2}[:.]\d{2}/);
+            if (timeMatch) {
+                time = timeMatch[0].replace(/\./g, ':');
+            } else {
+                // Fallback: grab any HH:MM-like token that isn't the date
+                const token = parentText.match(/(?<!\d{2}\/\d{2}\/\d{4}\s)(\d{1,2}[:.]\d{2})/);
+                if (token) time = token[0].replace(/\./g, ':');
+            }
         }
 
         if (!time) {
-            // Try to extract time from the detail page content as fallback
-            const bodyText = $('.kalender_single_content, .entry-content, .single_content, main').text();
-            // Match formats like 14:00-16:00, 14.00-16.00, 14-16u
-            const timeMatch = bodyText.match(/(\d{1,2}[:.]\d{2})\s*[-–]\s*(\d{1,2}[:.]\d{2})/) ||
-                bodyText.match(/(\d{1,2})\s*[-–]\s*(\d{1,2}u)/);
-            time = timeMatch ? (timeMatch[0]) : '';
+            // Secondary fallback: scan the whole page body for a time range
+            const bodyText = $('main').text();
+            const timeMatch = bodyText.match(/\d{1,2}[:.]\d{2}\s*[-–]\s*\d{1,2}[:.]\d{2}/);
+            if (timeMatch) time = timeMatch[0].replace(/\./g, ':');
         }
 
-        // Try to get the target group / audience
-        const targetGroup = $('.kalender_single_doelgroep, .target-group').text().trim();
-
-        // Try to extract location from the detail page
-        const locationIcon = $('img[src*="icon-location.svg"]');
+        // ── Location extraction ────────────────────────────────────────
+        // The <p> text includes the raw noscript HTML (Cheerio treats noscript as a text node),
+        // so we strip any leading HTML tags before returning the location name.
+        const locationIcon = $('img[src*="icon-location.svg"], img[data-src*="icon-location.svg"]');
         let location = '';
         if (locationIcon.length > 0) {
-            location = locationIcon.parent().text().trim() || locationIcon[0].nextSibling?.nodeValue?.trim() || '';
-            if (location) {
-                location = location.replace(/^Locatie\s*/i, '').trim();
-            }
+            const rawLoc = locationIcon.closest('p').text().trim();
+            // Strip embedded HTML (noscript content) and the "Locatie" prefix
+            location = stripHtml(rawLoc).replace(/^Locatie\s*/i, '').trim();
         }
 
         return {
             description: truncate(stripHtml(description), 150),
             imageUrl,
-            time: time.replace(/\./g, ':'),
-            targetGroup,
+            time,
             location
         };
-    } catch {
+    } catch (err) {
+        console.error(`[fetchEventDetail] Exception for ${url}:`, err.message);
         return {};
     }
 }
@@ -228,28 +249,36 @@ async function scrapeNews() {
     const cutoffDate = new Date();
     cutoffDate.setDate(cutoffDate.getDate() - NEWS_MAX_AGE_DAYS);
 
-    // News items are in the "Nieuws" section; they are listed as <li> or <a> items
-    // On the homepage they appear as links in the news section
-    // We'll find all links that look like news article links
+    // News items are listed as links in the "Nieuws" section on the homepage.
+    // We collect candidate URLs here; titles will be replaced by og:title from the detail fetch.
+    // Only keep slug-like paths (no taxonomy/system paths, no query strings, no anchors).
+    const EXCLUDED_PATHS = [
+        '/wp-admin/', '/wp-json/', '/wp-content/', '/wp-includes/',
+        '/kalender/', '/partners/', '/deelplekken/', '/contact/', '/zoeken',
+        '/nieuwsbrief', '/leefregels/', '/foto-studio/', '/word-vrijwilliger/',
+        '/wat-is-maakleerplek/', '/wat-kan-ik-er-komen-doen/', '/verhalen/',
+        '/leuven-river-upcycling/', '/kantine', '/feed/', '/page/',
+        '/algemene-voorwaarden/', '/privacy', '/toegankelijkheid/',
+    ];
+
     $('a[href*="maakleerplek.be/"]').each((_, el) => {
         const href = $(el).attr('href');
-        const title = $(el).text().trim();
+        if (!href) return;
 
-        // Filter: skip navigation links, only keep article-like links  
-        if (!href || !title || title.length < 10) return;
-        if (href.includes('/wp-admin/') || href.includes('/wp-json/') ||
-            href.includes('#') || href.includes('?lang=') ||
-            href.includes('/partners/') || href.includes('/deelplekken/') ||
-            href.includes('/contact/') || href.includes('/zoeken') ||
-            href.includes('/nieuwsbrief') || href.includes('/leefregels/') ||
-            href.includes('/foto-studio/') || href.includes('/word-vrijwilliger/') ||
-            href.includes('/wat-is-maakleerplek/') || href.includes('/wat-kan-ik-er-komen-doen/') ||
-            href.includes('/verhalen/') || href.includes('/leuven-river-upcycling/')) return;
+        // Must be a clean slug URL (no hash, no query string)
+        if (href.includes('#') || href.includes('?')) return;
+
+        // Skip all known non-article paths
+        if (EXCLUDED_PATHS.some(p => href.includes(p))) return;
+
+        // Skip the bare homepage itself
+        if (href.replace(/\/$/, '') === 'https://maakleerplek.be') return;
 
         // Avoid duplicate URLs
         if (newsItems.some(n => n.link === href)) return;
 
-        newsItems.push({ title, link: href });
+        // Use href as placeholder title — will be overwritten by og:title below
+        newsItems.push({ title: '', link: href });
     });
 
     // Fetch detail info from each news article page
@@ -269,7 +298,8 @@ async function scrapeNews() {
             const h1Title = $a('h1.entry-title, h1.post-title, h1').first().text().trim();
 
             // Pick the best title: og:title > h1 > page title > clean scraped title > slug
-            let cleanTitle = ogTitle || h1Title || pageTitle;
+            // Strip " - maakleerplek" suffix that WordPress appends to og:title
+            let cleanTitle = (ogTitle || h1Title || pageTitle).replace(/\s*[-–]\s*maakleerplek\s*$/i, '').trim();
             if (!cleanTitle || cleanTitle.startsWith('<')) {
                 // Fallback: extract title from URL slug
                 const slug = item.link.replace(/\/$/, '').split('/').pop() || '';
@@ -286,8 +316,10 @@ async function scrapeNews() {
 
             if (imageUrl.startsWith('http://')) {
                 imageUrl = imageUrl.replace('http://', 'https://');
-            } else if (imageUrl && !imageUrl.startsWith('http') && !imageUrl.startsWith('/')) {
-                imageUrl = '/' + imageUrl;
+            } else if (imageUrl && !imageUrl.startsWith('https://') && imageUrl.startsWith('/')) {
+                imageUrl = 'https://maakleerplek.be' + imageUrl;
+            } else if (imageUrl && !imageUrl.startsWith('http')) {
+                imageUrl = 'https://maakleerplek.be/' + imageUrl;
             }
             const modifiedTime = $a('meta[property="article:modified_time"]').attr('content') || '';
 

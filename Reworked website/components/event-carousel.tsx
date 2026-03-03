@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import Image from 'next/image';
+import { QRCodeSVG } from 'qrcode.react';
 import { Calendar, Clock as ClockIcon, MapPin, Newspaper, Repeat } from 'lucide-react';
 import { useScreenData } from '@/hooks/useScreenData';
 
@@ -25,31 +26,20 @@ export function EventCarousel() {
   // When data loads, combine the 3 buckets and shuffle
   useEffect(() => {
     if (data) {
-      // News items don't have location/time usually, so adapt them slightly to fit the card UI
       const combined = [
         ...data.workshops.map((w: any) => ({ ...w, _icon: Calendar, _color: '#FEF08A' })),
         ...data.recurringEvents.map((r: any) => ({ ...r, _icon: Repeat, _color: '#BFDBFE' })),
         ...data.news.map((n: any) => ({ ...n, _icon: Newspaper, _color: '#BBF7D0', location: 'News Article' }))
-      ].map((item: any) => {
-        let title = item.title || '';
-        let subtitle = '';
-        if (title.includes(':')) {
-          const parts = title.split(':');
-          title = parts[0].trim();
-          subtitle = parts.slice(1).join(':').trim();
-        }
-        return { ...item, title, subtitle };
-      });
+      ].map((item: any) => ({ ...item, subtitle: '' }));
       setTimeout(() => {
         setCarouselItems(shuffleArray(combined));
         setCurrentIndex(0);
-      }, 0); // Avoid synchronous setState warning
+      }, 0);
     }
   }, [data]);
 
   useEffect(() => {
     if (carouselItems.length === 0) return;
-
     const timer = setInterval(() => {
       setCurrentIndex((prev) => (prev + 1) % carouselItems.length);
     }, transitionTime * 1000);
@@ -73,30 +63,25 @@ export function EventCarousel() {
   }
 
   const currentItem = carouselItems[currentIndex];
-  // Determine if it has a valid image string or a default fallback
-  const fallbackImage = `https://picsum.photos/seed/${currentItem.title.replace(/[^a-zA-Z]/g, '') || 'maakleerplek'}/1200/800`;
-  let displayImage = currentItem.imageUrl || fallbackImage;
 
+  // Resolve image URL — no external fallback; missing image handled separately
+  let displayImage = currentItem.imageUrl || '';
   if (displayImage.startsWith('/')) {
-    // Note: since frontend is running in Docker alongside data-fetcher, relative paths
-    // need to be pointed directly to the image origin or data-fetcher for SSR to work.
-    if (currentItem.type === 'drinks') {
-      displayImage = `http://data-fetcher:8080${displayImage}`;
-    } else {
-      displayImage = `https://maakleerplek.be${displayImage}`;
-    }
+    displayImage = currentItem.type === 'drinks'
+      ? `http://data-fetcher:8080${displayImage}`
+      : `https://maakleerplek.be${displayImage}`;
   }
+  const hasImage = !!displayImage;
 
-  // ... existing code ...
   return (
     <div className="flex-1 relative flex flex-col bg-[#F5F2EB] overflow-hidden">
       {/* Top Progress Bar */}
       <div className="absolute top-0 left-0 right-0 h-1.5 bg-[#E5E0D8] z-50">
         <motion.div
           key={currentIndex}
-          initial={{ width: "0%" }}
-          animate={{ width: "100%" }}
-          transition={{ duration: transitionTime, ease: "linear" }}
+          initial={{ width: '0%' }}
+          animate={{ width: '100%' }}
+          transition={{ duration: transitionTime, ease: 'linear' }}
           className="h-full bg-[#2C1E16]"
         />
       </div>
@@ -111,77 +96,120 @@ export function EventCarousel() {
             transition={{ duration: 0.5 }}
             className="absolute inset-0 flex flex-col"
           >
-            {/* Top half: Image */}
-            <div className="h-[45%] relative border-b-2 border-[#2C1E16] bg-[#2C1E16]">
-              <Image
-                src={displayImage}
-                alt={currentItem.title}
-                fill
-                className="object-cover opacity-90"
-                referrerPolicy="no-referrer"
-                unoptimized
-              />
+            {/* Top 45%: Image or branded fallback */}
+            <div className="h-[45%] relative border-b-2 border-[#2C1E16] bg-[#2C1E16] shrink-0">
+              {hasImage ? (
+                <Image
+                  src={displayImage}
+                  alt={currentItem.title}
+                  fill
+                  className="object-cover opacity-90"
+                  referrerPolicy="no-referrer"
+                  unoptimized
+                />
+              ) : (
+                <div className="absolute inset-0 flex items-center justify-center">
+                  <div className="relative w-48 h-16">
+                    <Image
+                      src="/HTL_logo_CMYK_white-04.svg"
+                      alt="maakleerplek"
+                      fill
+                      className="object-contain"
+                    />
+                  </div>
+                </div>
+              )}
             </div>
 
-            {/* Bottom half: Content */}
-            <div className="h-[55%] p-6 flex flex-col justify-center bg-[#F5F2EB]">
-              {/* Event Type Tag */}
-              <div className="mb-2">
+            {/* Bottom 55%: Content — stacked from top */}
+            <div className="h-[55%] px-6 pt-5 pb-4 flex flex-col gap-3 bg-[#F5F2EB]">
+              {/* Event type tag */}
+              <div className="shrink-0">
                 <span
                   className="inline-flex items-center gap-2 px-3 py-1 text-[10px] xl:text-xs font-black uppercase tracking-widest text-[#2C1E16] border-2 border-[#2C1E16]"
                   style={{ backgroundColor: currentItem._color }}
                 >
                   <currentItem._icon className="w-3 h-3" />
-                  {currentItem.type === 'workshop' ? 'Upcoming Workshop' : currentItem.type === 'recurring' ? 'Recurring Event' : 'Latest News'}
+                  {currentItem.type === 'workshop'
+                    ? 'Upcoming Workshop'
+                    : currentItem.type === 'recurring'
+                    ? 'Recurring Event'
+                    : 'Latest News'}
                 </span>
               </div>
 
-              <h3 className="text-2xl xl:text-3xl font-black mb-1 leading-tight text-[#2C1E16] uppercase tracking-tighter line-clamp-2 title-hyphenation">
+              {/* Title */}
+              <h3 className="shrink-0 text-2xl xl:text-3xl font-black leading-tight text-[#2C1E16] uppercase tracking-tighter line-clamp-2">
                 {currentItem.title}
               </h3>
 
-              {currentItem.subtitle && (
-                <h4 className="text-lg xl:text-xl font-bold mb-3 leading-tight text-[#2C1E16] opacity-80 line-clamp-2">
-                  {currentItem.subtitle}
-                </h4>
+              {/* Date + Time chips — separate badges */}
+              {(currentItem.date || currentItem.time) && (
+                <div className="shrink-0 flex flex-row gap-3 flex-wrap">
+                  {currentItem.date && (
+                    <div className="flex items-center gap-2 text-sm font-black text-[#2C1E16] border-2 border-[#2C1E16] px-3 py-1.5 bg-[#F5F2EB]">
+                      <Calendar className="w-4 h-4" />
+                      <span>{currentItem.date}</span>
+                    </div>
+                  )}
+                  {currentItem.time && (
+                    <div className="flex items-center gap-2 text-sm font-black text-[#2C1E16] border-2 border-[#2C1E16] px-3 py-1.5 bg-[#F5F2EB]">
+                      <ClockIcon className="w-4 h-4" />
+                      <span>{currentItem.time}</span>
+                    </div>
+                  )}
+                  {currentItem.location && (
+                    <div className="flex items-center gap-2 text-sm font-black text-[#2C1E16] border-2 border-[#2C1E16] px-3 py-1.5 bg-[#F5F2EB]">
+                      <MapPin className="w-4 h-4" />
+                      <span>{currentItem.location}</span>
+                    </div>
+                  )}
+                </div>
               )}
-
-              <div className="flex flex-row gap-4 mb-3 flex-wrap">
-                {(currentItem.time || currentItem.date) && (
-                  <div
-                    className="flex items-center gap-2 text-sm font-black text-[#2C1E16] border-2 border-[#2C1E16] px-3 py-1.5 bg-[#F5F2EB]"
-                  >
-                    <ClockIcon className="w-4 h-4" />
-                    <span>{currentItem.date} {currentItem.time ? `- ${currentItem.time}` : ''}</span>
-                  </div>
-                )}
-                {currentItem.location && (
+              {/* Location on its own row when there's no date/time (e.g. news) */}
+              {!currentItem.date && !currentItem.time && currentItem.location && (
+                <div className="shrink-0 flex flex-row gap-3">
                   <div className="flex items-center gap-2 text-sm font-black text-[#2C1E16] border-2 border-[#2C1E16] px-3 py-1.5 bg-[#F5F2EB]">
                     <MapPin className="w-4 h-4" />
                     <span>{currentItem.location}</span>
                   </div>
+                </div>
+              )}
+
+              {/* Description + QR side-by-side — aligned to top, right below the tags */}
+              <div className="shrink-0 flex flex-row items-start gap-4">
+                {currentItem.description ? (
+                  <p className="text-base xl:text-lg text-[#2C1E16] font-medium leading-normal line-clamp-3 flex-1">
+                    {currentItem.description}
+                  </p>
+                ) : (
+                  <div className="flex-1" />
+                )}
+                {currentItem.link && (
+                  <div className="shrink-0 border-2 border-[#2C1E16] p-1.5 bg-white">
+                    <QRCodeSVG
+                      value={currentItem.link}
+                      size={80}
+                      bgColor="#ffffff"
+                      fgColor="#2C1E16"
+                      level="M"
+                    />
+                  </div>
                 )}
               </div>
-
-              {currentItem.description ? (
-                <p className="text-base xl:text-lg text-[#2C1E16] font-medium leading-normal max-w-2xl line-clamp-3">
-                  {currentItem.description}
-                </p>
-              ) : (
-                <div className="flex-1" />
-              )}
             </div>
           </motion.div>
         </AnimatePresence>
       </div>
 
-      {/* Progress Indicators */}
-      <div className="absolute bottom-6 right-6 flex gap-2 z-30 max-w-[80%] overflow-hidden">
+      {/* Progress dots — centered at the bottom, never overlapping QR */}
+      <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex gap-2 z-30">
         {carouselItems.map((_, idx) => (
           <div
             key={idx}
-            className={`h-3 transition-all duration-300 border border-[#2C1E16] shrink-0 ${idx === currentIndex ? 'w-8 bg-[#2C1E16]' : 'w-3 bg-[#F5F2EB]'
-              }`}
+            className={`h-3 transition-all duration-300 border border-[#2C1E16] shrink-0 ${
+              idx === currentIndex ? 'w-8 bg-[#2C1E16]' : 'w-3 bg-[#F5F2EB]'
+            }`}
           />
         ))}
       </div>
