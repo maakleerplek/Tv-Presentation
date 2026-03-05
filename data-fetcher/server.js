@@ -3,6 +3,7 @@ import cors from 'cors';
 import * as cheerio from 'cheerio';
 import https from 'https';
 import { parseDutchDate, stripHtml, truncate, isCacheValid as isCacheValidUtil, DUTCH_MONTHS } from './utils.js';
+import { fetchEventDetail } from './event-detail.js';
 
 const app = express();
 app.use(cors());
@@ -47,91 +48,6 @@ let drinksCache = { data: null, timestamp: 0 };
 /** Wrap isCacheValidUtil with a default duration from this module's config. */
 function isCacheValid(cache, duration = CACHE_DURATION_MS) {
     return isCacheValidUtil(cache, duration);
-}
-
-/**
- * Fetch event detail page for extra info (description, image, time).
- */
-async function fetchEventDetail(url) {
-    try {
-        const response = await fetch(url, {
-            headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36' }
-        });
-        if (!response.ok) {
-            console.error(`[fetchEventDetail] Failed ${url}: ${response.status}`);
-            return {};
-        }
-        const html = await response.text();
-        const $ = cheerio.load(html);
-
-        const description = $('meta[property="og:description"]').attr('content') || '';
-
-        // og:image is the most reliable; images on this site use http:// — normalise to https://
-        let imageUrl = $('meta[property="og:image"]').attr('content') ||
-            $('.wp-post-image').attr('src') ||
-            $('.post-thumbnail img').attr('src') ||
-            $('article img').first().attr('src') ||
-            $('main img').first().attr('src') || '';
-
-        // Normalise URL: http → https, relative → absolute
-        if (imageUrl.startsWith('http://')) {
-            imageUrl = imageUrl.replace('http://', 'https://');
-        } else if (imageUrl && !imageUrl.startsWith('https://') && imageUrl.startsWith('/')) {
-            imageUrl = `${MAAKLEERPLEK_URL}${imageUrl}`;
-        } else if (imageUrl && !imageUrl.startsWith('http')) {
-            imageUrl = `${MAAKLEERPLEK_URL}/${imageUrl}`;
-        }
-
-        // ── Time extraction ────────────────────────────────────────────
-        // The detail page uses lazy-loading: the real src is in data-src, not src.
-        // Example markup:
-        //   <img data-src=".../icon-time.svg" class="lazyload" src="data:image/gif...">
-        //   <noscript><img src=".../icon-time.svg"></noscript>
-        // The surrounding <p> text is: "04/03/2026 19:00-22:00"
-        let time = '';
-        const timeIcon = $('img[src*="icon-time.svg"], img[data-src*="icon-time.svg"]');
-        if (timeIcon.length > 0) {
-            // The icon and its text are siblings inside a <p>
-            const parentText = timeIcon.closest('p').text().trim();
-            // Format is "DD/MM/YYYY HH:MM-HH:MM" — extract the time range after the date
-            const timeMatch = parentText.match(/\d{1,2}[:.]\d{2}\s*[-–]\s*\d{1,2}[:.]\d{2}/);
-            if (timeMatch) {
-                time = timeMatch[0].replace(/\./g, ':');
-            } else {
-                // Fallback: grab any HH:MM-like token that isn't the date
-                const token = parentText.match(/(?<!\d{2}\/\d{2}\/\d{4}\s)(\d{1,2}[:.]\d{2})/);
-                if (token) time = token[0].replace(/\./g, ':');
-            }
-        }
-
-        if (!time) {
-            // Secondary fallback: scan the whole page body for a time range
-            const bodyText = $('main').text();
-            const timeMatch = bodyText.match(/\d{1,2}[:.]\d{2}\s*[-–]\s*\d{1,2}[:.]\d{2}/);
-            if (timeMatch) time = timeMatch[0].replace(/\./g, ':');
-        }
-
-        // ── Location extraction ────────────────────────────────────────
-        // The <p> text includes the raw noscript HTML (Cheerio treats noscript as a text node),
-        // so we strip any leading HTML tags before returning the location name.
-        const locationIcon = $('img[src*="icon-location.svg"], img[data-src*="icon-location.svg"]');
-        let location = '';
-        if (locationIcon.length > 0) {
-            const rawLoc = locationIcon.closest('p').text().trim();
-            // Strip embedded HTML (noscript content) and the "Locatie" prefix
-            location = stripHtml(rawLoc).replace(/^Locatie\s*/i, '').trim();
-        }
-
-        return {
-            description: truncate(stripHtml(description), 400),
-            imageUrl,
-            time,
-            location
-        };
-    } catch (err) {
-        console.error(`[fetchEventDetail] Exception for ${url}:`, err.message);
-        return {};
-    }
 }
 
 // ── Calendar Scraper ─────────────────────────────────────────────
@@ -206,9 +122,16 @@ async function scrapeCalendar() {
         });
     });
 
-    // Fetch detail info for the first 30 events (to ensure workshops get details over longer period)
-    const detailPromises = events.slice(0, MAX_EVENT_DETAILS).map(async (event) => {
-        if (event.link) {
+    // Always fetch details for recurring-keyword events (they appear prominently in the UI
+    // regardless of their position in the calendar list). For all other events, only fetch
+    // details for the first MAX_EVENT_DETAILS to cap scraping time.
+    const recurringKeywordsForDetail = ['openlab', 'young maker', 'repair'];
+    const detailPromises = events.map(async (event, i) => {
+        const isRecurringKeyword = recurringKeywordsForDetail.some(kw =>
+            event.title.toLowerCase().includes(kw)
+        );
+        const withinLimit = i < MAX_EVENT_DETAILS;
+        if (event.link && (isRecurringKeyword || withinLimit)) {
             const detail = await fetchEventDetail(event.link);
             return {
                 ...event,
@@ -543,6 +466,7 @@ app.get('/api/screen-data', async (_req, res) => {
         for (const event of calendar) {
             const isRecurringByCount = titleCounts[event.title] > 1;
             const isRecurringByKeyword = recurringKeywords.some(kw => event.title.toLowerCase().includes(kw));
+            console.log(`[ScreenData] classify "${event.title}" — byCount=${isRecurringByCount} byKeyword=${isRecurringByKeyword}`);
 
             if (isRecurringByCount || isRecurringByKeyword) {
                 if (!recurringByTitle[event.title]) recurringByTitle[event.title] = [];
@@ -626,6 +550,9 @@ app.get('/api/screen-data', async (_req, res) => {
             }
         };
 
+        console.log(`[ScreenData] eventPriority: ${JSON.stringify(EVENT_PRIORITY)}`);
+        console.log(`[ScreenData] workshops (${workshops.length}):`, workshops.map(e => `"${e.title}" ${e.dateISO} ${e.time}`));
+        console.log(`[ScreenData] recurringEvents (${recurringEvents.length}):`, recurringEvents.map(e => `"${e.title}" ${e.dateISO} ${e.time}`));
         // DUMPING EXACT JSON TO LOGS PER USER REQUEST
         console.log(`[ScreenData API] First event raw dump:`, JSON.stringify(workshops[0] || recurringEvents[0], null, 2));
 

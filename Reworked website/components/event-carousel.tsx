@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import Image from 'next/image';
 import QRCode from 'react-qr-code';
-import { Calendar, Clock as ClockIcon, Globe, MapPin, Newspaper, Repeat } from 'lucide-react';
+import { Calendar, Clock as ClockIcon, Globe, MapPin, Newspaper, Repeat, Tag } from 'lucide-react';
 import { useScreenData } from '@/hooks/useScreenData';
 
 // Helper to shuffle an array (Fisher-Yates)
@@ -128,14 +128,14 @@ export function EventCarousel() {
             transition={{ duration: 0.5 }}
             className="absolute inset-0 flex flex-col"
           >
-            {/* Top 45%: Image or branded fallback */}
-            <div className="h-[45%] relative border-b-2 border-[#2C1E16] bg-[#2C1E16] shrink-0">
+            {/* Top section: Image — flex-[3] gives ~60% of the card height */}
+            <div className="flex-[3] relative border-b-2 border-[#2C1E16] bg-[#2C1E16] min-h-0">
               {hasImage ? (
                 <Image
                   src={displayImage}
                   alt={currentItem.title}
                   fill
-                  className="object-cover opacity-90"
+                  className="object-cover"
                   referrerPolicy="no-referrer"
                   unoptimized
                 />
@@ -153,8 +153,8 @@ export function EventCarousel() {
               )}
             </div>
 
-            {/* Bottom 55%: Content */}
-            <div className="h-[55%] px-6 pt-5 pb-4 flex flex-col gap-3 bg-[#F5F2EB]">
+            {/* Bottom section: Content — flex-[2] gives ~40% of the card height */}
+            <div className="flex-[2] px-6 pt-5 pb-4 flex flex-col gap-3 bg-[#F5F2EB] min-h-0 overflow-hidden">
               {/* Event type tag */}
               <div className="shrink-0">
                 <span
@@ -187,6 +187,13 @@ export function EventCarousel() {
                   <div className="flex items-center gap-2 text-sm font-black text-[#2C1E16] border-2 border-[#2C1E16] px-3 py-1.5 bg-[#F5F2EB]">
                     <ClockIcon className="w-4 h-4" />
                     <span>{currentItem.time}</span>
+                  </div>
+                )}
+                {/* Price chip — workshops only */}
+                {currentItem.type === 'workshop' && currentItem.price && (
+                  <div className="flex items-center gap-2 text-sm font-black text-[#2C1E16] border-2 border-[#2C1E16] px-3 py-1.5 bg-[#FEF08A]">
+                    <Tag className="w-4 h-4" />
+                    <span>{currentItem.price}</span>
                   </div>
                 )}
                 {/* Events: show MapPin for location; News: show Globe for source */}
