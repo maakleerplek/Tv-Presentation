@@ -1,0 +1,5 @@
+{
+  "name": "Makerspace Digital Signage",
+  "description": "A static digital signage interface for a makerspace, displaying time, weather, events, drinks, and tips.",
+  "requestFramePermissions": []
+}

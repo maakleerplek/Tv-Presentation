@@ -1,0 +1,5 @@
+[test]
+preload = ["./tests/setup.ts"]
+
+[test.bunfig]
+# Resolve @/ to the project root so test imports match Next.js paths
