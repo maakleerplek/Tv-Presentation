@@ -4,9 +4,6 @@ import { Coffee, QrCode } from 'lucide-react';
 import QRCode from 'react-qr-code';
 import { useScreenData } from '@/hooks/useScreenData';
 
-// NEXT_PUBLIC_ prefix required so the value is inlined at build time for client components
-const PAYMENT_QR_URL = process.env.NEXT_PUBLIC_PAYMENT_QR_URL || 'https://makerspace.example.com/pay';
-
 const HeaderRow = () => (
   <div className="grid grid-cols-[32px_1fr_auto_auto] gap-3 items-end border-b-2 border-[#2C1E16] pb-2 shrink-0">
     <span className="col-start-2 text-xs text-[#2C1E16] font-black uppercase">Item</span>
@@ -17,6 +14,7 @@ const HeaderRow = () => (
 
 export function DrinksList() {
   const { data, loading, error } = useScreenData();
+  const PAYMENT_QR_URL = data?.config?.paymentQrUrl || '';
 
   if (loading) {
     return (
@@ -75,15 +73,17 @@ export function DrinksList() {
         </div>
       </div>
 
-      <div className="p-4 border-t-2 border-[#2C1E16] bg-[#F5F2EB] flex flex-row items-center justify-center gap-6 shrink-0">
-        <div className="flex flex-col items-end gap-1 text-[#2C1E16]">
-          <QrCode className="w-5 h-5" />
-          <p className="text-[10px] uppercase tracking-widest font-black text-right leading-tight max-w-[160px]">Scan the barcode of your item with this website</p>
+      {PAYMENT_QR_URL && (
+        <div className="p-4 border-t-2 border-[#2C1E16] bg-[#F5F2EB] flex flex-row items-center justify-center gap-6 shrink-0">
+          <div className="flex flex-col items-end gap-1 text-[#2C1E16]">
+            <QrCode className="w-5 h-5" />
+            <p className="text-[10px] uppercase tracking-widest font-black text-right leading-tight max-w-[160px]">Scan de barcode van je item met deze website</p>
+          </div>
+          <div className="border-2 border-[#2C1E16] p-1.5 bg-[#F5F2EB]">
+            <QRCode value={PAYMENT_QR_URL} size={60} bgColor="#F5F2EB" fgColor="#2C1E16" />
+          </div>
         </div>
-        <div className="border-2 border-[#2C1E16] p-1.5 bg-[#F5F2EB]">
-          <QRCode value={PAYMENT_QR_URL} size={60} bgColor="#F5F2EB" fgColor="#2C1E16" />
-        </div>
-      </div>
+      )}
     </div>
   );
 }

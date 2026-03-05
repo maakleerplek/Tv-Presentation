@@ -4,6 +4,9 @@ services:
     build:
       context: "./Reworked website"
       dockerfile: Dockerfile
+      args:
+        # NEXT_PUBLIC_ vars are inlined at build time by Next.js — must be passed as build args
+        NEXT_PUBLIC_SCREEN_DATA_POLL_MINUTES: ${NEXT_PUBLIC_SCREEN_DATA_POLL_MINUTES:-5}
     container_name: tv-frontend
     restart: unless-stopped
     env_file:

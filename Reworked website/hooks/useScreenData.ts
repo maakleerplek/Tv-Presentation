@@ -9,6 +9,11 @@ export type ScreenData = {
     drinks: any[];
     config?: {
         transitionTime: number;
+        drinksTransitionTime: number;
+        tipsTransitionTime: number;
+        paymentQrUrl: string;
+        eventPriority: string[];
+        tips: string[];
     }
 };
 

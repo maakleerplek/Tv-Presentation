@@ -17,6 +17,10 @@ COPY . .
 # Next.js telemetry is disabled
 ENV NEXT_TELEMETRY_DISABLED=1
 
+# NEXT_PUBLIC_ vars must be present at build time — receive them as build args
+ARG NEXT_PUBLIC_SCREEN_DATA_POLL_MINUTES=5
+ENV NEXT_PUBLIC_SCREEN_DATA_POLL_MINUTES=$NEXT_PUBLIC_SCREEN_DATA_POLL_MINUTES
+
 RUN bun run build
 
 # Production image, copy all the files and run next

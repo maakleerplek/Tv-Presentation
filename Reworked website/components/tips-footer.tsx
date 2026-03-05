@@ -6,24 +6,38 @@ import { motion, AnimatePresence } from 'motion/react';
 import { Lightbulb } from 'lucide-react';
 import QRCode from 'react-qr-code';
 import Image from 'next/image';
+import { useScreenData } from '@/hooks/useScreenData';
 
-const TIPS = [
-  "Please clean up your workspace after you are done. A clean space is a safe space!",
-  "Need help with a machine? Ask one of the volunteers wearing a blue lanyard.",
-  "Remember to log your machine usage time in the portal.",
-  "Don't leave 3D printers unattended for long prints. Check on them regularly.",
-  "Safety first: Always wear safety glasses when operating power tools."
+const DEFAULT_TIPS = [
+  "Ruim je werkplek op na gebruik. Een nette ruimte is een veilige ruimte!",
+  "Hulp nodig met een machine? Vraag een vrijwilliger met een blauwe lanyard.",
+  "Vergeet niet je machinegebruik te registreren in het portaal.",
+  "Laat 3D-printers niet onbeheerd achter bij lange prints. Kijk er regelmatig naar.",
+  "Veiligheid eerst: draag altijd een veiligheidsbril bij het gebruik van gereedschap."
 ];
 
 export function TipsFooter() {
+  const { data } = useScreenData();
   const [currentIndex, setCurrentIndex] = useState(0);
+
+  const tips =
+    data?.config?.tips && data.config.tips.length > 0
+      ? data.config.tips
+      : DEFAULT_TIPS;
+
+  const transitionTime = data?.config?.tipsTransitionTime ?? 10;
+
+  // Reset index when tip list changes (e.g. on first data load)
+  useEffect(() => {
+    setCurrentIndex(0);
+  }, [tips.length]);
 
   useEffect(() => {
     const timer = setInterval(() => {
-      setCurrentIndex((prev) => (prev + 1) % TIPS.length);
-    }, 10000); // Change every 10 seconds
+      setCurrentIndex((prev) => (prev + 1) % tips.length);
+    }, transitionTime * 1000);
     return () => clearInterval(timer);
-  }, []);
+  }, [tips.length, transitionTime]);
 
   return (
     <div className="h-full w-full bg-[#F5F2EB] text-[#2C1E16] flex items-center px-6 gap-8">
@@ -33,7 +47,7 @@ export function TipsFooter() {
           <QRCode value="https://maakleerplek.be" size={60} bgColor="#F5F2EB" fgColor="#2C1E16" />
         </div>
         <div className="flex flex-col justify-center">
-          <span className="text-[10px] font-black uppercase tracking-widest text-[#2C1E16]">Visit</span>
+          <span className="text-[10px] font-black uppercase tracking-widest text-[#2C1E16]">Bezoek</span>
           <span className="text-sm font-black uppercase tracking-widest text-[#2C1E16]">maakleerplek.be</span>
         </div>
       </div>
@@ -42,7 +56,7 @@ export function TipsFooter() {
       <div className="flex-1 flex items-center h-full overflow-hidden gap-6">
         <div className="flex items-center gap-3 font-black uppercase tracking-widest text-sm shrink-0 bg-[#FECACA] text-[#2C1E16] px-4 py-2 border-2 border-[#2C1E16]">
           <Lightbulb className="w-5 h-5" />
-          <span>Tip of the day</span>
+          <span>Tip</span>
         </div>
 
         <div className="flex-1 relative h-full flex items-center overflow-hidden">
@@ -55,7 +69,7 @@ export function TipsFooter() {
               transition={{ duration: 0.4 }}
               className="absolute text-2xl font-bold uppercase tracking-tight"
             >
-              {TIPS[currentIndex]}
+              {tips[currentIndex]}
             </motion.div>
           </AnimatePresence>
         </div>

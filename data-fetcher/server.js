@@ -2,6 +2,7 @@ import express from 'express';
 import cors from 'cors';
 import * as cheerio from 'cheerio';
 import https from 'https';
+import { parseDutchDate, stripHtml, truncate, isCacheValid as isCacheValidUtil, DUTCH_MONTHS } from './utils.js';
 
 const app = express();
 app.use(cors());
@@ -14,9 +15,26 @@ const MAAKLEERPLEK_URL  = (process.env.MAAKLEERPLEK_URL || 'https://maakleerplek
 const CALENDAR_URL      = `${MAAKLEERPLEK_URL}/kalender/`;
 const HOMEPAGE_URL      = `${MAAKLEERPLEK_URL}/`;
 const CACHE_DURATION_MS = parseInt(process.env.CACHE_DURATION_MINUTES || '15', 10) * 60 * 1000;
+const DRINKS_CACHE_DURATION_MS = parseInt(process.env.DRINKS_CACHE_DURATION_MINUTES || '5', 10) * 60 * 1000;
 const NEWS_MAX_AGE_DAYS = parseInt(process.env.NEWS_MAX_AGE_DAYS       || '14', 10);
 const MAX_NEWS_ITEMS    = parseInt(process.env.MAX_NEWS_ITEMS          || '6',  10);
 const MAX_EVENT_DETAILS = parseInt(process.env.MAX_EVENT_DETAILS       || '30', 10);
+// Comma-separated list of title keywords in priority order, e.g. "openlab,repair,young maker"
+// Events whose title contains an earlier keyword beat those with a later keyword when both qualify.
+const EVENT_PRIORITY = (process.env.EVENT_PRIORITY || '')
+    .split(',').map(s => s.trim().toLowerCase()).filter(Boolean);
+
+// Numbered tips shown in the footer: TIP_1, TIP_2, TIP_3, …
+// Collected in numeric order; stops at the first missing index.
+const TIPS = (() => {
+    const tips = [];
+    for (let i = 1; ; i++) {
+        const val = process.env[`TIP_${i}`];
+        if (!val) break;
+        tips.push(val.trim());
+    }
+    return tips;
+})();
 
 // State for manual transitions via /api/transition
 let forceTransitionTime = Date.now();
@@ -26,52 +44,9 @@ let calendarCache = { data: null, timestamp: 0 };
 let newsCache = { data: null, timestamp: 0 };
 let drinksCache = { data: null, timestamp: 0 };
 
-function isCacheValid(cache) {
-    return cache.data && (Date.now() - cache.timestamp < CACHE_DURATION_MS);
-}
-
-// ── Dutch month abbreviation → month index ──────────────────────
-const DUTCH_MONTHS = {
-    jan: 0, feb: 1, maa: 2, mrt: 2, apr: 3, mei: 4, jun: 5,
-    jul: 6, aug: 7, sep: 8, okt: 9, nov: 10, dec: 11,
-};
-
-/**
- * Parse a Dutch short date like "do 26 feb" into a Date object.
- * Uses the current year, or next year if the date has passed.
- */
-function parseDutchDate(text) {
-    const cleaned = text.trim().toLowerCase();
-    // Pattern: "do 26 feb" or "za 28 feb"
-    const match = cleaned.match(/\w+\s+(\d+)\s+(\w+)/);
-    if (!match) return null;
-
-    const day = parseInt(match[1], 10);
-    const monthKey = match[2].substring(0, 3);
-    const monthIndex = DUTCH_MONTHS[monthKey];
-    if (monthIndex === undefined) return null;
-
-    const now = new Date();
-    let year = now.getFullYear();
-    const date = new Date(year, monthIndex, day);
-
-    // If date is more than 2 months in the past, assume next year
-    if (date < new Date(now.getTime() - 60 * 24 * 60 * 60 * 1000)) {
-        date.setFullYear(year + 1);
-    }
-
-    return date;
-}
-
-/** Strip HTML tags from a string. */
-function stripHtml(str) {
-    return str.replace(/<[^>]*>/g, ' ').replace(/\s{2,}/g, ' ').trim();
-}
-
-/** Truncate a string to maxLen characters, adding ellipsis if needed. */
-function truncate(str, maxLen) {
-    if (!str || str.length <= maxLen) return str;
-    return str.slice(0, maxLen).trimEnd() + '…';
+/** Wrap isCacheValidUtil with a default duration from this module's config. */
+function isCacheValid(cache, duration = CACHE_DURATION_MS) {
+    return isCacheValidUtil(cache, duration);
 }
 
 /**
@@ -148,7 +123,7 @@ async function fetchEventDetail(url) {
         }
 
         return {
-            description: truncate(stripHtml(description), 150),
+            description: truncate(stripHtml(description), 400),
             imageUrl,
             time,
             location
@@ -185,7 +160,7 @@ async function scrapeCalendar() {
 
         // Each .agenda_item is one event
         $(dayEl).find('.agenda_item').each((_, itemEl) => {
-            const title = $(itemEl).find('.agenda_item_title').text().trim();
+            const titleRaw = $(itemEl).find('.agenda_item_title').text().trim();
             const timeRaw = $(itemEl).find('.agenda_item_time').text().trim();
             const link = $(itemEl).find('a').attr('href') || '';
 
@@ -199,13 +174,32 @@ async function scrapeCalendar() {
                 locationStr = timeRaw;
             }
 
+            // If no time was found in .agenda_item_time, check if the title itself contains a
+            // time pattern like "Workshop naam 19:00" or "19:00 - 21:00 Naam".
+            // Extract the time range (or single time) from the title and strip it from the display title.
+            let title = titleRaw;
+            if (!timeStr) {
+                const titleTimeMatch = titleRaw.match(/\b(\d{1,2}[:.]\d{2}\s*[-–]\s*\d{1,2}[:.]\d{2}|\d{1,2}[:.]\d{2})\b/);
+                if (titleTimeMatch) {
+                    timeStr = titleTimeMatch[0].replace(/\./g, ':').trim();
+                    // Remove the matched time (and any surrounding separators/spaces) from the title
+                    title = titleRaw.replace(titleTimeMatch[0], '').replace(/^\s*[-–|:]\s*|\s*[-–|:]\s*$/g, '').trim();
+                }
+            }
+
             if (title) {
+                // Build dateISO from local date parts to avoid UTC timezone shift.
+                // new Date(...).toISOString() converts to UTC which can give the wrong
+                // calendar day when the server runs in a timezone east of UTC (e.g. Belgium).
+                const mm = String(date.getMonth() + 1).padStart(2, '0');
+                const dd = String(date.getDate()).padStart(2, '0');
+                const dateISO = `${date.getFullYear()}-${mm}-${dd}`;
                 events.push({
                     title,
                     location: locationStr,
                     time: timeStr,
                     date: dateText,
-                    dateISO: date.toISOString().split('T')[0],
+                    dateISO,
                     link,
                 });
             }
@@ -363,6 +357,12 @@ const INVENTREE_DRINKS_LOCATIONS = (
 // ── Carousel config ────────────────────────────────────────────────
 // Number of seconds each carousel slide is shown before advancing
 const CAROUSEL_TRANSITION_TIME = parseInt(process.env.CAROUSEL_TRANSITION_TIME || '15', 10);
+// Number of seconds each page of the drinks list is shown before advancing
+const DRINKS_TRANSITION_TIME = parseInt(process.env.DRINKS_TRANSITION_TIME || '30', 10);
+// Number of seconds each tip is shown before advancing
+const TIPS_TRANSITION_TIME = parseInt(process.env.TIPS_TRANSITION_TIME || '10', 10);
+// URL encoded into the payment QR code in the drinks panel
+const PAYMENT_QR_URL = process.env.PAYMENT_QR_URL || '';
 
 // Helper function to fetch with a timeout
 const fetchWithTimeout = async (resource, options = {}, timeout = 5000) => {
@@ -383,7 +383,7 @@ const fetchWithTimeout = async (resource, options = {}, timeout = 5000) => {
 };
 
 async function fetchDrinks() {
-    if (isCacheValid(drinksCache)) return drinksCache.data;
+    if (isCacheValid(drinksCache, DRINKS_CACHE_DURATION_MS)) return drinksCache.data;
     if (!INVENTREE_TOKEN) {
         console.warn('[Drinks] No INVENTREE_TOKEN configured');
         return [];
@@ -526,7 +526,6 @@ app.get('/api/screen-data', async (_req, res) => {
 
         const workshops = [];
         const recurringEvents = [];
-        const recurringTitles = new Set();
 
         // Keywords to catch recurring events even if only 1 is currently in the calendar window
         const recurringKeywords = ['openlab', 'young maker', 'repair'];
@@ -537,19 +536,76 @@ app.get('/api/screen-data', async (_req, res) => {
             titleCounts[event.title] = (titleCounts[event.title] || 0) + 1;
         }
 
+        // For recurring events, collect ALL instances first, then pick the best one
+        // per title: prefer a currently-running instance, else the soonest upcoming one.
+        const recurringByTitle = {};
+
         for (const event of calendar) {
             const isRecurringByCount = titleCounts[event.title] > 1;
             const isRecurringByKeyword = recurringKeywords.some(kw => event.title.toLowerCase().includes(kw));
 
             if (isRecurringByCount || isRecurringByKeyword) {
-                // Only show the next instance of a recurring event
-                if (!recurringTitles.has(event.title)) {
-                    recurringTitles.add(event.title);
-                    recurringEvents.push({ ...event, type: 'recurring' });
-                }
+                if (!recurringByTitle[event.title]) recurringByTitle[event.title] = [];
+                recurringByTitle[event.title].push(event);
             } else {
                 workshops.push({ ...event, type: 'workshop' });
             }
+        }
+
+        // Pick the best instance for each recurring event title.
+        // Scoring rules (lower = better):
+        //   - Happening right now:  -Infinity (always wins)
+        //   - Future with time:     ms until start (sooner = lower)
+        //   - No time info:         ms until midnight of that day (treated as all-day, lower than distant future)
+        //   - Past events:          +Infinity (never picked if anything better exists)
+        const now = new Date();
+        for (const [, instances] of Object.entries(recurringByTitle)) {
+            let best = null;
+            let bestScore = Infinity;
+
+            for (const event of instances) {
+                const [isoYear, isoMonth, isoDay] = (event.dateISO || '').split('-').map(Number);
+                if (!isoYear) continue; // skip events with no date at all
+
+                // If no parseable time, score by date midnight (all-day treatment)
+                const startMatch = event.time ? event.time.match(/(\d{1,2})[:.](\d{2})/) : null;
+                const startTime = startMatch
+                    ? new Date(isoYear, isoMonth - 1, isoDay, parseInt(startMatch[1], 10), parseInt(startMatch[2], 10))
+                    : new Date(isoYear, isoMonth - 1, isoDay, 0, 0);
+
+                const endMatch = event.time ? event.time.match(/[-–](\d{1,2})[:.](\d{2})/) : null;
+                const endTime = endMatch
+                    ? new Date(isoYear, isoMonth - 1, isoDay, parseInt(endMatch[1], 10), parseInt(endMatch[2], 10))
+                    : new Date(startTime.getTime() + (startMatch ? 60 * 60 * 1000 : 24 * 60 * 60 * 1000));
+
+                const effectiveEnd = new Date(endTime.getTime() + 5 * 60 * 1000);
+                const isNow = startTime <= now && now < effectiveEnd;
+
+                // Also treat an all-day event on today's date as "happening now"
+                const isAllDayToday = !startMatch &&
+                    isoYear === now.getFullYear() &&
+                    (isoMonth - 1) === now.getMonth() &&
+                    isoDay === now.getDate();
+
+                let score;
+                if (isNow || isAllDayToday) {
+                    // Happening right now — guaranteed winner
+                    score = -Infinity;
+                } else if (effectiveEnd <= now) {
+                    // Already finished — only use as last resort
+                    score = Infinity;
+                } else {
+                    // Future: sooner start = lower score
+                    score = startTime.getTime() - now.getTime();
+                }
+
+                if (best === null || score < bestScore) {
+                    best = event;
+                    bestScore = score;
+                }
+            }
+
+            if (best) recurringEvents.push({ ...best, type: 'recurring' });
         }
 
         // Add type tag to news for easy combining on the frontend
@@ -562,6 +618,11 @@ app.get('/api/screen-data', async (_req, res) => {
             drinks,
             config: {
                 transitionTime: CAROUSEL_TRANSITION_TIME,
+                drinksTransitionTime: DRINKS_TRANSITION_TIME,
+                tipsTransitionTime: TIPS_TRANSITION_TIME,
+                paymentQrUrl: PAYMENT_QR_URL,
+                eventPriority: EVENT_PRIORITY,
+                tips: TIPS,
             }
         };
 
