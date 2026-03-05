@@ -273,7 +273,6 @@ async function scrapeNews() {
 // ── Inventree Drinks Scraper ───────────────────────────────────────
 const INVENTREE_URL = process.env.INVENTREE_URL || 'https://10.72.3.68:8443';
 const INVENTREE_TOKEN = process.env.INVENTREE_TOKEN;
-const INVENTREE_DRINKS_CATEGORY = process.env.INVENTREE_DRINKS_CATEGORY || 'drinks';
 // Supports comma-separated list of locations, e.g. "HTL-fridge,HTL-snacks"
 // Falls back to singular INVENTREE_DRINKS_LOCATION for backwards compatibility
 const INVENTREE_DRINKS_LOCATIONS = (
@@ -283,8 +282,6 @@ const INVENTREE_DRINKS_LOCATIONS = (
 // ── Carousel config ────────────────────────────────────────────────
 // Number of seconds each carousel slide is shown before advancing
 const CAROUSEL_TRANSITION_TIME = parseInt(process.env.CAROUSEL_TRANSITION_TIME || '15', 10);
-// Number of seconds each page of the drinks list is shown before advancing
-const DRINKS_TRANSITION_TIME = parseInt(process.env.DRINKS_TRANSITION_TIME || '30', 10);
 // Number of seconds each tip is shown before advancing
 const TIPS_TRANSITION_TIME = parseInt(process.env.TIPS_TRANSITION_TIME || '10', 10);
 // URL encoded into the payment QR code in the drinks panel
@@ -339,7 +336,6 @@ async function fetchDrinks() {
 
         // Map and group by part ID to aggregate stock
         const drinksMap = new Map();
-        const categoryNameLower = INVENTREE_DRINKS_CATEGORY ? INVENTREE_DRINKS_CATEGORY.toLowerCase() : '';
 
         for (const item of stockItems) {
             const partDetail = item.part_detail || {};
@@ -544,7 +540,6 @@ app.get('/api/screen-data', async (_req, res) => {
             drinks,
             config: {
                 transitionTime: CAROUSEL_TRANSITION_TIME,
-                drinksTransitionTime: DRINKS_TRANSITION_TIME,
                 tipsTransitionTime: TIPS_TRANSITION_TIME,
                 paymentQrUrl: PAYMENT_QR_URL,
                 eventPriority: EVENT_PRIORITY,

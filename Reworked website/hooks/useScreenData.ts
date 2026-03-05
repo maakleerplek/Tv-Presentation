@@ -1,20 +1,14 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import type { CalendarEvent, NewsItem, DrinkItem, ScreenConfig } from '@/lib/types';
 
 export type ScreenData = {
-    workshops: any[];
-    news: any[];
-    recurringEvents: any[];
-    drinks: any[];
-    config?: {
-        transitionTime: number;
-        drinksTransitionTime: number;
-        tipsTransitionTime: number;
-        paymentQrUrl: string;
-        eventPriority: string[];
-        tips: string[];
-    }
+    workshops: CalendarEvent[];
+    news: NewsItem[];
+    recurringEvents: CalendarEvent[];
+    drinks: DrinkItem[];
+    config?: ScreenConfig;
 };
 
 // NEXT_PUBLIC_ prefix required so the value is inlined at build time for client components

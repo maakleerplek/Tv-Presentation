@@ -2,6 +2,11 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { useScreenData } from '@/hooks/useScreenData';
+import { priorityOf } from '@/lib/utils';
+import type { ScreenData } from '@/hooks/useScreenData';
+
+// Re-export so existing tests (status.test.ts) keep passing
+export { priorityOf };
 
 type NextEvent = {
   title: string;
@@ -15,16 +20,6 @@ type NextEvent = {
   startTime: Date;
 };
 
-/** Return the priority index of an event title given the ordered keyword list (lower = higher priority).
- *  Returns Infinity if no keyword matches. */
-export function priorityOf(title: string, keywords: string[]): number {
-  const lower = title.toLowerCase();
-  for (let i = 0; i < keywords.length; i++) {
-    if (lower.includes(keywords[i])) return i;
-  }
-  return Infinity;
-}
-
 /** Parse "HH:MM" or "HH.MM" from a string, returns { h, m } or null. */
 export function parseTime(str: string, pattern: RegExp): { h: number; m: number } | null {
   const m = str.match(pattern);
@@ -34,7 +29,7 @@ export function parseTime(str: string, pattern: RegExp): { h: number; m: number 
 
 /** Derive the best event to display from the current data + current time. */
 export function resolveEvent(
-  data: ReturnType<typeof useScreenData>['data'],
+  data: ScreenData | null,
 ): NextEvent | null {
   if (!data) return null;
 
@@ -49,8 +44,6 @@ export function resolveEvent(
   const todayMidnight    = new Date(now.getFullYear(), now.getMonth(), now.getDate());
   const tomorrowMidnight = new Date(todayMidnight.getTime() + 24 * 60 * 60 * 1000);
   const dayAfterMidnight = new Date(todayMidnight.getTime() + 48 * 60 * 60 * 1000);
-
-  // Candidates split into "happening now" and "upcoming"
 
   // Candidates split into "happening now" and "upcoming"
   const nowCandidates: (NextEvent & { priority: number })[] = [];
@@ -130,8 +123,7 @@ export function resolveEvent(
   if (bestNow) return bestNow;
 
   // Upcoming events: highest priority wins; tie → soonest start
-  const bestUpcoming = pickBest(upcomingCandidates, 'soonest');
-  return bestUpcoming;
+  return pickBest(upcomingCandidates, 'soonest');
 }
 
 export function Status() {

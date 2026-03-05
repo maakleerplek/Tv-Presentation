@@ -68,7 +68,6 @@ function makeData(overrides: Partial<ScreenData> = {}): ScreenData {
         drinks: [],
         config: {
             transitionTime: 15,
-            drinksTransitionTime: 30,
             tipsTransitionTime: 10,
             paymentQrUrl: '',
             eventPriority: [],
@@ -97,19 +96,29 @@ describe('resolveEvent', () => {
 
     test('returns a future event scheduled for today', () => {
         const now = new Date();
-        // An event starting 2 hours from now
-        const startHour = (now.getHours() + 2) % 24;
+        // Place the event 2 hours from now; if that wraps past midnight, put it on tomorrow.
+        const startHourRaw = now.getHours() + 2;
+        const wrapsToNextDay = startHourRaw >= 24;
+        const startHour = startHourRaw % 24;
+        const eventDate = wrapsToNextDay
+            ? new Date(now.getTime() + 24 * 60 * 60 * 1000)
+            : now;
         const event = {
             title: 'Test Workshop',
-            dateISO: isoDate(now),
-            date: isoDate(now),
+            dateISO: isoDate(eventDate),
+            date: isoDate(eventDate),
             time: `${String(startHour).padStart(2, '0')}:00-${String((startHour + 1) % 24).padStart(2, '0')}:00`,
         };
         const result = resolveEvent(makeData({ workshops: [event] }));
         expect(result).not.toBeNull();
         expect(result!.title).toBe('Test Workshop');
         expect(result!.isNow).toBe(false);
-        expect(result!.isToday).toBe(true);
+        // isToday when no wrap; isTomorrow when the 2h offset crossed midnight
+        if (wrapsToNextDay) {
+            expect(result!.isTomorrow).toBe(true);
+        } else {
+            expect(result!.isToday).toBe(true);
+        }
     });
 
     test('marks an in-progress event as isNow', () => {
@@ -151,7 +160,6 @@ describe('resolveEvent', () => {
             workshops: [low, high],
             config: {
                 transitionTime: 15,
-                drinksTransitionTime: 30,
                 tipsTransitionTime: 10,
                 paymentQrUrl: '',
                 eventPriority: ['openlab'],

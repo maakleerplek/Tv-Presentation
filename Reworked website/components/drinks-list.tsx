@@ -3,6 +3,7 @@
 import { Coffee, QrCode } from 'lucide-react';
 import QRCode from 'react-qr-code';
 import { useScreenData } from '@/hooks/useScreenData';
+import type { DrinkItem } from '@/lib/types';
 
 const HeaderRow = () => (
   <div className="grid grid-cols-[32px_1fr_auto_auto] gap-3 items-end border-b-2 border-[#2C1E16] pb-2 shrink-0">
@@ -47,7 +48,7 @@ export function DrinksList() {
         <div className="grid grid-cols-2 gap-x-10 gap-y-2 content-start">
           <HeaderRow />
           <HeaderRow />
-          {DRINKS.map((drink: any, idx: number) => (
+          {DRINKS.map((drink: DrinkItem, idx: number) => (
             <div key={idx} className="grid grid-cols-[32px_1fr_auto_auto] gap-3 items-center border-b border-[#2C1E16]/30 pb-2 shrink-0">
               <div className="w-8 h-8 relative border border-[#2C1E16] shrink-0 bg-[#E6D5B8] overflow-hidden">
                 {drink.imageUrl ? (

@@ -6,6 +6,8 @@ import Image from 'next/image';
 import QRCode from 'react-qr-code';
 import { Calendar, Clock as ClockIcon, Globe, MapPin, Newspaper, Repeat, Tag } from 'lucide-react';
 import { useScreenData } from '@/hooks/useScreenData';
+import { priorityOf, formatDutchDate } from '@/lib/utils';
+import type { CalendarEvent, NewsItem } from '@/lib/types';
 
 // Helper to shuffle an array (Fisher-Yates)
 export function shuffleArray<T>(array: T[]): T[] {
@@ -17,50 +19,45 @@ export function shuffleArray<T>(array: T[]): T[] {
   return a;
 }
 
-/** Return the priority rank of a title given the ordered keyword list (lower = higher priority).
- *  Infinity = no match = lowest priority. */
-export function priorityRank(title: string, keywords: string[]): number {
-  const lower = title.toLowerCase();
-  for (let i = 0; i < keywords.length; i++) {
-    if (lower.includes(keywords[i])) return i;
-  }
-  return Infinity;
-}
+// Re-export as priorityRank so existing tests (carousel.test.ts) keep passing
+export { priorityOf as priorityRank };
+// Re-export so existing tests (carousel.test.ts) keep passing
+export { formatDutchDate };
 
-/** Format a YYYY-MM-DD string as a Dutch short date, e.g. "do 5 mrt" */
-export function formatDutchDate(dateISO: string): string {
-  const parts = dateISO.split('-').map(Number);
-  if (parts.length !== 3) return dateISO;
-  const [y, m, d] = parts;
-  const date = new Date(y, m - 1, d);
-  return date.toLocaleDateString('nl-BE', { weekday: 'short', day: 'numeric', month: 'short' });
-}
+/** Runtime decoration fields added to each carousel item */
+type CarouselDecoration = {
+  _icon: React.ElementType;
+  _color: string;
+  _isNews?: boolean;
+};
+
+type CarouselItem = (CalendarEvent | NewsItem) & CarouselDecoration;
 
 export function EventCarousel() {
   const { data, loading, error } = useScreenData();
   const transitionTime = data?.config?.transitionTime ?? 15;
   const priorityKeywords: string[] = data?.config?.eventPriority ?? [];
   const [currentIndex, setCurrentIndex] = useState(0);
-  const [carouselItems, setCarouselItems] = useState<any[]>([]);
+  const [carouselItems, setCarouselItems] = useState<CarouselItem[]>([]);
 
   // When data loads, combine the 3 buckets, shuffle non-priority items,
   // then place priority-matched items at the front in keyword order.
   useEffect(() => {
     if (!data) return;
 
-    const workshops    = data.workshops.map((w: any)    => ({ ...w, _icon: Calendar,  _color: '#FEF08A' }));
-    const recurring    = data.recurringEvents.map((r: any) => ({ ...r, _icon: Repeat,    _color: '#BFDBFE' }));
+    const workshops = data.workshops.map((w) => ({ ...w, _icon: Calendar,  _color: '#FEF08A' }));
+    const recurring = data.recurringEvents.map((r) => ({ ...r, _icon: Repeat,    _color: '#BFDBFE' }));
     // News items have no physical location — use a globe chip instead of a map pin
-    const news         = data.news.map((n: any)         => ({ ...n, _icon: Newspaper, _color: '#BBF7D0', _isNews: true }));
+    const news      = data.news.map((n) => ({ ...n, _icon: Newspaper, _color: '#BBF7D0', _isNews: true }));
 
-    const all = [...workshops, ...recurring, ...news];
+    const all: CarouselItem[] = [...workshops, ...recurring, ...news];
 
     if (priorityKeywords.length > 0) {
       // Split into prioritised (rank < Infinity) and the rest
       const prioritised = all
-        .filter(item => priorityRank(item.title, priorityKeywords) < Infinity)
-        .sort((a, b) => priorityRank(a.title, priorityKeywords) - priorityRank(b.title, priorityKeywords));
-      const rest = shuffleArray(all.filter(item => priorityRank(item.title, priorityKeywords) === Infinity));
+        .filter(item => priorityOf(item.title, priorityKeywords) < Infinity)
+        .sort((a, b) => priorityOf(a.title, priorityKeywords) - priorityOf(b.title, priorityKeywords));
+      const rest = shuffleArray(all.filter(item => priorityOf(item.title, priorityKeywords) === Infinity));
       setTimeout(() => { setCarouselItems([...prioritised, ...rest]); setCurrentIndex(0); }, 0);
     } else {
       setTimeout(() => { setCarouselItems(shuffleArray(all)); setCurrentIndex(0); }, 0);
@@ -78,7 +75,7 @@ export function EventCarousel() {
   if (loading) {
     return (
       <div className="flex-1 relative flex flex-col bg-[#F5F2EB] items-center justify-center">
-        <p className="text-[#2C1E16] font-black tracking-widest uppercase">Fetching Events...</p>
+        <p className="text-[#2C1E16] font-black tracking-widest uppercase">Evenementen laden...</p>
       </div>
     );
   }
@@ -86,7 +83,7 @@ export function EventCarousel() {
   if (error || carouselItems.length === 0) {
     return (
       <div className="flex-1 relative flex flex-col bg-[#F5F2EB] items-center justify-center">
-        <p className="text-[#2C1E16] font-black tracking-widest uppercase">No Events Available</p>
+        <p className="text-[#2C1E16] font-black tracking-widest uppercase">Geen evenementen beschikbaar</p>
       </div>
     );
   }
@@ -101,9 +98,15 @@ export function EventCarousel() {
   const hasImage = !!displayImage;
 
   // Format the date chip: prefer dateISO (reliable) over raw date string
-  const dateLabel = currentItem.dateISO
-    ? formatDutchDate(currentItem.dateISO)
+  const dateISO = 'dateISO' in currentItem ? currentItem.dateISO : undefined;
+  const dateLabel = dateISO
+    ? formatDutchDate(dateISO)
     : (currentItem.date || '');
+
+  // Location and price only exist on CalendarEvent items
+  const location = 'location' in currentItem ? currentItem.location : undefined;
+  const price    = 'price' in currentItem ? currentItem.price : undefined;
+  const time     = 'time' in currentItem ? currentItem.time : undefined;
 
   return (
     <div className="flex-1 relative flex flex-col bg-[#F5F2EB] overflow-hidden">
@@ -183,17 +186,17 @@ export function EventCarousel() {
                     <span>{dateLabel}</span>
                   </div>
                 )}
-                {currentItem.time && (
+                {time && (
                   <div className="flex items-center gap-2 text-sm font-black text-[#2C1E16] border-2 border-[#2C1E16] px-3 py-1.5 bg-[#F5F2EB]">
                     <ClockIcon className="w-4 h-4" />
-                    <span>{currentItem.time}</span>
+                    <span>{time}</span>
                   </div>
                 )}
                 {/* Price chip — workshops only */}
-                {currentItem.type === 'workshop' && currentItem.price && (
+                {currentItem.type === 'workshop' && price && (
                   <div className="flex items-center gap-2 text-sm font-black text-[#2C1E16] border-2 border-[#2C1E16] px-3 py-1.5 bg-[#FEF08A]">
                     <Tag className="w-4 h-4" />
-                    <span>{currentItem.price}</span>
+                    <span>{price}</span>
                   </div>
                 )}
                 {/* Events: show MapPin for location; News: show Globe for source */}
@@ -202,10 +205,10 @@ export function EventCarousel() {
                     <Globe className="w-4 h-4" />
                     <span>maakleerplek.be</span>
                   </div>
-                ) : currentItem.location ? (
+                ) : location ? (
                   <div className="flex items-center gap-2 text-sm font-black text-[#2C1E16] border-2 border-[#2C1E16] px-3 py-1.5 bg-[#F5F2EB]">
                     <MapPin className="w-4 h-4" />
-                    <span>{currentItem.location}</span>
+                    <span>{location}</span>
                   </div>
                 ) : null}
               </div>
