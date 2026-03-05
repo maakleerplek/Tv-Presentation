@@ -544,6 +544,7 @@ app.get('/api/screen-data', async (_req, res) => {
                 paymentQrUrl: PAYMENT_QR_URL,
                 eventPriority: EVENT_PRIORITY,
                 tips: TIPS,
+                websiteQrUrl: MAAKLEERPLEK_URL,
             }
         };
 

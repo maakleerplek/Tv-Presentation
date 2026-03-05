@@ -63,4 +63,6 @@ export type ScreenConfig = {
     eventPriority: string[];
     /** Custom tip strings shown in the footer */
     tips: string[];
+    /** URL encoded into the QR code shown in the tips footer */
+    websiteQrUrl: string;
 };

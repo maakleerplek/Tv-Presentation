@@ -26,6 +26,8 @@ export function TipsFooter() {
       : DEFAULT_TIPS;
 
   const transitionTime = data?.config?.tipsTransitionTime ?? 10;
+  const websiteUrl = data?.config?.websiteQrUrl || 'https://maakleerplek.be';
+  const websiteLabel = websiteUrl.replace(/^https?:\/\//, '').replace(/\/$/, '');
 
   // Reset index when tip list changes (e.g. on first data load)
   useEffect(() => {
@@ -44,11 +46,11 @@ export function TipsFooter() {
       {/* Left side: QR Code */}
       <div className="flex items-center gap-4 shrink-0">
         <div className="border-2 border-[#2C1E16] p-1.5 bg-[#F5F2EB]">
-          <QRCode value="https://maakleerplek.be" size={60} bgColor="#F5F2EB" fgColor="#2C1E16" />
+          <QRCode value={websiteUrl} size={60} bgColor="#F5F2EB" fgColor="#2C1E16" />
         </div>
         <div className="flex flex-col justify-center">
           <span className="text-[10px] font-black uppercase tracking-widest text-[#2C1E16]">Bezoek</span>
-          <span className="text-sm font-black uppercase tracking-widest text-[#2C1E16]">maakleerplek.be</span>
+          <span className="text-sm font-black uppercase tracking-widest text-[#2C1E16]">{websiteLabel}</span>
         </div>
       </div>
 
