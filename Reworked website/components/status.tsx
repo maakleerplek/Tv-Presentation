@@ -50,8 +50,7 @@ export function resolveEvent(
   const tomorrowMidnight = new Date(todayMidnight.getTime() + 24 * 60 * 60 * 1000);
   const dayAfterMidnight = new Date(todayMidnight.getTime() + 48 * 60 * 60 * 1000);
 
-  console.log('[Status] resolveEvent — allEvents:', allEvents.map(e => ({ title: e.title, dateISO: e.dateISO, time: e.time, type: e.type })));
-  console.log('[Status] priorityKeywords:', priorityKeywords);
+  // Candidates split into "happening now" and "upcoming"
 
   // Candidates split into "happening now" and "upcoming"
   const nowCandidates: (NextEvent & { priority: number })[] = [];
@@ -101,7 +100,6 @@ export function resolveEvent(
     };
 
     if (isInProgress) {
-      console.log(`[Status] NOW candidate: "${event.title}" priority=${priorityOf(event.title, priorityKeywords)} startTime=${startTime.toISOString()} endTime=${effectiveEnd.toISOString()}`);
       nowCandidates.push(candidate);
       continue;
     }
@@ -109,7 +107,6 @@ export function resolveEvent(
     // Skip events fully in the past (with a 5-min grace window)
     if (effectiveEnd < new Date(now.getTime() - 5 * 60 * 1000)) continue;
 
-    console.log(`[Status] UPCOMING candidate: "${event.title}" priority=${priorityOf(event.title, priorityKeywords)} startTime=${startTime.toISOString()}`);
     upcomingCandidates.push(candidate);
   }
 
@@ -130,12 +127,10 @@ export function resolveEvent(
 
   // In-progress events: highest priority wins; tie → most recently started
   const bestNow = pickBest(nowCandidates, 'mostRecent');
-  console.log('[Status] bestNow:', bestNow ? `"${bestNow.title}" priority=${bestNow.priority}` : 'null');
   if (bestNow) return bestNow;
 
   // Upcoming events: highest priority wins; tie → soonest start
   const bestUpcoming = pickBest(upcomingCandidates, 'soonest');
-  console.log('[Status] bestUpcoming:', bestUpcoming ? `"${bestUpcoming.title}" priority=${bestUpcoming.priority}` : 'null');
   return bestUpcoming;
 }
 

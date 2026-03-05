@@ -125,7 +125,7 @@ async function scrapeCalendar() {
     // Always fetch details for recurring-keyword events (they appear prominently in the UI
     // regardless of their position in the calendar list). For all other events, only fetch
     // details for the first MAX_EVENT_DETAILS to cap scraping time.
-    const recurringKeywordsForDetail = ['openlab', 'young maker', 'repair'];
+    const recurringKeywordsForDetail = ['open (high tech) lab', 'open lab', 'young maker', 'repair'];
     const detailPromises = events.map(async (event, i) => {
         const isRecurringKeyword = recurringKeywordsForDetail.some(kw =>
             event.title.toLowerCase().includes(kw)
@@ -177,7 +177,7 @@ async function scrapeNews() {
         '/wp-admin/', '/wp-json/', '/wp-content/', '/wp-includes/',
         '/kalender/', '/partners/', '/deelplekken/', '/contact/', '/zoeken',
         '/nieuwsbrief', '/leefregels/', '/foto-studio/', '/word-vrijwilliger/',
-        '/wat-is-maakleerplek/', '/wat-kan-ik-er-komen-doen/', '/verhalen/',
+        '/wat-is-maakleerplek/', '/wat-kan-ik-er-komen-doen/',
         '/leuven-river-upcycling/', '/kantine', '/feed/', '/page/',
         '/algemene-voorwaarden/', '/privacy', '/toegankelijkheid/',
     ];
@@ -202,9 +202,12 @@ async function scrapeNews() {
         newsItems.push({ title: '', link: href });
     });
 
-    // Fetch detail info from each news article page
+    // Fetch detail info from each news article page.
+    // We scan up to MAX_NEWS_ITEMS * 4 candidate URLs to find MAX_NEWS_ITEMS recent articles,
+    // since many candidate links may be older than NEWS_MAX_AGE_DAYS.
     const enrichedItems = [];
-    for (const item of newsItems.slice(0, MAX_NEWS_ITEMS)) {
+    for (const item of newsItems.slice(0, MAX_NEWS_ITEMS * 4)) {
+        if (enrichedItems.length >= MAX_NEWS_ITEMS) break;
         try {
             const resp = await fetch(item.link, {
                 headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36' }
@@ -255,7 +258,7 @@ async function scrapeNews() {
                 title: cleanTitle,
                 description,
                 imageUrl,
-                date: modifiedTime ? new Date(modifiedTime).toLocaleDateString('en-GB') : '',
+                date: modifiedTime ? new Date(modifiedTime).toLocaleDateString('nl-BE') : '',
             });
         } catch {
             // Skip articles that fail to fetch
@@ -451,7 +454,7 @@ app.get('/api/screen-data', async (_req, res) => {
         const recurringEvents = [];
 
         // Keywords to catch recurring events even if only 1 is currently in the calendar window
-        const recurringKeywords = ['openlab', 'young maker', 'repair'];
+        const recurringKeywords = ['open (high tech) lab', 'open lab', 'young maker', 'repair'];
 
         // Count title occurrences to detect repeating events
         const titleCounts = {};
@@ -466,7 +469,6 @@ app.get('/api/screen-data', async (_req, res) => {
         for (const event of calendar) {
             const isRecurringByCount = titleCounts[event.title] > 1;
             const isRecurringByKeyword = recurringKeywords.some(kw => event.title.toLowerCase().includes(kw));
-            console.log(`[ScreenData] classify "${event.title}" — byCount=${isRecurringByCount} byKeyword=${isRecurringByKeyword}`);
 
             if (isRecurringByCount || isRecurringByKeyword) {
                 if (!recurringByTitle[event.title]) recurringByTitle[event.title] = [];
@@ -551,10 +553,7 @@ app.get('/api/screen-data', async (_req, res) => {
         };
 
         console.log(`[ScreenData] eventPriority: ${JSON.stringify(EVENT_PRIORITY)}`);
-        console.log(`[ScreenData] workshops (${workshops.length}):`, workshops.map(e => `"${e.title}" ${e.dateISO} ${e.time}`));
-        console.log(`[ScreenData] recurringEvents (${recurringEvents.length}):`, recurringEvents.map(e => `"${e.title}" ${e.dateISO} ${e.time}`));
-        // DUMPING EXACT JSON TO LOGS PER USER REQUEST
-        console.log(`[ScreenData API] First event raw dump:`, JSON.stringify(workshops[0] || recurringEvents[0], null, 2));
+        console.log(`[ScreenData] workshops: ${workshops.length}, recurringEvents: ${recurringEvents.length}, news: ${newsWithType.length}`);
 
         res.json(responseObj);
     } catch (err) {
