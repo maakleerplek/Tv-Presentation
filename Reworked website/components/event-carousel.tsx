@@ -202,16 +202,49 @@ export function EventCarousel() {
         </AnimatePresence>
       </div>
 
-      {/* Progress dots — centered at the bottom, never overlapping QR */}
-      <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex gap-2 z-30">
-        {carouselItems.map((_, idx) => (
-          <div
-            key={idx}
-            className={`h-3 transition-all duration-300 border border-[#2C1E16] shrink-0 ${
-              idx === currentIndex ? 'w-8 bg-[#2C1E16]' : 'w-3 bg-[#F5F2EB]'
-            }`}
-          />
-        ))}
+      {/* Progress dots — sliding window, max 7 visible, active dot always centred */}
+      <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex gap-2 z-30 overflow-hidden">
+        {(() => {
+          const total = carouselItems.length;
+          const WINDOW = 7; // total dots shown at once
+          const EDGE = 2;   // small dots on each side of the active one
+
+          if (total <= WINDOW) {
+            // Few enough items — show them all at full size
+            return carouselItems.map((_, idx) => (
+              <div
+                key={idx}
+                className={`h-3 transition-all duration-300 border border-[#2C1E16] shrink-0 ${
+                  idx === currentIndex ? 'w-8 bg-[#2C1E16]' : 'w-3 bg-[#F5F2EB]'
+                }`}
+              />
+            ));
+          }
+
+          // Sliding window: clamp so the window doesn't go out of bounds
+          const half = Math.floor(WINDOW / 2);
+          let winStart = currentIndex - half;
+          let winEnd   = currentIndex + half;
+          if (winStart < 0) { winEnd -= winStart; winStart = 0; }
+          if (winEnd >= total) { winStart -= (winEnd - total + 1); winEnd = total - 1; }
+          winStart = Math.max(0, winStart);
+
+          return Array.from({ length: WINDOW }, (_, i) => {
+            const idx      = winStart + i;
+            const isActive = idx === currentIndex;
+            const distEdge = Math.min(i, WINDOW - 1 - i); // 0 at edges, increases toward centre
+            // Shrink the outermost EDGE dots to signal overflow
+            const isEdge   = distEdge < EDGE && ((winStart > 0 && i < EDGE) || (winEnd < total - 1 && i >= WINDOW - EDGE));
+            return (
+              <div
+                key={idx}
+                className={`h-3 transition-all duration-300 border border-[#2C1E16] shrink-0 ${
+                  isActive ? 'w-8 bg-[#2C1E16]' : isEdge ? 'w-2 bg-[#F5F2EB] opacity-40' : 'w-3 bg-[#F5F2EB]'
+                }`}
+              />
+            );
+          });
+        })()}
       </div>
     </div>
   );

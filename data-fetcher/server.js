@@ -9,13 +9,17 @@ app.use(cors());
 // Global bypass for self-signed certificates (InvenTree)
 process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
 
-const CALENDAR_URL = 'https://maakleerplek.be/kalender/';
-const HOMEPAGE_URL = 'https://maakleerplek.be/';
-const CACHE_DURATION_MS = 15 * 60 * 1000;
+// ── Configurable via .env ────────────────────────────────────────
+const MAAKLEERPLEK_URL  = (process.env.MAAKLEERPLEK_URL || 'https://maakleerplek.be').replace(/\/$/, '');
+const CALENDAR_URL      = `${MAAKLEERPLEK_URL}/kalender/`;
+const HOMEPAGE_URL      = `${MAAKLEERPLEK_URL}/`;
+const CACHE_DURATION_MS = parseInt(process.env.CACHE_DURATION_MINUTES || '15', 10) * 60 * 1000;
+const NEWS_MAX_AGE_DAYS = parseInt(process.env.NEWS_MAX_AGE_DAYS       || '14', 10);
+const MAX_NEWS_ITEMS    = parseInt(process.env.MAX_NEWS_ITEMS          || '6',  10);
+const MAX_EVENT_DETAILS = parseInt(process.env.MAX_EVENT_DETAILS       || '30', 10);
 
 // State for manual transitions via /api/transition
-let forceTransitionTime = Date.now(); // 15 minutes
-const NEWS_MAX_AGE_DAYS = 14; // Only show news from the last 2 weeks
+let forceTransitionTime = Date.now();
 
 // ── In-memory cache ──────────────────────────────────────────────
 let calendarCache = { data: null, timestamp: 0 };
@@ -98,9 +102,9 @@ async function fetchEventDetail(url) {
         if (imageUrl.startsWith('http://')) {
             imageUrl = imageUrl.replace('http://', 'https://');
         } else if (imageUrl && !imageUrl.startsWith('https://') && imageUrl.startsWith('/')) {
-            imageUrl = 'https://maakleerplek.be' + imageUrl;
+            imageUrl = `${MAAKLEERPLEK_URL}${imageUrl}`;
         } else if (imageUrl && !imageUrl.startsWith('http')) {
-            imageUrl = 'https://maakleerplek.be/' + imageUrl;
+            imageUrl = `${MAAKLEERPLEK_URL}/${imageUrl}`;
         }
 
         // ── Time extraction ────────────────────────────────────────────
@@ -209,7 +213,7 @@ async function scrapeCalendar() {
     });
 
     // Fetch detail info for the first 30 events (to ensure workshops get details over longer period)
-    const detailPromises = events.slice(0, 30).map(async (event) => {
+    const detailPromises = events.slice(0, MAX_EVENT_DETAILS).map(async (event) => {
         if (event.link) {
             const detail = await fetchEventDetail(event.link);
             return {
@@ -283,7 +287,7 @@ async function scrapeNews() {
 
     // Fetch detail info from each news article page
     const enrichedItems = [];
-    for (const item of newsItems.slice(0, 6)) {
+    for (const item of newsItems.slice(0, MAX_NEWS_ITEMS)) {
         try {
             const resp = await fetch(item.link, {
                 headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36' }
@@ -317,9 +321,9 @@ async function scrapeNews() {
             if (imageUrl.startsWith('http://')) {
                 imageUrl = imageUrl.replace('http://', 'https://');
             } else if (imageUrl && !imageUrl.startsWith('https://') && imageUrl.startsWith('/')) {
-                imageUrl = 'https://maakleerplek.be' + imageUrl;
+                imageUrl = `${MAAKLEERPLEK_URL}${imageUrl}`;
             } else if (imageUrl && !imageUrl.startsWith('http')) {
-                imageUrl = 'https://maakleerplek.be/' + imageUrl;
+                imageUrl = `${MAAKLEERPLEK_URL}/${imageUrl}`;
             }
             const modifiedTime = $a('meta[property="article:modified_time"]').attr('content') || '';
 
@@ -350,7 +354,15 @@ async function scrapeNews() {
 const INVENTREE_URL = process.env.INVENTREE_URL || 'https://10.72.3.68:8443';
 const INVENTREE_TOKEN = process.env.INVENTREE_TOKEN;
 const INVENTREE_DRINKS_CATEGORY = process.env.INVENTREE_DRINKS_CATEGORY || 'drinks';
-const INVENTREE_DRINKS_LOCATION = process.env.INVENTREE_DRINKS_LOCATION || '';
+// Supports comma-separated list of locations, e.g. "HTL-fridge,HTL-snacks"
+// Falls back to singular INVENTREE_DRINKS_LOCATION for backwards compatibility
+const INVENTREE_DRINKS_LOCATIONS = (
+    process.env.INVENTREE_DRINKS_LOCATIONS || process.env.INVENTREE_DRINKS_LOCATION || ''
+).split(',').map(s => s.trim().toLowerCase()).filter(Boolean);
+
+// ── Carousel config ────────────────────────────────────────────────
+// Number of seconds each carousel slide is shown before advancing
+const CAROUSEL_TRANSITION_TIME = parseInt(process.env.CAROUSEL_TRANSITION_TIME || '15', 10);
 
 // Helper function to fetch with a timeout
 const fetchWithTimeout = async (resource, options = {}, timeout = 5000) => {
@@ -393,27 +405,28 @@ async function fetchDrinks() {
         const stockItems = Array.isArray(stockData) ? stockData : (stockData.results || []);
 
         console.log('[Drinks] Found', stockItems.length, 'total stock items');
-        if (stockItems.length > 0 && INVENTREE_DRINKS_LOCATION) {
+        if (stockItems.length > 0 && INVENTREE_DRINKS_LOCATIONS.length > 0) {
             const locs = new Set(stockItems.map(i => i.location_detail?.name).filter(Boolean));
             console.log('[Drinks] Available locations:', Array.from(locs).join(', '));
+            console.log('[Drinks] Filtering by locations:', INVENTREE_DRINKS_LOCATIONS.join(', '));
         }
 
         // Map and group by part ID to aggregate stock
         const drinksMap = new Map();
         const categoryNameLower = INVENTREE_DRINKS_CATEGORY ? INVENTREE_DRINKS_CATEGORY.toLowerCase() : '';
-        const targetLocationLower = INVENTREE_DRINKS_LOCATION ? INVENTREE_DRINKS_LOCATION.toLowerCase() : '';
 
         for (const item of stockItems) {
             const partDetail = item.part_detail || {};
             const locDetail = item.location_detail || {};
 
-            // Allow filtering by location if provided
-            if (targetLocationLower) {
+            // Filter by configured locations if any are specified — match any in the list
+            if (INVENTREE_DRINKS_LOCATIONS.length > 0) {
                 const locName = (locDetail.name || '').toLowerCase();
                 const locPath = (locDetail.pathstring || '').toLowerCase();
-                if (!locName.includes(targetLocationLower) && !locPath.includes(targetLocationLower)) {
-                    continue; // Skip items not in the configured location
-                }
+                const matched = INVENTREE_DRINKS_LOCATIONS.some(
+                    loc => locName.includes(loc) || locPath.includes(loc)
+                );
+                if (!matched) continue;
             }
 
             // Exclude items without a valid part name
@@ -546,7 +559,10 @@ app.get('/api/screen-data', async (_req, res) => {
             workshops,
             news: newsWithType,
             recurringEvents,
-            drinks
+            drinks,
+            config: {
+                transitionTime: CAROUSEL_TRANSITION_TIME,
+            }
         };
 
         // DUMPING EXACT JSON TO LOGS PER USER REQUEST

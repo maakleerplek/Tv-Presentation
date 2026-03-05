@@ -12,6 +12,10 @@ export type ScreenData = {
     }
 };
 
+// NEXT_PUBLIC_ prefix required so the value is inlined at build time for client components
+const POLL_INTERVAL_MS =
+    parseInt(process.env.NEXT_PUBLIC_SCREEN_DATA_POLL_MINUTES || '5', 10) * 60 * 1000;
+
 export function useScreenData() {
     const [data, setData] = useState<ScreenData | null>(null);
     const [loading, setLoading] = useState(true);
@@ -45,8 +49,8 @@ export function useScreenData() {
         // Initial fetch
         fetchData();
 
-        // Re-fetch every 5 minutes to keep display fresh without reloading
-        const interval = setInterval(fetchData, 5 * 60 * 1000);
+        // Re-fetch on the configured interval to keep display fresh without reloading
+        const interval = setInterval(fetchData, POLL_INTERVAL_MS);
 
         return () => {
             mounted = false;

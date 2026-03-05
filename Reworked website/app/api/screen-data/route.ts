@@ -1,21 +1,26 @@
 import { NextResponse } from 'next/server';
 
+// Docker-internal hostname (used when running inside the compose network)
+const INTERNAL_URL = process.env.DATA_FETCHER_INTERNAL_URL || 'http://data-fetcher:8080';
+// Local-dev fallback (used when Next.js runs outside Docker)
+const EXTERNAL_URL = process.env.DATA_FETCHER_EXTERNAL_URL || 'http://localhost:8085';
+
 export async function GET() {
     try {
         // Proxy the request to the internal data-fetcher docker container
-        let res;
+        let res: Response | undefined;
         try {
-            res = await fetch('http://data-fetcher:8080/api/screen-data', {
+            res = await fetch(`${INTERNAL_URL}/api/screen-data`, {
                 // Fetch dynamically every time for the presentation
                 cache: 'no-store'
             });
-        } catch (e) {
-            // failed to connect to docker container
+        } catch {
+            // failed to connect to docker container — fall through to external URL
         }
 
         if (!res || !res.ok) {
-            // Fallback to localhost if not in docker network
-            const localRes = await fetch('http://localhost:8085/api/screen-data', {
+            // Fallback to configured external URL if not in docker network
+            const localRes = await fetch(`${EXTERNAL_URL}/api/screen-data`, {
                 cache: 'no-store'
             });
             if (!localRes.ok) {
