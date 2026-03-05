@@ -5,7 +5,7 @@ FROM base AS deps
 WORKDIR /app
 
 # Install dependencies
-COPY package.json package-lock.json* ./
+COPY package.json bun.lock* ./
 RUN bun install --frozen-lockfile
 
 # Rebuild the source code only when needed
