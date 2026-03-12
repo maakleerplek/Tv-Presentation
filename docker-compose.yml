@@ -1,4 +1,20 @@
 services:
+  # ===== nginx Reverse Proxy =====
+  # HTTP:  http://10.72.3.141  (port 80)  or  http://10.72.3.141:8083
+  # HTTPS: https://10.72.3.141:8443
+  nginx:
+    build:
+      context: ./nginx
+      dockerfile: Dockerfile
+    container_name: tv-nginx
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "${HOST_PORT:-8083}:8083"
+      - "8443:8443"
+    depends_on:
+      - frontend
+
   # ===== Next.js Frontend (Reworked Website) =====
   frontend:
     build:
@@ -11,8 +27,7 @@ services:
     restart: unless-stopped
     env_file:
       - .env
-    ports:
-      - "${HOST_PORT:-8083}:3000"
+    # No ports exposed to the host — only nginx can reach this on the internal Docker network
 
   # ===== Data Fetcher Backend (Node.js Scraper) =====
   data-fetcher:

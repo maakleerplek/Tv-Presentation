@@ -2,7 +2,6 @@
 
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import Image from 'next/image';
 import QRCode from 'react-qr-code';
 import { Calendar, Clock as ClockIcon, Globe, MapPin, Newspaper, Repeat, Tag } from 'lucide-react';
 import { useScreenData } from '@/hooks/useScreenData';
@@ -40,8 +39,7 @@ export function EventCarousel() {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [carouselItems, setCarouselItems] = useState<CarouselItem[]>([]);
 
-  // When data loads, combine the 3 buckets, shuffle non-priority items,
-  // then place priority-matched items at the front in keyword order.
+  // When data loads, combine the 3 buckets and shuffle them.
   useEffect(() => {
     if (!data) return;
 
@@ -51,17 +49,15 @@ export function EventCarousel() {
     const news      = data.news.map((n) => ({ ...n, _icon: Newspaper, _color: '#BBF7D0', _isNews: true }));
 
     const all: CarouselItem[] = [...workshops, ...recurring, ...news];
-
-    if (priorityKeywords.length > 0) {
-      // Split into prioritised (rank < Infinity) and the rest
-      const prioritised = all
-        .filter(item => priorityOf(item.title, priorityKeywords) < Infinity)
-        .sort((a, b) => priorityOf(a.title, priorityKeywords) - priorityOf(b.title, priorityKeywords));
-      const rest = shuffleArray(all.filter(item => priorityOf(item.title, priorityKeywords) === Infinity));
-      setTimeout(() => { setCarouselItems([...prioritised, ...rest]); setCurrentIndex(0); }, 0);
-    } else {
-      setTimeout(() => { setCarouselItems(shuffleArray(all)); setCurrentIndex(0); }, 0);
-    }
+    console.log(`[Carousel] Total items combined: ${all.length}`);
+    console.log(`[Carousel] Items titles: ${all.map(i => i.title).join(', ')}`);
+    
+    setTimeout(() => { 
+      const shuffled = shuffleArray(all);
+      console.log(`[Carousel] Setting ${shuffled.length} items to state`);
+      setCarouselItems(shuffled); 
+      setCurrentIndex(0); 
+    }, 0);
   }, [data]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
@@ -129,84 +125,79 @@ export function EventCarousel() {
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             transition={{ duration: 0.5 }}
-            className="absolute inset-0 flex flex-col"
+            className="absolute top-0 right-0 bottom-0 left-0 flex flex-col"
           >
-            {/* Top section: Image — flex-[3] gives ~60% of the card height */}
-            <div className="flex-[3] relative border-b-2 border-[#2C1E16] bg-[#2C1E16] min-h-0">
+            {/* Top section: Image — flex-[2] gives ~40% of the card height */}
+            <div className="flex-[2_1_0%] relative border-b-2 border-[#2C1E16] bg-[#2C1E16] min-h-0">
               {hasImage ? (
-                <Image
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
                   src={displayImage}
                   alt={currentItem.title}
-                  fill
-                  className="object-cover"
                   referrerPolicy="no-referrer"
-                  unoptimized
+                  className="absolute top-0 right-0 bottom-0 left-0 w-full h-full object-cover"
                 />
               ) : (
-                <div className="absolute inset-0 flex items-center justify-center">
-                  <div className="relative w-48 h-16">
-                    <Image
-                      src="/HTL_logo_CMYK_white-04.svg"
-                      alt="maakleerplek"
-                      fill
-                      className="object-contain"
-                    />
-                  </div>
+                <div className="absolute top-0 right-0 bottom-0 left-0 flex items-center justify-center">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src="/HTL_logo_CMYK_white-04.svg"
+                    alt="maakleerplek"
+                    className="w-48 h-16 object-contain"
+                  />
                 </div>
               )}
             </div>
 
-            {/* Bottom section: Content — flex-[2] gives ~40% of the card height */}
-            <div className="flex-[2] px-6 pt-5 pb-4 flex flex-col gap-3 bg-[#F5F2EB] min-h-0 overflow-hidden">
-              {/* Event type tag */}
-              <div className="shrink-0">
-                <span
-                  className="inline-flex items-center gap-2 px-3 py-1 text-[10px] xl:text-xs font-black uppercase tracking-widest text-[#2C1E16] border-2 border-[#2C1E16]"
-                  style={{ backgroundColor: currentItem._color }}
-                >
-                  <currentItem._icon className="w-3 h-3" />
-                  {currentItem.type === 'workshop'
-                    ? 'Aankomende Workshop'
-                    : currentItem.type === 'recurring'
-                    ? 'Terugkerend Evenement'
-                    : 'Laatste Nieuws'}
-                </span>
-              </div>
-
+            {/* Bottom section: Content — flex-[3] gives ~60% of the card height */}
+            <div className="flex-[3_1_0%] px-6 pt-5 pb-4 flex flex-col gap-3 bg-[#F5F2EB] min-h-0 overflow-hidden">
               {/* Title */}
-              <h3 className="shrink-0 text-2xl xl:text-3xl font-black leading-tight text-[#2C1E16] uppercase tracking-tighter line-clamp-2">
+              <h3 className="shrink-0 text-xl xl:text-2xl font-black leading-tight text-[#2C1E16] uppercase tracking-tighter line-clamp-2">
                 {currentItem.title}
               </h3>
 
-              {/* Chips row: date, time, location/source */}
-              <div className="shrink-0 flex flex-row gap-3 flex-wrap">
+              {/* Chips row: type, date, time, location/source */}
+              <div className="shrink-0 flex flex-row gap-2 flex-wrap items-center">
+                {/* Event type tag */}
+                <span
+                  className="inline-flex items-center gap-2 px-2.5 py-1 text-[10px] xl:text-xs font-black uppercase tracking-widest text-[#2C1E16] border-2 border-[#2C1E16]"
+                  style={{ backgroundColor: currentItem._color }}
+                >
+                  <currentItem._icon className="w-3.5 h-3.5" />
+                  {currentItem.type === 'workshop'
+                    ? 'Workshop'
+                    : currentItem.type === 'recurring'
+                    ? 'Event'
+                    : 'Nieuws'}
+                </span>
+
                 {dateLabel && (
-                  <div className="flex items-center gap-2 text-sm font-black text-[#2C1E16] border-2 border-[#2C1E16] px-3 py-1.5 bg-[#F5F2EB]">
+                  <div className="flex items-center gap-2 text-sm font-black text-[#2C1E16] border-2 border-[#2C1E16] px-3 py-1 bg-[#F5F2EB]">
                     <Calendar className="w-4 h-4" />
                     <span>{dateLabel}</span>
                   </div>
                 )}
                 {time && (
-                  <div className="flex items-center gap-2 text-sm font-black text-[#2C1E16] border-2 border-[#2C1E16] px-3 py-1.5 bg-[#F5F2EB]">
+                  <div className="flex items-center gap-2 text-sm font-black text-[#2C1E16] border-2 border-[#2C1E16] px-3 py-1 bg-[#F5F2EB]">
                     <ClockIcon className="w-4 h-4" />
                     <span>{time}</span>
                   </div>
                 )}
                 {/* Price chip — workshops only */}
                 {currentItem.type === 'workshop' && price && (
-                  <div className="flex items-center gap-2 text-sm font-black text-[#2C1E16] border-2 border-[#2C1E16] px-3 py-1.5 bg-[#FEF08A]">
+                  <div className="flex items-center gap-2 text-sm font-black text-[#2C1E16] border-2 border-[#2C1E16] px-3 py-1 bg-[#FEF08A]">
                     <Tag className="w-4 h-4" />
                     <span>{price}</span>
                   </div>
                 )}
                 {/* Events: show MapPin for location; News: show Globe for source */}
                 {currentItem._isNews ? (
-                  <div className="flex items-center gap-2 text-sm font-black text-[#2C1E16] border-2 border-[#2C1E16] px-3 py-1.5 bg-[#F5F2EB]">
+                  <div className="flex items-center gap-2 text-sm font-black text-[#2C1E16] border-2 border-[#2C1E16] px-3 py-1 bg-[#F5F2EB]">
                     <Globe className="w-4 h-4" />
                     <span>maakleerplek.be</span>
                   </div>
                 ) : location ? (
-                  <div className="flex items-center gap-2 text-sm font-black text-[#2C1E16] border-2 border-[#2C1E16] px-3 py-1.5 bg-[#F5F2EB]">
+                  <div className="flex items-center gap-2 text-sm font-black text-[#2C1E16] border-2 border-[#2C1E16] px-3 py-1 bg-[#F5F2EB]">
                     <MapPin className="w-4 h-4" />
                     <span>{location}</span>
                   </div>
@@ -214,16 +205,16 @@ export function EventCarousel() {
               </div>
 
               {/* Description + QR side-by-side */}
-              <div className="shrink-0 flex flex-row items-start gap-4">
+              <div className="flex-1 min-h-0 flex flex-row items-start gap-4">
                 {currentItem.description ? (
-                  <p className="text-base xl:text-lg text-[#2C1E16] font-medium leading-normal flex-1">
+                  <p className="text-base xl:text-lg text-[#2C1E16] font-medium leading-normal flex-1 overflow-y-auto max-h-full pr-2">
                     {currentItem.description}
                   </p>
                 ) : (
                   <div className="flex-1" />
                 )}
                 {currentItem.link && (
-                  <div className="shrink-0 border-2 border-[#2C1E16] p-1.5 bg-white">
+                  <div className="shrink-0 border-2 border-[#2C1E16] p-1.5 bg-white self-end">
                      <QRCode
                       value={currentItem.link}
                       size={80}

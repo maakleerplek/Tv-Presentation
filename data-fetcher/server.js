@@ -152,6 +152,7 @@ async function scrapeCalendar() {
 
     calendarCache = { data: result, timestamp: Date.now() };
     console.log(`[Calendar] Scraped ${result.length} upcoming events`);
+    console.log(`[Calendar] Scraped events list: ${result.map(e => e.title).join(', ')}`);
     return result;
 }
 
@@ -549,7 +550,9 @@ app.get('/api/screen-data', async (_req, res) => {
         };
 
         console.log(`[ScreenData] eventPriority: ${JSON.stringify(EVENT_PRIORITY)}`);
-        console.log(`[ScreenData] workshops: ${workshops.length}, recurringEvents: ${recurringEvents.length}, news: ${newsWithType.length}`);
+        console.log(`[ScreenData] workshops: ${workshops.length} (${workshops.map(e => e.title).join(', ')})`);
+        console.log(`[ScreenData] recurringEvents: ${recurringEvents.length} (${recurringEvents.map(e => e.title).join(', ')})`);
+        console.log(`[ScreenData] news: ${newsWithType.length} (${newsWithType.map(e => e.title).join(', ')})`);
 
         res.json(responseObj);
     } catch (err) {

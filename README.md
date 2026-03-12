@@ -29,6 +29,22 @@ docker compose up --build
 - Frontend: `http://localhost:8083`
 - Data-fetcher API: `http://localhost:8085`
 
+## Chromecast
+
+To cast the website to a Chromecast device:
+
+1. Ensure your `.env` file has `CHROMECAST_NAME` (e.g. "HTL TV") and `FRONTEND_URL` set.
+2. Run the cast command:
+   ```bash
+   docker compose --profile cast run chromecast
+   ```
+   *Note: If your device name has spaces, use the provided helper script instead:*
+   ```bash
+   bash scripts/cast.sh
+   ```
+
+This uses a custom Python-based caster (built on [pychromecast](https://github.com/home-assistant-libs/pychromecast)) to send the `FRONTEND_URL` to your TV.
+
 ## Getting the `.env` values
 
 All deployment-specific values are stored as **GitHub repository secrets** so contributors don't need to share them over chat.
@@ -89,6 +105,8 @@ All variables are documented in `.env.example`. Key ones:
 | `TIP_1`, `TIP_2`, … | Tips shown in the footer, in order |
 | `WEATHER_LAT` / `WEATHER_LON` | Coordinates for Open-Meteo weather (no API key needed) |
 | `CACHE_DURATION_MINUTES` | How long scraped data is cached (default `15`) |
+| `CHROMECAST_IP` | IP address of your Chromecast device |
+| `FRONTEND_URL` | Full URL (including IP/port) as reachable by the Chromecast |
 
 ## Development
 

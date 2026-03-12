@@ -61,7 +61,7 @@ export function DrinksList() {
                     className="w-full h-full object-cover"
                   />
                 ) : (
-                  <span className="absolute inset-0 flex items-center justify-center text-[8px] font-black text-[#2C1E16] uppercase leading-none text-center px-0.5">
+                  <span className="absolute top-0 right-0 bottom-0 left-0 flex items-center justify-center text-[8px] font-black text-[#2C1E16] uppercase leading-none text-center px-0.5">
                     {drink.name.slice(0, 4)}
                   </span>
                 )}

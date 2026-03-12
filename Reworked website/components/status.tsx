@@ -49,6 +49,8 @@ export function resolveEvent(
   const nowCandidates: (NextEvent & { priority: number })[] = [];
   const upcomingCandidates: (NextEvent & { priority: number })[] = [];
 
+  console.log(`[Status] Resolving event from ${allEvents.length} total events`);
+
   for (const event of allEvents) {
     const parts = event.dateISO.split('-').map(Number);
     if (parts.length !== 3) continue;
