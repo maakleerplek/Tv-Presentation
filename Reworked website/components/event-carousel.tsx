@@ -127,8 +127,8 @@ export function EventCarousel() {
             transition={{ duration: 0.5 }}
             className="absolute top-0 right-0 bottom-0 left-0 flex flex-col"
           >
-            {/* Top section: Image — flex-[2] gives ~40% of the card height */}
-            <div className="flex-[2_1_0%] border-b-2 border-[#2C1E16] bg-[#2C1E16] min-h-0 overflow-hidden flex items-center justify-center">
+            {/* Top section: Image — flex-[3] gives ~60% of the card height */}
+            <div className="flex-[3_1_0%] border-b-2 border-[#2C1E16] bg-[#2C1E16] min-h-0 overflow-hidden flex items-center justify-center">
               {hasImage ? (
                 // eslint-disable-next-line @next/next/no-img-element
                 <img
@@ -147,8 +147,8 @@ export function EventCarousel() {
               )}
             </div>
 
-            {/* Bottom section: Content — flex-[3] gives ~60% of the card height */}
-            <div className="flex-[3_1_0%] px-6 pt-5 pb-4 flex flex-col gap-3 bg-[#F5F2EB] min-h-0 overflow-hidden">
+            {/* Bottom section: Content — flex-[2] gives ~40% of the card height */}
+            <div className="flex-[2_1_0%] px-6 pt-5 pb-4 flex flex-col gap-3 bg-[#F5F2EB] min-h-0 overflow-hidden">
               {/* Title */}
               <h3 className="shrink-0 text-xl xl:text-2xl font-black leading-tight text-[#2C1E16] uppercase tracking-tighter line-clamp-2">
                 {currentItem.title}
