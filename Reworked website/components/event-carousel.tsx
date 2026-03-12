@@ -135,7 +135,7 @@ export function EventCarousel() {
                   src={displayImage}
                   alt={currentItem.title}
                   referrerPolicy="no-referrer"
-                  className="w-full h-full object-cover"
+                  className="w-full h-full object-contain"
                 />
               ) : (
                 // eslint-disable-next-line @next/next/no-img-element
