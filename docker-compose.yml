@@ -11,9 +11,7 @@ services:
     container_name: tv-nginx
     restart: unless-stopped
     ports:
-      - "80:80"
       - "${HOST_PORT:-8083}:8083"
-      - "8443:8443"
     depends_on:
       - frontend
 
