@@ -128,24 +128,22 @@ export function EventCarousel() {
             className="absolute top-0 right-0 bottom-0 left-0 flex flex-col"
           >
             {/* Top section: Image — flex-[2] gives ~40% of the card height */}
-            <div className="flex-[2_1_0%] relative border-b-2 border-[#2C1E16] bg-[#2C1E16] min-h-0">
+            <div className="flex-[2_1_0%] border-b-2 border-[#2C1E16] bg-[#2C1E16] min-h-0 overflow-hidden flex items-center justify-center">
               {hasImage ? (
                 // eslint-disable-next-line @next/next/no-img-element
                 <img
                   src={displayImage}
                   alt={currentItem.title}
                   referrerPolicy="no-referrer"
-                  className="absolute top-0 right-0 bottom-0 left-0 w-full h-full object-cover"
+                  className="w-full h-full object-cover"
                 />
               ) : (
-                <div className="absolute top-0 right-0 bottom-0 left-0 flex items-center justify-center">
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img
-                    src="/HTL_logo_CMYK_white-04.svg"
-                    alt="maakleerplek"
-                    className="w-48 h-16 object-contain"
-                  />
-                </div>
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src="/HTL_logo_CMYK_white-04.svg"
+                  alt="maakleerplek"
+                  className="w-48 h-16 object-contain"
+                />
               )}
             </div>
 
