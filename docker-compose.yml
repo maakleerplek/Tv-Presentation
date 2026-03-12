@@ -1,11 +1,13 @@
 services:
   # ===== nginx Reverse Proxy =====
-  # HTTP:  http://10.72.3.141  (port 80)  or  http://10.72.3.141:8083
-  # HTTPS: https://10.72.3.141:8443
+  # HTTP:  http://<HOST_IP>  (port 80)  or  http://<HOST_IP>:8083
+  # HTTPS: https://<HOST_IP>:8443
   nginx:
     build:
       context: ./nginx
       dockerfile: Dockerfile
+      args:
+        HOST_IP: ${HOST_IP:-10.72.3.141}
     container_name: tv-nginx
     restart: unless-stopped
     ports:
