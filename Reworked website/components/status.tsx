@@ -30,9 +30,11 @@ export function parseTime(str: string, pattern: RegExp): { h: number; m: number 
 /** Derive the best event to display from the current data + current time. */
 export function resolveEvent(
   data: ScreenData | null,
+  nowOverride?: Date,
 ): NextEvent | null {
   if (!data) return null;
 
+  const now = nowOverride ?? new Date();
   const priorityKeywords: string[] = data.config?.eventPriority ?? [];
 
   // Combine workshops + recurringEvents; both have dateISO
@@ -40,16 +42,11 @@ export function resolveEvent(
     (e) => e.dateISO,
   );
 
-  const now = new Date();
   const todayMidnight    = new Date(now.getFullYear(), now.getMonth(), now.getDate());
   const tomorrowMidnight = new Date(todayMidnight.getTime() + 24 * 60 * 60 * 1000);
   const dayAfterMidnight = new Date(todayMidnight.getTime() + 48 * 60 * 60 * 1000);
 
-  // Candidates split into "happening now" and "upcoming"
-  const nowCandidates: (NextEvent & { priority: number })[] = [];
-  const upcomingCandidates: (NextEvent & { priority: number })[] = [];
-
-  console.log(`[Status] Resolving event from ${allEvents.length} total events`);
+  const candidates: (NextEvent & { priority: number })[] = [];
 
   for (const event of allEvents) {
     const parts = event.dateISO.split('-').map(Number);
@@ -67,11 +64,20 @@ export function resolveEvent(
       ? new Date(isoYear, isoMonth - 1, isoDay, endParsed.h, endParsed.m, 0, 0)
       : null;
 
+    // Logic for effective end:
+    // 1. Explicit end time + 5 min grace
+    // 2. No end time but explicit start time: 1 hour duration
+    // 3. No time at all (all-day): end of the calendar day
     const effectiveEnd = endTime
       ? new Date(endTime.getTime() + 5 * 60 * 1000)
-      : new Date(startTime.getTime() + 60 * 60 * 1000);
+      : startParsed
+        ? new Date(startTime.getTime() + 60 * 60 * 1000)
+        : new Date(isoYear, isoMonth - 1, isoDay, 23, 59, 59, 999);
 
     const isInProgress = startTime <= now && now < effectiveEnd;
+
+    // Skip events fully in the past (with a 5-min grace window)
+    if (!isInProgress && effectiveEnd < new Date(now.getTime() - 5 * 60 * 1000)) continue;
 
     // Format display labels
     const startLabel = startParsed
@@ -81,7 +87,7 @@ export function resolveEvent(
       ? `${String(endParsed.h).padStart(2, '0')}:${String(endParsed.m).padStart(2, '0')}`
       : '';
 
-    const candidate = {
+    candidates.push({
       title:       event.title,
       displayDate: event.date ?? event.dateISO,
       time:        event.time ?? '',
@@ -92,40 +98,41 @@ export function resolveEvent(
       isTomorrow: startTime >= tomorrowMidnight && startTime < dayAfterMidnight,
       startTime,
       priority:   priorityOf(event.title, priorityKeywords),
-    };
-
-    if (isInProgress) {
-      nowCandidates.push(candidate);
-      continue;
-    }
-
-    // Skip events fully in the past (with a 5-min grace window)
-    if (effectiveEnd < new Date(now.getTime() - 5 * 60 * 1000)) continue;
-
-    upcomingCandidates.push(candidate);
-  }
-
-  /** Pick the best candidate: lowest priority index wins; ties broken by startTime (most recent / soonest). */
-  function pickBest<T extends { priority: number; startTime: Date }>(
-    candidates: T[],
-    tieBreak: 'mostRecent' | 'soonest',
-  ): T | null {
-    if (candidates.length === 0) return null;
-    return candidates.reduce((best, c) => {
-      if (c.priority < best.priority) return c;
-      if (c.priority > best.priority) return best;
-      // Same priority — apply tieBreak
-      if (tieBreak === 'mostRecent') return c.startTime > best.startTime ? c : best;
-      return c.startTime < best.startTime ? c : best;
     });
   }
 
-  // In-progress events: highest priority wins; tie → most recently started
-  const bestNow = pickBest(nowCandidates, 'mostRecent');
-  if (bestNow) return bestNow;
+  if (candidates.length === 0) return null;
 
-  // Upcoming events: highest priority wins; tie → soonest start
-  return pickBest(upcomingCandidates, 'soonest');
+  // Final selection logic:
+  // 1. Closest day wins (Today < Tomorrow < Next Week)
+  // 2. Highest priority wins on the same day (index 0 < 1 < ... < Infinity)
+  // 3. Current events win over upcoming events of SAME priority on the same day
+  // 4. Tie-break: if both Now, most recent wins. If both Upcoming, soonest wins.
+  return candidates.reduce((best, c) => {
+    // a. Compare Day (YYYY-MM-DD)
+    const cScore = c.startTime.getFullYear() * 10000 + (c.startTime.getMonth() + 1) * 100 + c.startTime.getDate();
+    const bScore = best.startTime.getFullYear() * 10000 + (best.startTime.getMonth() + 1) * 100 + best.startTime.getDate();
+
+    if (cScore < bScore) return c;
+    if (cScore > bScore) return best;
+
+    // b. Same day: Compare Priority
+    if (c.priority < best.priority) return c;
+    if (c.priority > best.priority) return best;
+
+    // c. Same priority: prefer Now over Upcoming
+    if (c.isNow && !best.isNow) return c;
+    if (!c.isNow && best.isNow) return best;
+
+    // d. Tie-break by startTime
+    if (c.isNow) {
+      // For simultaneous active events, prefer the one that started more recently
+      return c.startTime > best.startTime ? c : best;
+    } else {
+      // For future events, prefer the one starting soonest
+      return c.startTime < best.startTime ? c : best;
+    }
+  });
 }
 
 export function Status() {

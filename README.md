@@ -1,6 +1,6 @@
 # Tv-Presentation
 
-Full-screen TV display for [maakleerplek](https://maakleerplek.be/) — a public makerspace in Leuven. Shows the current time, upcoming events, news, a drinks menu, and rotating tips on a 4K TV via Chromecast (rendered at 1080p).
+Full-screen TV display for [maakleerplek](https://maakleerplek.be/) — a public makerspace in Leuven. Shows the current time, upcoming events, news, a drinks menu, and rotating tips on a 4K TV.
 
 ![Image of the website](Public/image.png)
 
@@ -29,21 +29,6 @@ docker compose up --build
 - Frontend: `http://localhost:8083`
 - Data-fetcher API: `http://localhost:8085`
 
-## Chromecast
-
-To cast the website to a Chromecast device:
-
-1. Ensure your `.env` file has `CHROMECAST_NAME` (e.g. "HTL TV") and `FRONTEND_URL` set.
-2. Run the cast command:
-   ```bash
-   docker compose --profile cast run chromecast
-   ```
-   *Note: If your device name has spaces, use the provided helper script instead:*
-   ```bash
-   bash scripts/cast.sh
-   ```
-
-This uses a custom Python-based caster (built on [pychromecast](https://github.com/home-assistant-libs/pychromecast)) to send the `FRONTEND_URL` to your TV.
 
 ## Getting the `.env` values
 
@@ -111,14 +96,10 @@ All variables are documented in `.env.example`. Key ones:
 ## Development
 
 ```bash
-# Frontend (hot reload on :3000)
-cd "Reworked website"
-npm run dev
-
-# Data-fetcher (auto-restart on :8085)
-cd data-fetcher
-npm run dev
-```
+# Run docker compose
+docker compose up --build 
+# Frontend: http://localhost:8083
+# Data-fetcher API: http://localhost:8085
 
 ## Tests
 

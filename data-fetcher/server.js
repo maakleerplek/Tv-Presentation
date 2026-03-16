@@ -125,7 +125,7 @@ async function scrapeCalendar() {
     // Always fetch details for recurring-keyword events (they appear prominently in the UI
     // regardless of their position in the calendar list). For all other events, only fetch
     // details for the first MAX_EVENT_DETAILS to cap scraping time.
-    const recurringKeywordsForDetail = ['open (high tech) lab', 'open lab', 'young maker', 'repair'];
+    const recurringKeywordsForDetail = EVENT_PRIORITY;
     const detailPromises = events.map(async (event, i) => {
         const isRecurringKeyword = recurringKeywordsForDetail.some(kw =>
             event.title.toLowerCase().includes(kw)
@@ -451,7 +451,7 @@ app.get('/api/screen-data', async (_req, res) => {
         const recurringEvents = [];
 
         // Keywords to catch recurring events even if only 1 is currently in the calendar window
-        const recurringKeywords = ['open (high tech) lab', 'open lab', 'young maker', 'repair'];
+        const recurringKeywords = EVENT_PRIORITY;
 
         // Count title occurrences to detect repeating events
         const titleCounts = {};

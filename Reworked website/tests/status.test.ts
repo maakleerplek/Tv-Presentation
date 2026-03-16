@@ -95,66 +95,50 @@ describe('resolveEvent', () => {
     });
 
     test('returns a future event scheduled for today', () => {
-        const now = new Date();
-        // Place the event 2 hours from now; if that wraps past midnight, put it on tomorrow.
-        const startHourRaw = now.getHours() + 2;
-        const wrapsToNextDay = startHourRaw >= 24;
-        const startHour = startHourRaw % 24;
-        const eventDate = wrapsToNextDay
-            ? new Date(now.getTime() + 24 * 60 * 60 * 1000)
-            : now;
+        const now = new Date(2026, 2, 16, 12, 0); // Monday March 16, 2026, 12:00
         const event = {
             title: 'Test Workshop',
-            dateISO: isoDate(eventDate),
-            date: isoDate(eventDate),
-            time: `${String(startHour).padStart(2, '0')}:00-${String((startHour + 1) % 24).padStart(2, '0')}:00`,
+            dateISO: '2026-03-16',
+            date: 'ma 16 maa',
+            time: '19:00-21:00',
         };
-        const result = resolveEvent(makeData({ workshops: [event] }));
+        const result = resolveEvent(makeData({ workshops: [event] }), now);
         expect(result).not.toBeNull();
         expect(result!.title).toBe('Test Workshop');
         expect(result!.isNow).toBe(false);
-        // isToday when no wrap; isTomorrow when the 2h offset crossed midnight
-        if (wrapsToNextDay) {
-            expect(result!.isTomorrow).toBe(true);
-        } else {
-            expect(result!.isToday).toBe(true);
-        }
+        expect(result!.isToday).toBe(true);
     });
 
     test('marks an in-progress event as isNow', () => {
-        const now = new Date();
-        // Started 30 min ago, ends in 30 min
-        const startHour = now.getHours();
-        const startMin  = Math.max(0, now.getMinutes() - 30);
-        const endHour   = now.getHours() + 1;
-        const pad = (n: number) => String(n).padStart(2, '0');
+        const now = new Date(2026, 2, 16, 19, 30); // 19:30
         const event = {
             title: 'Nu bezig evenement',
-            dateISO: isoDate(now),
-            date: isoDate(now),
-            time: `${pad(startHour)}:${pad(startMin)}-${pad(endHour)}:${pad(now.getMinutes())}`,
+            dateISO: '2026-03-16',
+            date: 'ma 16 maa',
+            time: '19:00-21:00',
         };
-        const result = resolveEvent(makeData({ workshops: [event] }));
+        const result = resolveEvent(makeData({ workshops: [event] }), now);
         expect(result).not.toBeNull();
         expect(result!.isNow).toBe(true);
     });
 
     test('skips fully past events', () => {
-        const yesterday = new Date(Date.now() - 24 * 60 * 60 * 1000);
+        const now = new Date(2026, 2, 16, 12, 0);
         const event = {
             title: 'Gisteren workshop',
-            dateISO: isoDate(yesterday),
-            date: isoDate(yesterday),
+            dateISO: '2026-03-15',
+            date: 'zo 15 maa',
             time: '10:00-11:00',
         };
-        expect(resolveEvent(makeData({ workshops: [event] }))).toBeNull();
+        expect(resolveEvent(makeData({ workshops: [event] }), now)).toBeNull();
     });
 
-    test('picks the highest-priority event when multiple exist', () => {
-        const now  = new Date();
-        const tomorrow = new Date(now.getTime() + 24 * 60 * 60 * 1000);
-        const low  = { title: 'Gewone workshop', dateISO: isoDate(tomorrow), date: isoDate(tomorrow), time: '10:00-11:00' };
-        const high = { title: 'Openlab evening',  dateISO: isoDate(tomorrow), date: isoDate(tomorrow), time: '18:00-21:00' };
+    test('picks higher priority event on the same day even if it starts later', () => {
+        const now = new Date(2026, 2, 16, 12, 0);
+        // Event A: today at 19:00, low priority
+        const low = { title: 'Gewone workshop', dateISO: '2026-03-16', date: 'ma 16 maa', time: '19:00-21:00' };
+        // Event B: today at 20:00, high priority
+        const high = { title: 'Openlab', dateISO: '2026-03-16', date: 'ma 16 maa', time: '20:00-22:00' };
 
         const data = makeData({
             workshops: [low, high],
@@ -167,16 +151,67 @@ describe('resolveEvent', () => {
             },
         });
 
-        const result = resolveEvent(data);
-        expect(result!.title).toBe('Openlab evening');
+        const result = resolveEvent(data, now);
+        expect(result!.title).toBe('Openlab');
     });
 
-    test('prefers recurring events from recurringEvents array', () => {
-        const now = new Date();
-        const tomorrow = new Date(now.getTime() + 24 * 60 * 60 * 1000);
-        const recurring = { title: 'Openlab', dateISO: isoDate(tomorrow), date: isoDate(tomorrow), time: '18:00-21:00' };
-        const data = makeData({ recurringEvents: [recurring] });
-        const result = resolveEvent(data);
+    test('prefers low priority today over high priority tomorrow (FIXED BEHAVIOR)', () => {
+        const now = new Date(2026, 2, 16, 12, 0);
+        
+        // Event A: today at 19:00, low priority
+        const lowToday = { title: 'Gewone workshop', dateISO: '2026-03-16', date: 'ma 16 maa', time: '19:00-21:00' };
+        // Event B: tomorrow at 10:00, high priority
+        const highTomorrow = { title: 'Openlab', dateISO: '2026-03-17', date: 'di 17 maa', time: '10:00-12:00' };
+
+        const data = makeData({
+            workshops: [lowToday, highTomorrow],
+            config: {
+                transitionTime: 15,
+                tipsTransitionTime: 10,
+                paymentQrUrl: '',
+                eventPriority: ['openlab'],
+                tips: [],
+            },
+        });
+
+        const result = resolveEvent(data, now);
+        // Should pick Today's event even if lower priority
+        expect(result!.title).toBe('Gewone workshop');
+    });
+
+    test('does not skip all-day events (no time) during the day', () => {
+        const now = new Date(2026, 2, 16, 10, 0); // 10:00 AM
+        const allDayEvent = { 
+            title: 'All-day Workshop', 
+            dateISO: '2026-03-16', 
+            date: 'ma 16 maa', 
+            time: '' // No time
+        };
+
+        const data = makeData({ workshops: [allDayEvent] });
+        const result = resolveEvent(data, now);
+        expect(result).not.toBeNull();
+        expect(result!.title).toBe('All-day Workshop');
+        expect(result!.isNow).toBe(true); // Should be "Now" because it's all day today
+    });
+
+    test('prefers high priority upcoming today over low priority now', () => {
+        const now = new Date(2026, 2, 16, 19, 30); // 19:30
+        
+        // Event A: Today 19:00-21:00, low priority (is Now)
+        const lowNow = { title: 'Gewone workshop', dateISO: '2026-03-16', date: 'ma 16 maa', time: '19:00-21:00' };
+        // Event B: Today 20:00-22:00, high priority (is Upcoming)
+        const highLater = { title: 'Openlab', dateISO: '2026-03-16', date: 'ma 16 maa', time: '20:00-22:00' };
+
+        const data = makeData({
+            workshops: [lowNow, highLater],
+            config: {
+                eventPriority: ['openlab'],
+            },
+        });
+
+        const result = resolveEvent(data, now);
         expect(result!.title).toBe('Openlab');
+        expect(result!.isNow).toBe(false); // It's still upcoming
     });
 });
