@@ -2,7 +2,7 @@ import { describe, test, expect } from 'bun:test';
 import { parseEventDetailHtml } from '../event-detail.js';
 
 // ── Helper: build minimal event detail HTML ───────────────────────
-function makeHtml({ ogImage = '', ogDescription = '', timeText = '', locationText = '', priceText = '', mainExtra = '' } = {}) {
+function makeHtml({ ogImage = '', ogDescription = '', timeText = '', locationText = '', priceText = '', mainExtra = '', bodyExtra = '' } = {}) {
     return `<!DOCTYPE html>
 <html>
 <head>
@@ -10,6 +10,7 @@ function makeHtml({ ogImage = '', ogDescription = '', timeText = '', locationTex
   ${ogDescription ? `<meta property="og:description" content="${ogDescription}">` : ''}
 </head>
 <body>
+${bodyExtra}
 <main>
   ${timeText     ? `<p><img data-src="/icons/icon-time.svg" class="lazyload"> ${timeText}</p>` : ''}
   ${locationText ? `<p><img data-src="/icons/icon-location.svg" class="lazyload"> ${locationText}</p>` : ''}
@@ -28,7 +29,13 @@ describe('parseEventDetailHtml — description', () => {
         expect(result.description).toBe('Leer 3D ontwerpen.');
     });
 
-    test('returns empty string when og:description is absent', () => {
+    test('falls back to first paragraph when og:description is absent', () => {
+        const html = makeHtml({ bodyExtra: '<article><p>Dit is de eerste paragraaf.</p></article>' });
+        const result = parseEventDetailHtml(html);
+        expect(result.description).toBe('Dit is de eerste paragraaf.');
+    });
+
+    test('returns empty string when no description is found', () => {
         const result = parseEventDetailHtml(makeHtml());
         expect(result.description).toBe('');
     });
@@ -46,6 +53,12 @@ describe('parseEventDetailHtml — imageUrl', () => {
     test('returns og:image when present', () => {
         const result = parseEventDetailHtml(makeHtml({ ogImage: 'https://example.com/img.jpg' }));
         expect(result.imageUrl).toBe('https://example.com/img.jpg');
+    });
+
+    test('falls back to body image with data-src if og:image is absent', () => {
+        const html = makeHtml({ bodyExtra: '<article><img class="wp-post-image" data-src="https://example.com/lazy.jpg"></article>' });
+        const result = parseEventDetailHtml(html);
+        expect(result.imageUrl).toBe('https://example.com/lazy.jpg');
     });
 
     test('normalises http:// to https://', () => {
@@ -101,7 +114,13 @@ describe('parseEventDetailHtml — location', () => {
         expect(result.location).toBe('Grafisch Lab');
     });
 
-    test('returns empty string when location icon is absent', () => {
+    test('falls back to scanning main text for lab names when icon is absent', () => {
+        const html = makeHtml({ mainExtra: '<p>Welkom in het High Tech Lab voor deze workshop.</p>' });
+        const result = parseEventDetailHtml(html);
+        expect(result.location).toBe('High Tech Lab');
+    });
+
+    test('returns empty string when location icon and lab names are absent', () => {
         const result = parseEventDetailHtml(makeHtml());
         expect(result.location).toBe('');
     });

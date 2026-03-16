@@ -80,6 +80,10 @@ async function scrapeCalendar() {
             const timeRaw = $(itemEl).find('.agenda_item_time').text().trim();
             const link = $(itemEl).find('a').attr('href') || '';
 
+            if (!titleRaw) {
+                console.warn(`[Calendar] Missing title for an event on ${dateText}`);
+            }
+
             // The calendar list HTML uses `.agenda_item_time` for either the exact time OR the location!
             let timeStr = '';
             let locationStr = '';
@@ -101,6 +105,10 @@ async function scrapeCalendar() {
                     // Remove the matched time (and any surrounding separators/spaces) from the title
                     title = titleRaw.replace(titleTimeMatch[0], '').replace(/^\s*[-–|:]\s*|\s*[-–|:]\s*$/g, '').trim();
                 }
+            }
+
+            if (!timeStr) {
+                console.warn(`[Calendar] No time found for "${titleRaw}" on ${dateText}`);
             }
 
             if (title) {
@@ -229,15 +237,43 @@ async function scrapeNews() {
                 // Fallback: extract title from URL slug
                 const slug = item.link.replace(/\/$/, '').split('/').pop() || '';
                 cleanTitle = slug.replace(/-/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+                console.warn(`[News] No clear title found for ${item.link}, using slug: ${cleanTitle}`);
             }
 
-            const description = $a('meta[property="og:description"]').attr('content') || '';
-            let imageUrl = $a('meta[property="og:image"]').attr('content') ||
-                $a('.wp-post-image').attr('src') ||
-                $a('.post-thumbnail img').attr('src') ||
-                $a('.elementor-post__thumbnail img').attr('src') ||
-                $a('article img').first().attr('src') ||
-                $a('main img').first().attr('src') || '';
+            const description = $a('meta[property="og:description"]').attr('content') || 
+                                $a('meta[name="description"]').attr('content') || '';
+            
+            // Image extraction strategy: og:image > body images (check multiple attributes for lazy-loading)
+            const bodyImageSelectors = [
+                '.wp-post-image',
+                '.post-thumbnail img',
+                '.elementor-post__thumbnail img',
+                'article img',
+                'main img',
+                '.entry-content img'
+            ];
+
+            let imageUrl = $a('meta[property="og:image"]').attr('content') || '';
+
+            if (!imageUrl) {
+                for (const selector of bodyImageSelectors) {
+                    const imgEl = $a(selector).first();
+                    if (imgEl.length > 0) {
+                        imageUrl = imgEl.attr('data-src') || 
+                                   imgEl.attr('data-lazy-src') || 
+                                   imgEl.attr('data-orig-file') || 
+                                   imgEl.attr('src') || '';
+                        if (imageUrl) {
+                            console.log(`[News] Found fallback image for ${item.link} via ${selector}`);
+                            break;
+                        }
+                    }
+                }
+            }
+
+            if (!imageUrl) {
+                console.warn(`[News] No image found for ${item.link}`);
+            }
 
             if (imageUrl.startsWith('http://')) {
                 imageUrl = imageUrl.replace('http://', 'https://');
