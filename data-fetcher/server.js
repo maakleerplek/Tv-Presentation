@@ -191,7 +191,8 @@ async function scrapeNews() {
         '/algemene-voorwaarden/', '/privacy', '/toegankelijkheid/',
     ];
 
-    $('a[href*="maakleerplek.be/"]').each((_, el) => {
+    // News items are listed in a specific block on the homepage.
+    $('ul.wp-block-latest-posts__list a').each((_, el) => {
         const href = $(el).attr('href');
         if (!href) return;
 
@@ -261,6 +262,7 @@ async function scrapeNews() {
                     if (imgEl.length > 0) {
                         imageUrl = imgEl.attr('data-src') || 
                                    imgEl.attr('data-lazy-src') || 
+                                   imgEl.attr('data-srcset')?.split(',')[0].trim().split(' ')[0] ||
                                    imgEl.attr('data-orig-file') || 
                                    imgEl.attr('src') || '';
                         if (imageUrl) {

@@ -80,9 +80,10 @@ export function parseEventDetailHtml(html, url = 'unknown') {
         for (const selector of bodyImages) {
             const imgEl = $(selector).first();
             if (imgEl.length > 0) {
-                // Check multiple sources (standard src, lazy-loading data-src, etc.)
+                // Check multiple sources (standard src, lazy-loading data-src, data-srcset, etc.)
                 imageUrl = imgEl.attr('data-src') || 
                            imgEl.attr('data-lazy-src') || 
+                           imgEl.attr('data-srcset')?.split(',')[0].trim().split(' ')[0] ||
                            imgEl.attr('data-orig-file') || 
                            imgEl.attr('src') || '';
                 if (imageUrl) {

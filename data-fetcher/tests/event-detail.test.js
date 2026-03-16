@@ -61,6 +61,12 @@ describe('parseEventDetailHtml — imageUrl', () => {
         expect(result.imageUrl).toBe('https://example.com/lazy.jpg');
     });
 
+    test('picks first image from data-srcset if og:image and data-src are absent', () => {
+        const html = makeHtml({ bodyExtra: '<article><img class="wp-post-image" data-srcset="https://example.com/thumb.jpg 300w, https://example.com/large.jpg 1024w"></article>' });
+        const result = parseEventDetailHtml(html);
+        expect(result.imageUrl).toBe('https://example.com/thumb.jpg');
+    });
+
     test('normalises http:// to https://', () => {
         const result = parseEventDetailHtml(makeHtml({ ogImage: 'http://example.com/img.jpg' }));
         expect(result.imageUrl).toBe('https://example.com/img.jpg');
