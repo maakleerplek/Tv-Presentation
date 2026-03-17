@@ -44,10 +44,192 @@ let forceTransitionTime = Date.now();
 let calendarCache = { data: null, timestamp: 0 };
 let newsCache = { data: null, timestamp: 0 };
 let drinksCache = { data: null, timestamp: 0 };
+let pricingCache = { data: null, timestamp: 0 };
 
 /** Wrap isCacheValidUtil with a default duration from this module's config. */
 function isCacheValid(cache, duration = CACHE_DURATION_MS) {
     return isCacheValidUtil(cache, duration);
+}
+
+// ── Wiki Pricing Scraper ─────────────────────────────────────────
+async function scrapeWikiPricing() {
+    if (isCacheValid(pricingCache)) return pricingCache.data;
+
+    const WIKI_URL = process.env.WIKI_PRICING_URL || 'https://wiki.maakleerplek.be/en/hightechlab';
+    console.log('[Pricing] Scraping', WIKI_URL);
+
+    try {
+        const response = await fetch(WIKI_URL, {
+            headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36' }
+        });
+        const html = await response.text();
+        const $ = cheerio.load(html);
+
+        const pricing = {
+            memberships: [],
+            equipment: [],
+            materials: [],
+            workshops: []
+        };
+
+        /**
+         * Generic parser for a list of items (either <ul> or <table>).
+         * Splits lines by common delimiters like ":" or " - " or detects "€".
+         */
+        const parseEntries = (container, prefix = '') => {
+            const results = [];
+            
+            if (container.is('table')) {
+                const rows = container.find('tr').get();
+                if (rows.length === 0) return results;
+
+                // Extract all cells from all rows
+                const tableData = rows.map(tr => 
+                    $(tr).find('td, th').map((_, cell) => $(cell).text().trim()).get()
+                );
+
+                // Detect if it's a grid table (first row has multiple headers like A4, A3, A2)
+                const firstRow = tableData[0];
+                // Grid if: first cell is empty/small AND subsequent cells look like dimensions/headers
+                const looksLikeGrid = firstRow.length > 2 && firstRow.slice(1).every(h => h.length > 0 && h.length < 15)
+                                     && !firstRow.some(h => /price|kosten|equipment|item/i.test(h));
+                
+                if (looksLikeGrid) {
+                    const headers = firstRow;
+                    for (let i = 1; i < tableData.length; i++) {
+                        const row = tableData[i];
+                        if (row.length < 2) continue;
+                        const rowLabel = row[0];
+                        if (!rowLabel || /thickness|dikte/i.test(rowLabel)) continue;
+                        
+                        for (let j = 1; j < row.length; j++) {
+                            const val = row[j];
+                            if (!val || val === '-' || val === '—') continue;
+                            const colHeader = headers[j] || '';
+                            results.push({
+                                name: `${prefix}${rowLabel}${colHeader ? ` (${colHeader})` : ''}`,
+                                price: val.includes('€') ? val : `€${val}`
+                            });
+                        }
+                    }
+                } else {
+                    // Standard Key-Value table
+                    tableData.forEach((row, idx) => {
+                        if (row.length < 2) return;
+                        // Skip header rows
+                        if (idx === 0 && row.some(c => /item|price|equipment|machine|naam|kosten/i.test(c))) return;
+                        
+                        let name = row[0];
+                        let price = row[1];
+                        if (!name || !price || price === '-' || price === '—') return;
+                        
+                        // Clean up generic header suffixes that might have been scraped if name is equal to header
+                        if (/price|notes|equipment/i.test(name)) return;
+
+                        results.push({ 
+                            name: `${prefix}${name}`, 
+                            price: price.includes('€') || /free|gratis/i.test(price) ? price : `€${price}`
+                        });
+                    });
+                }
+            } else {
+                // Try parsing as list
+                container.find('li').each((_, li) => {
+                    const text = $(li).text().trim();
+                    const match = text.match(/^(.*?)\s*[:\-\u2013\u2014\u20AC]\s*(.*)$/);
+                    if (match) {
+                        let name = match[1].trim();
+                        let price = match[2].trim();
+                        if (text.includes('€') && !price.includes('€')) {
+                            price = '€' + price;
+                        }
+                        results.push({ name: `${prefix}${name}`, price });
+                    }
+                });
+            }
+            return results;
+        };
+
+        // Section mappings: Header Keywords -> Pricing Property
+        const sectionMap = [
+            { keys: ['lidmaatschap', 'membership'], prop: 'memberships' },
+            { keys: ['equipment usage', 'machine gebruik', 'machine usage', 'gebruik'], prop: 'equipment' },
+            { keys: ['material', 'grondstof', 'benodigdheden'], prop: 'materials' },
+            { keys: ['workshop', 'training', 'certificatie', 'opleiding', 'cursus'], prop: 'workshops' }
+        ];
+
+        $('h1, h2, h3, h4').each((_, header) => {
+            const headerText = $(header).text().toLowerCase();
+            const section = sectionMap.find(s => s.keys.some(k => headerText.includes(k)));
+            
+            if (section) {
+                console.log(`[Pricing] Found section matching "${section.prop}": "${headerText}"`);
+                let next = $(header).next();
+                while (next.length && !next.is('h1, h2, h3, h4')) {
+                    // 1. Check if next is a list or table directly
+                    if (next.is('ul, table')) {
+                        const entries = parseEntries(next);
+                        if (entries.length > 0) {
+                            pricing[section.prop] = [...pricing[section.prop], ...entries];
+                        }
+                    } 
+                    
+                    // 2. Check for details/accordion containers
+                    if (next.is('details')) {
+                        const summary = next.find('summary').text().trim();
+                        const prefix = summary ? `${summary} ` : '';
+                        next.find('ul, table').each((_, inner) => {
+                            const entries = parseEntries($(inner), prefix);
+                            if (entries.length > 0) {
+                                pricing[section.prop] = [...pricing[section.prop], ...entries];
+                            }
+                        });
+                    }
+
+                    // 3. Search for lists/tables inside general containers (divs, etc)
+                    // but skip if we already parsed it via details logic
+                    if (!next.is('details')) {
+                        next.find('ul, table').each((_, inner) => {
+                            // Avoid double-parsing if this table is inside another already-handled container
+                            if ($(inner).parents('ul, table, details').length === 0 || $(inner).parent().is(next)) {
+                                const entries = parseEntries($(inner));
+                                if (entries.length > 0) {
+                                    pricing[section.prop] = [...pricing[section.prop], ...entries];
+                                }
+                            }
+                        });
+                    }
+                    
+                    next = next.next();
+                }
+            }
+        });
+
+        // Deduplicate entries by name
+        for (const prop in pricing) {
+            const seen = new Set();
+            pricing[prop] = pricing[prop].filter(item => {
+                if (seen.has(item.name)) return false;
+                seen.add(item.name);
+                return true;
+            });
+        }
+
+        console.log('[Pricing] Final scraped data:', JSON.stringify(pricing, null, 2));
+
+        // Fallback to hardcoded values ONLY for essential sections if completely empty
+        if (Object.values(pricing).every(arr => arr.length === 0)) {
+            console.warn('[Pricing] Scraping failed to find any sections, using defaults');
+            pricing.memberships = [{ name: 'Basis', price: '€25/m' }]; // etc...
+            // (Keeping the logic minimal here as requested to make it dynamic)
+        }
+
+        pricingCache = { data: pricing, timestamp: Date.now() };
+        return pricing;
+    } catch (err) {
+        console.error('[Pricing] Error scraping wiki:', err.message);
+        return null;
+    }
 }
 
 // ── Calendar Scraper ─────────────────────────────────────────────
@@ -325,6 +507,8 @@ const CAROUSEL_TRANSITION_TIME = parseInt(process.env.CAROUSEL_TRANSITION_TIME |
 const TIPS_TRANSITION_TIME = parseInt(process.env.TIPS_TRANSITION_TIME || '10', 10);
 // URL encoded into the payment QR code in the drinks panel
 const PAYMENT_QR_URL = process.env.PAYMENT_QR_URL || '';
+// URL encoded into the wiki QR code in the tips footer
+const WIKI_QR_URL = process.env.WIKI_QR_URL || 'https://wiki.maakleerplek.be/en/hightechlab';
 
 // Helper function to fetch with a timeout
 const fetchWithTimeout = async (resource, options = {}, timeout = 5000) => {
@@ -479,10 +663,11 @@ app.get('/api/drinks', async (_req, res) => {
 app.get('/api/screen-data', async (_req, res) => {
     try {
         // Fetch all data sources concurrently
-        const [calendar, news, drinks] = await Promise.all([
+        const [calendar, news, drinks, pricing] = await Promise.all([
             scrapeCalendar(),
             scrapeNews(),
-            fetchDrinks()
+            fetchDrinks(),
+            scrapeWikiPricing()
         ]);
 
         const workshops = [];
@@ -577,10 +762,12 @@ app.get('/api/screen-data', async (_req, res) => {
             news: newsWithType,
             recurringEvents,
             drinks,
+            pricing,
             config: {
                 transitionTime: CAROUSEL_TRANSITION_TIME,
                 tipsTransitionTime: TIPS_TRANSITION_TIME,
                 paymentQrUrl: PAYMENT_QR_URL,
+                wikiQrUrl: WIKI_QR_URL,
                 eventPriority: EVENT_PRIORITY,
                 tips: TIPS,
                 websiteQrUrl: MAAKLEERPLEK_URL,

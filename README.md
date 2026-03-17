@@ -1,25 +1,47 @@
 # Tv-Presentation
 
-Full-screen TV display for [maakleerplek](https://maakleerplek.be/) — a public makerspace in Leuven. Shows the current time, upcoming events, news, a drinks menu, and rotating tips on a 4K TV.
+Full-screen TV display for [maakleerplek](https://maakleerplek.be/) — a public makerspace in Leuven. Shows the current time, weather, upcoming events, news, a drinks/materials inventory, and machine usage rates on a 4K TV.
 
 ![Image of the website](Public/image.png)
 
 ## Layout
 
+The screen is optimized for a 4K display and divided into three main columns:
+
 ```
-┌─────────────┬──────────────────────┬──────────────┐
-│ Clock       │                      │ Drinks menu  │
-│ Weather     │   Event/News Carousel│ + QR payment │
-│ Next event  │                      │              │
-├─────────────┴──────────────────────┴──────────────┤
-│                  Tips footer                       │
-└────────────────────────────────────────────────────┘
+┌─────────────┬──────────────────────┬──────────────────────┐
+│ Clock       │                      │ Inventory (InvenTree)│
+│ Weather     │   Event/News Carousel│                      │
+│ Status      │                      ├──────────────────────┤
+│             │                      │ Machine Usage (Wiki) │
+├─────────────┴──────────────────────┴──────────────────────┤
+│ Bezoek QR URL │      HTL Logo      │      Wiki QR URL     │
+└────────────────────────────────────────────────────────────┘
 ```
+
+- **Left:** Time, date, local weather, and currently running or next upcoming event.
+- **Center:** A rotating carousel of upcoming workshops, recurring events, and recent news articles.
+- **Right:** Live inventory from InvenTree (Drinks, Snacks & Materialen) and dynamic machine usage pricing scraped from the Wiki.
+- **Footer:** Direct links to the website and the general Wiki page via QR codes.
+
+## Features
+
+### 🛠️ Dynamic Wiki Scraper
+The data-fetcher service includes a resilient scraper that pulls live pricing and equipment data from the [High Tech Lab Wiki](https://wiki.maakleerplek.be/en/hightechlab).
+- **Auto-detection:** Automatically identifies "Machine Gebruik" sections.
+- **Resilient Parsing:** Handles standard tables, nested lists, and grid-style pricing (like MDF dimensions).
+- **Caching:** Scraped data is cached along with calendar and news data to minimize load on the Wiki.
+
+### 📦 InvenTree Integration
+Pulls live stock levels and prices for drinks, snacks, and consumable materials directly from an InvenTree instance.
+
+### 📅 Calendar & News
+Scrapes the main maakleerplek.be website for the latest news and upcoming events, automatically prioritizing "high-profile" events like OpenLabs or Repair Cafés.
 
 ## Quick Start
 
 ```bash
-# 1. Copy config (see "Getting the .env values" below)
+# 1. Copy config
 cp .env.example .env
 
 # 2. Build and run
@@ -29,69 +51,21 @@ docker compose up --build
 - Frontend: `http://localhost:8083`
 - Data-fetcher API: `http://localhost:8085`
 
-
-## Getting the `.env` values
-
-All deployment-specific values are stored as **GitHub repository secrets** so contributors don't need to share them over chat.
-
-### Prerequisites
-
-Install the [GitHub CLI](https://cli.github.com/) and authenticate:
-
-```bash
-gh auth login
-```
-
-### Pull all secrets into your `.env`
-
-Run this from the repo root. It reads every secret from the repo and appends it to your local `.env`:
-
-```bash
-gh secret list --repo maakleerplek/Tv-Presentation --json name --jq '.[].name' | \
-  while read name; do
-    value=$(gh secret get "$name" --repo maakleerplek/Tv-Presentation 2>/dev/null || echo "")
-    echo "$name=$value"
-  done >> .env
-```
-
-> **Note:** GitHub Secrets are write-only — the CLI cannot read back the values once stored.
-> If the command above produces empty values, ask a maintainer to share the `.env` file directly
-> (e.g. via a password manager or private message).
-
-### Push a new or updated secret
-
-After editing `.env`, push any changed value back to GitHub:
-
-```bash
-# Single value
-gh secret set MY_VAR --body "the-value" --repo maakleerplek/Tv-Presentation
-
-# Or pipe from .env (push all at once)
-grep -v '^#' .env | grep -v '^$' | while IFS='=' read -r key value; do
-  gh secret set "$key" --body "$value" --repo maakleerplek/Tv-Presentation
-done
-```
-
 ## Configuration
-
-All variables are documented in `.env.example`. Key ones:
 
 | Variable | Description |
 |---|---|
-| `HOST_PORT` | Host port for the frontend (default `8083`) |
-| `MAAKLEERPLEK_URL` | Base URL of the maakleerplek site; also used for the tips footer QR code |
+| `MAAKLEERPLEK_URL` | Base URL of the website; also used for the "Bezoek" QR code |
+| `WIKI_QR_URL` | URL encoded into the "Wiki" QR code in the footer |
+| `WIKI_PRICING_URL` | The specific Wiki page to scrape machine usage from |
 | `INVENTREE_URL` | URL of your InvenTree instance |
 | `INVENTREE_TOKEN` | InvenTree API token |
-| `INVENTREE_DRINKS_LOCATIONS` | Comma-separated location names to show in the drinks panel |
-| `PAYMENT_QR_URL` | URL encoded into the payment QR code in the drinks panel |
+| `INVENTREE_DRINKS_LOCATIONS` | Comma-separated location names to show in the inventory panel |
+| `PAYMENT_QR_URL` | URL for the payment QR code shown in the inventory section |
 | `CAROUSEL_TRANSITION_TIME` | Seconds per carousel slide (default `15`) |
-| `TIPS_TRANSITION_TIME` | Seconds per tip in the footer (default `10`) |
 | `EVENT_PRIORITY` | Comma-separated keywords; earlier = higher priority in the status panel |
-| `TIP_1`, `TIP_2`, … | Tips shown in the footer, in order |
-| `WEATHER_LAT` / `WEATHER_LON` | Coordinates for Open-Meteo weather (no API key needed) |
+| `WEATHER_LAT` / `WEATHER_LON` | Coordinates for Open-Meteo weather |
 | `CACHE_DURATION_MINUTES` | How long scraped data is cached (default `15`) |
-| `CHROMECAST_IP` | IP address of your Chromecast device |
-| `FRONTEND_URL` | Full URL (including IP/port) as reachable by the Chromecast |
 
 ## Development
 
