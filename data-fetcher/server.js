@@ -347,8 +347,10 @@ async function scrapeCalendar() {
     });
 
     calendarCache = { data: result, timestamp: Date.now() };
-    console.log(`[Calendar] Scraped ${result.length} upcoming events`);
-    console.log(`[Calendar] Scraped events list: ${result.map(e => e.title).join(', ')}`);
+    console.log(`[Calendar] Scraped ${result.length} upcoming events:`);
+    result.forEach((e, idx) => {
+        console.log(`  ${idx + 1}. [${e.dateISO} ${e.time || '??:??'}] ${e.title} (@ ${e.location || 'maakleerplek'})`);
+    });
     return result;
 }
 
@@ -668,8 +670,12 @@ app.get('/api/screen-data', async (_req, res) => {
             const normalizedTitle = event.title.trim().toLowerCase();
             const isRecurringByCount = titleCounts[normalizedTitle] > 1;
             const isRecurringByKeyword = recurringKeywords.some(kw => normalizedTitle.includes(kw));
+            const hasPrice = event.price && event.price.trim().length > 0 && !/gratis|free/i.test(event.price);
 
-            if (isRecurringByCount || isRecurringByKeyword) {
+            // If it has a price, it's almost certainly a distinct workshop, not a generic recurring event
+            if (hasPrice) {
+                workshops.push({ ...event, type: 'workshop' });
+            } else if (isRecurringByCount || isRecurringByKeyword) {
                 if (!recurringByTitle[normalizedTitle]) recurringByTitle[normalizedTitle] = [];
                 recurringByTitle[normalizedTitle].push(event);
             } else {
