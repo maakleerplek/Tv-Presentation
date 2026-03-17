@@ -39,8 +39,8 @@ export function DrinksList() {
   return (
     <div className="flex-1 bg-[#F5F2EB] flex flex-col h-full overflow-hidden">
       <div className="p-4 border-b-2 border-[#2C1E16] bg-[#C8A98B] shrink-0">
-        <h2 className="text-[#2C1E16] uppercase tracking-widest text-xs font-black flex items-center gap-2">
-          <Coffee className="w-4 h-4" /> Drinks & Snacks
+        <h2 className="text-[#2C1E16] uppercase tracking-widest text-xs font-black flex items-center justify-center gap-2">
+          <Coffee className="w-4 h-4" /> Drinks, Snacks & Materialen
         </h2>
       </div>
 

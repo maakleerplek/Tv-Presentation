@@ -150,7 +150,7 @@ export function EventCarousel() {
             {/* Bottom section: Content — flex-[2] gives ~40% of the card height */}
             <div className="flex-[2_1_0%] px-6 pt-5 pb-4 flex flex-col gap-3 bg-[#F5F2EB] min-h-0 overflow-hidden">
               {/* Title */}
-              <h3 className="shrink-0 text-xl xl:text-2xl font-black leading-tight text-[#2C1E16] uppercase tracking-tighter line-clamp-2">
+              <h3 className="shrink-0 text-lg xl:text-xl font-black leading-tight text-[#2C1E16] uppercase tracking-tighter line-clamp-2">
                 {currentItem.title}
               </h3>
 
@@ -205,7 +205,7 @@ export function EventCarousel() {
               {/* Description + QR side-by-side */}
               <div className="flex-1 min-h-0 flex flex-row items-start gap-4">
                 {currentItem.description ? (
-                  <p className="text-base xl:text-lg text-[#2C1E16] font-medium leading-normal flex-1 overflow-y-auto max-h-full pr-2">
+                  <p className="text-sm xl:text-base text-[#2C1E16] font-medium leading-normal flex-1 overflow-y-auto max-h-full pr-2">
                     {currentItem.description}
                   </p>
                 ) : (

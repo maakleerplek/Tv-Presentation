@@ -71,7 +71,7 @@ export function TipsFooter() {
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -20 }}
               transition={{ duration: 0.4 }}
-              className="absolute text-2xl font-bold uppercase tracking-tight"
+              className="absolute text-xl font-bold uppercase tracking-tight"
             >
               {tips[currentIndex]}
             </motion.div>
@@ -95,8 +95,8 @@ export function TipsFooter() {
           <Image
             src="/HTL_logo_CMYK_white-04.svg"
             alt="HTL Logo"
-            width={180}
-            height={60}
+            width={150}
+            height={50}
             className="object-contain max-h-full brightness-0 opacity-80"
           />
         </div>

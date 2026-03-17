@@ -72,96 +72,156 @@ async function scrapeWikiPricing() {
             workshops: []
         };
 
-        // Helper to clean price strings
-        const cleanPrice = (str) => str.replace(/&nbsp;/g, ' ').trim();
+        /**
+         * Generic parser for a list of items (either <ul> or <table>).
+         * Splits lines by common delimiters like ":" or " - " or detects "€".
+         */
+        const parseEntries = (container, prefix = '') => {
+            const results = [];
+            
+            if (container.is('table')) {
+                const rows = container.find('tr').get();
+                if (rows.length === 0) return results;
 
-        // 1. Memberships
-        const membershipHeader = $('h3:contains("MEMBERSHIP"), h2:contains("MEMBERSHIP"), h3:contains("Membership"), h2:contains("Membership")').first();
-        if (membershipHeader.length) {
-            membershipHeader.nextAll('ul').first().find('li').each((_, el) => {
-                const text = $(el).text();
-                if (text.includes(':')) {
-                    const [name, pricePart] = text.split(':');
-                    pricing.memberships.push({
-                        name: name.trim(),
-                        price: cleanPrice(pricePart.split('(')[0].trim())
+                // Extract all cells from all rows
+                const tableData = rows.map(tr => 
+                    $(tr).find('td, th').map((_, cell) => $(cell).text().trim()).get()
+                );
+
+                // Detect if it's a grid table (first row has multiple headers like A4, A3, A2)
+                const firstRow = tableData[0];
+                // Grid if: first cell is empty/small AND subsequent cells look like dimensions/headers
+                const looksLikeGrid = firstRow.length > 2 && firstRow.slice(1).every(h => h.length > 0 && h.length < 15)
+                                     && !firstRow.some(h => /price|kosten|equipment|item/i.test(h));
+                
+                if (looksLikeGrid) {
+                    const headers = firstRow;
+                    for (let i = 1; i < tableData.length; i++) {
+                        const row = tableData[i];
+                        if (row.length < 2) continue;
+                        const rowLabel = row[0];
+                        if (!rowLabel || /thickness|dikte/i.test(rowLabel)) continue;
+                        
+                        for (let j = 1; j < row.length; j++) {
+                            const val = row[j];
+                            if (!val || val === '-' || val === '—') continue;
+                            const colHeader = headers[j] || '';
+                            results.push({
+                                name: `${prefix}${rowLabel}${colHeader ? ` (${colHeader})` : ''}`,
+                                price: val.includes('€') ? val : `€${val}`
+                            });
+                        }
+                    }
+                } else {
+                    // Standard Key-Value table
+                    tableData.forEach((row, idx) => {
+                        if (row.length < 2) return;
+                        // Skip header rows
+                        if (idx === 0 && row.some(c => /item|price|equipment|machine|naam|kosten/i.test(c))) return;
+                        
+                        let name = row[0];
+                        let price = row[1];
+                        if (!name || !price || price === '-' || price === '—') return;
+                        
+                        // Clean up generic header suffixes that might have been scraped if name is equal to header
+                        if (/price|notes|equipment/i.test(name)) return;
+
+                        results.push({ 
+                            name: `${prefix}${name}`, 
+                            price: price.includes('€') || /free|gratis/i.test(price) ? price : `€${price}`
+                        });
                     });
                 }
+            } else {
+                // Try parsing as list
+                container.find('li').each((_, li) => {
+                    const text = $(li).text().trim();
+                    const match = text.match(/^(.*?)\s*[:\-\u2013\u2014\u20AC]\s*(.*)$/);
+                    if (match) {
+                        let name = match[1].trim();
+                        let price = match[2].trim();
+                        if (text.includes('€') && !price.includes('€')) {
+                            price = '€' + price;
+                        }
+                        results.push({ name: `${prefix}${name}`, price });
+                    }
+                });
+            }
+            return results;
+        };
+
+        // Section mappings: Header Keywords -> Pricing Property
+        const sectionMap = [
+            { keys: ['lidmaatschap', 'membership'], prop: 'memberships' },
+            { keys: ['equipment usage', 'machine gebruik', 'machine usage', 'gebruik'], prop: 'equipment' },
+            { keys: ['material', 'grondstof', 'benodigdheden'], prop: 'materials' },
+            { keys: ['workshop', 'training', 'certificatie', 'opleiding', 'cursus'], prop: 'workshops' }
+        ];
+
+        $('h1, h2, h3, h4').each((_, header) => {
+            const headerText = $(header).text().toLowerCase();
+            const section = sectionMap.find(s => s.keys.some(k => headerText.includes(k)));
+            
+            if (section) {
+                console.log(`[Pricing] Found section matching "${section.prop}": "${headerText}"`);
+                let next = $(header).next();
+                while (next.length && !next.is('h1, h2, h3, h4')) {
+                    // 1. Check if next is a list or table directly
+                    if (next.is('ul, table')) {
+                        const entries = parseEntries(next);
+                        if (entries.length > 0) {
+                            pricing[section.prop] = [...pricing[section.prop], ...entries];
+                        }
+                    } 
+                    
+                    // 2. Check for details/accordion containers
+                    if (next.is('details')) {
+                        const summary = next.find('summary').text().trim();
+                        const prefix = summary ? `${summary} ` : '';
+                        next.find('ul, table').each((_, inner) => {
+                            const entries = parseEntries($(inner), prefix);
+                            if (entries.length > 0) {
+                                pricing[section.prop] = [...pricing[section.prop], ...entries];
+                            }
+                        });
+                    }
+
+                    // 3. Search for lists/tables inside general containers (divs, etc)
+                    // but skip if we already parsed it via details logic
+                    if (!next.is('details')) {
+                        next.find('ul, table').each((_, inner) => {
+                            // Avoid double-parsing if this table is inside another already-handled container
+                            if ($(inner).parents('ul, table, details').length === 0 || $(inner).parent().is(next)) {
+                                const entries = parseEntries($(inner));
+                                if (entries.length > 0) {
+                                    pricing[section.prop] = [...pricing[section.prop], ...entries];
+                                }
+                            }
+                        });
+                    }
+                    
+                    next = next.next();
+                }
+            }
+        });
+
+        // Deduplicate entries by name
+        for (const prop in pricing) {
+            const seen = new Set();
+            pricing[prop] = pricing[prop].filter(item => {
+                if (seen.has(item.name)) return false;
+                seen.add(item.name);
+                return true;
             });
         }
 
-        // 2. Equipment
-        const equipHeader = $('h3:contains("EQUIPMENT"), h2:contains("EQUIPMENT"), h3:contains("Equipment"), h2:contains("Equipment")').first();
-        if (equipHeader.length) {
-            const table = equipHeader.nextAll('table').first();
-            table.find('tbody tr').each((_, tr) => {
-                const tds = $(tr).find('td');
-                if (tds.length >= 2) {
-                    pricing.equipment.push({
-                        name: $(tds[0]).text().trim(),
-                        price: cleanPrice($(tds[1]).text().trim())
-                    });
-                }
-            });
-        }
+        console.log('[Pricing] Final scraped data:', JSON.stringify(pricing, null, 2));
 
-        // 3. Materials
-        const materialHeader = $('h3:contains("MATERIAL"), h2:contains("MATERIAL"), h3:contains("Material"), h2:contains("Material")').first();
-        if (materialHeader.length) {
-            materialHeader.nextAll('ul').first().find('li').each((_, el) => {
-                const text = $(el).text();
-                if (text.includes(':')) {
-                    const [name, price] = text.split(':');
-                    pricing.materials.push({
-                        name: name.trim(),
-                        price: cleanPrice(price.trim())
-                    });
-                }
-            });
-        }
-
-        // 4. Workshops & Training
-        const workshopHeader = $('h3:contains("WORKSHOP"), h2:contains("WORKSHOP"), h3:contains("Workshop"), h2:contains("Workshop")').first();
-        if (workshopHeader.length) {
-            workshopHeader.nextAll('ul').first().find('li').each((_, el) => {
-                const text = $(el).text();
-                if (text.includes(':')) {
-                    const [name, pricePart] = text.split(':');
-                    pricing.workshops.push({
-                        name: name.trim(),
-                        price: cleanPrice(pricePart.split('(')[0].trim())
-                    });
-                }
-            });
-        }
-
-        // Fallback to hardcoded values if scraping failed significantly
-        if (pricing.memberships.length === 0 && pricing.equipment.length === 0) {
-            console.warn('[Pricing] Scraping returned empty results, using fallbacks');
-            pricing.memberships = [
-                { name: 'Basic (20% korting)', price: '€25/m' },
-                { name: 'Maker (+10u incl)', price: '€50/m' },
-                { name: 'Pro (Onbeperkt)', price: '€100/m' },
-            ];
-            pricing.equipment = [
-                { name: 'FDM 3D Printer', price: '€0.50/u' },
-                { name: 'Resin 3D Printer', price: '€2.00/u' },
-                { name: 'CO2 Laser Cutter', price: '€1.50/u' },
-                { name: 'CNC Mill/Router', price: '€3.00/u' },
-                { name: 'Vacuum Former', price: '€1.00/u' },
-            ];
-            pricing.materials = [
-                { name: 'PLA (1kg)', price: '€20' },
-                { name: 'PETG (1kg)', price: '€25' },
-                { name: 'Resin (1L)', price: '€60' },
-                { name: 'Acrylic (A4)', price: '€3' },
-                { name: 'Plywood (A4)', price: '€1.50' },
-            ];
-            pricing.workshops = [
-                { name: 'Laser Certificatie', price: '€10' },
-                { name: 'Intro 3D Printing', price: '€15' },
-                { name: 'CNC Workshop', price: '€25' },
-            ];
+        // Fallback to hardcoded values ONLY for essential sections if completely empty
+        if (Object.values(pricing).every(arr => arr.length === 0)) {
+            console.warn('[Pricing] Scraping failed to find any sections, using defaults');
+            pricing.memberships = [{ name: 'Basis', price: '€25/m' }]; // etc...
+            // (Keeping the logic minimal here as requested to make it dynamic)
         }
 
         pricingCache = { data: pricing, timestamp: Date.now() };

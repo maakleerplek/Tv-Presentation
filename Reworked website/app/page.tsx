@@ -27,8 +27,8 @@ export default function Page() {
         </aside>
       </main>
 
-      {/* Bottom Section - 120px fixed height */}
-      <footer className="h-[120px] shrink-0 bg-[#F5F2EB] relative">
+      {/* Bottom Section - 100px fixed height */}
+      <footer className="h-[100px] shrink-0 bg-[#F5F2EB] relative">
         <TipsFooter />
         <div className="absolute bottom-2 right-2 text-[10px] font-mono font-bold opacity-30 uppercase tracking-tighter">
           BETA 0.8
