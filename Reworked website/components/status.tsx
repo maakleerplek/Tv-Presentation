@@ -18,6 +18,7 @@ type NextEvent = {
   isToday: boolean;
   isTomorrow: boolean;
   startTime: Date;
+  price?: string;
 };
 
 /** Parse "HH:MM" or "HH.MM" from a string, returns { h, m } or null. */
@@ -97,6 +98,7 @@ export function resolveEvent(
       isToday:    startTime >= todayMidnight    && startTime < tomorrowMidnight,
       isTomorrow: startTime >= tomorrowMidnight && startTime < dayAfterMidnight,
       startTime,
+      price:      event.price,
       priority:   priorityOf(event.title, priorityKeywords),
     });
   }
@@ -135,22 +137,49 @@ export function resolveEvent(
   });
 }
 
+/** Specific helper to only resolve the next upcoming workshop. */
+export function resolveNextWorkshop(data: ScreenData | null, nowOverride?: Date): NextEvent | null {
+  if (!data) return null;
+  // Create a subset that only includes workshops
+  const workshopOnlyData = { ...data, recurringEvents: [] };
+  return resolveEvent(workshopOnlyData, nowOverride);
+}
+
 export function Status() {
   const { data } = useScreenData();
   const [nextEvent, setNextEvent] = useState<NextEvent | null>(null);
+  const [nextWorkshop, setNextWorkshop] = useState<NextEvent | null>(null);
+  const [showWorkshop, setShowWorkshop] = useState(false);
 
   const reEvaluate = useCallback(() => {
     setNextEvent(resolveEvent(data));
+    setNextWorkshop(resolveNextWorkshop(data));
   }, [data]);
 
   useEffect(() => {
     reEvaluate();
-    // Tick every 30 seconds so transitions (upcoming → now, now → done) are prompt
     const tick = setInterval(reEvaluate, 30 * 1000);
     return () => clearInterval(tick);
   }, [reEvaluate]);
 
-  if (!nextEvent) {
+  // Rotation logic: if we have both and they are different, swap every 10s.
+  // If they are the same, just stay on the general status.
+  useEffect(() => {
+    if (!nextEvent || !nextWorkshop || nextEvent.title === nextWorkshop.title) {
+      setShowWorkshop(false);
+      return;
+    }
+
+    const rotation = setInterval(() => {
+      setShowWorkshop((prev) => !prev);
+    }, 10000);
+
+    return () => clearInterval(rotation);
+  }, [nextEvent, nextWorkshop]);
+
+  const active = showWorkshop ? nextWorkshop : nextEvent;
+
+  if (!active) {
     return (
       <div className="p-4 bg-[#F5F2EB] flex-1 flex flex-col justify-center min-h-0">
         <div className="flex-1" />
@@ -158,33 +187,29 @@ export function Status() {
     );
   }
 
-  const whenLabel = nextEvent.isNow
+  const whenLabel = active.isNow
     ? 'Nu bezig'
-    : nextEvent.isToday
+    : active.isToday
       ? 'Vandaag'
-      : nextEvent.isTomorrow
+      : active.isTomorrow
         ? 'Morgen'
-        : nextEvent.displayDate;
+        : active.displayDate;
 
-  const badgeColor = nextEvent.isNow ? '#FCA5A5' : nextEvent.isToday ? '#FEF08A' : '#F5F2EB';
+  const badgeColor = active.isNow ? '#FCA5A5' : active.isToday ? '#FEF08A' : '#F5F2EB';
 
-  // Time line:
-  //   Happening now  → "Bezig tot 22:00"  (or "Bezig" if no end known)
-  //   Upcoming       → "19:00 – 22:00"    (or just "19:00" if no end)
-  //   No time at all → nothing shown
   const timeDisplay = (() => {
-    if (!nextEvent.startLabel && !nextEvent.endLabel) return null;
-    if (nextEvent.isNow) {
-      return nextEvent.endLabel ? `Bezig tot ${nextEvent.endLabel}` : 'Bezig';
+    if (!active.startLabel && !active.endLabel) return null;
+    if (active.isNow) {
+      return active.endLabel ? `Bezig tot ${active.endLabel}` : 'Bezig';
     }
-    if (nextEvent.startLabel && nextEvent.endLabel) return `${nextEvent.startLabel} – ${nextEvent.endLabel}`;
-    return nextEvent.startLabel || nextEvent.endLabel;
+    if (active.startLabel && active.endLabel) return `${active.startLabel} – ${active.endLabel}`;
+    return active.startLabel || active.endLabel;
   })();
 
   return (
     <div className="p-4 bg-[#F5F2EB] flex-1 flex flex-col justify-start min-h-0 gap-3">
       <h2 className="text-[#2C1E16] uppercase tracking-widest text-[10px] font-black shrink-0">
-        {nextEvent.isNow ? 'Nu bezig' : 'Volgend evenement'}
+        {showWorkshop ? 'Volgende Workshop' : active.isNow ? 'Nu bezig' : 'Volgend evenement'}
       </h2>
 
       {/* When badge */}
@@ -199,14 +224,21 @@ export function Status() {
 
       {/* Title */}
       <p className="text-[#2C1E16] font-black text-sm uppercase leading-snug shrink-0">
-        {nextEvent.title}
+        {active.title}
       </p>
+
+      {/* Extra: Price for workshops */}
+      {showWorkshop && active.price && (
+        <p className="text-[#2C1E16] font-black text-xs uppercase tracking-widest opacity-60">
+          Prijs: {active.price}
+        </p>
+      )}
 
       {/* Time */}
       {timeDisplay && (
         <div className="mt-auto shrink-0">
           <p className="text-[#2C1E16] text-[10px] uppercase tracking-widest font-black mb-1">
-            {nextEvent.isNow ? 'Eindigt' : 'Tijd'}
+            {active.isNow ? 'Eindigt' : 'Tijd'}
           </p>
           <p className="text-[#2C1E16] font-black text-lg uppercase leading-tight">
             {timeDisplay}
@@ -216,3 +248,4 @@ export function Status() {
     </div>
   );
 }
+
