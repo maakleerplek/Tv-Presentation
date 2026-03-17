@@ -162,20 +162,20 @@ export function Status() {
     return () => clearInterval(tick);
   }, [reEvaluate]);
 
-  // Rotation logic: if we have both and they are different, swap every 10s.
-  // If they are the same, just stay on the general status.
+  // Rotation logic: if we have both and they are different, swap based on config.
   useEffect(() => {
     if (!nextEvent || !nextWorkshop || nextEvent.title === nextWorkshop.title) {
       setShowWorkshop(false);
       return;
     }
 
+    const intervalSeconds = data?.config?.statusRotationTime ?? 10;
     const rotation = setInterval(() => {
       setShowWorkshop((prev) => !prev);
-    }, 10000);
+    }, intervalSeconds * 1000);
 
     return () => clearInterval(rotation);
-  }, [nextEvent, nextWorkshop]);
+  }, [nextEvent, nextWorkshop, data?.config?.statusRotationTime]);
 
   const active = showWorkshop ? nextWorkshop : nextEvent;
 

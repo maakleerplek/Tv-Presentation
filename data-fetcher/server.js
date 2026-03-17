@@ -479,11 +479,12 @@ const INVENTREE_DRINKS_LOCATIONS = (
     process.env.INVENTREE_DRINKS_LOCATIONS || process.env.INVENTREE_DRINKS_LOCATION || ''
 ).split(',').map(s => s.trim().toLowerCase()).filter(Boolean);
 
-// ── Carousel config ────────────────────────────────────────────────
 // Number of seconds each carousel slide is shown before advancing
 const CAROUSEL_TRANSITION_TIME = parseInt(process.env.CAROUSEL_TRANSITION_TIME || '15', 10);
 // Number of seconds each tip is shown before advancing
 const TIPS_TRANSITION_TIME = parseInt(process.env.TIPS_TRANSITION_TIME || '10', 10);
+// Number of seconds the status block rotates between "Next Event" and "Next Workshop"
+const STATUS_ROTATION_TIME = parseInt(process.env.STATUS_ROTATION_TIME || '10', 10);
 // URL encoded into the payment QR code in the drinks panel
 const PAYMENT_QR_URL = process.env.PAYMENT_QR_URL || '';
 // URL encoded into the wiki QR code in the tips footer
@@ -652,48 +653,45 @@ app.get('/api/screen-data', async (_req, res) => {
         const workshops = [];
         const recurringEvents = [];
 
-        // Keywords to catch recurring events even if only 1 is currently in the calendar window
-        const recurringKeywords = EVENT_PRIORITY;
+        // 1. Define categorization rules
+        const RECURRING_SERVICE_KEYWORDS = ['open lab', 'repair', 'gereedschappenbib', 'buurtkantine', 'herstel hub', 'geopend'];
+        const WORKSHOP_KEYWORDS = ['workshop', 'initiatie', 'cursus', 'opleiding', 'naailes', 'leren', '3d-print'];
 
-        // Count title occurrences to detect repeating events (case-insensitive)
+        // 2. Count title occurrences to detect repeating events (case-insensitive)
         const titleCounts = {};
         for (const event of calendar) {
             const normalizedTitle = event.title.trim().toLowerCase();
             titleCounts[normalizedTitle] = (titleCounts[normalizedTitle] || 0) + 1;
         }
 
-        // For recurring events, collect ALL instances first, then pick the best one
-        // per title: prefer a currently-running instance, else the soonest upcoming one.
-        const recurringByTitle = {};
+        // 3. Group repeating events and separate unique ones
+        const groupsByTitle = {};
+        const uniqueEvents = [];
 
         for (const event of calendar) {
             const normalizedTitle = event.title.trim().toLowerCase();
-            const isRecurringByCount = titleCounts[normalizedTitle] > 1;
-            const isRecurringByKeyword = recurringKeywords.some(kw => normalizedTitle.includes(kw));
-            const hasPrice = event.price && event.price.trim().length > 0 && !/gratis|free/i.test(event.price);
-
-            // If it has a price, it's almost certainly a distinct workshop, not a generic recurring event
-            if (hasPrice) {
-                workshops.push({ ...event, type: 'workshop' });
-            } else if (isRecurringByCount || isRecurringByKeyword) {
-                if (!recurringByTitle[normalizedTitle]) recurringByTitle[normalizedTitle] = [];
-                recurringByTitle[normalizedTitle].push(event);
+            if (titleCounts[normalizedTitle] > 1) {
+                if (!groupsByTitle[normalizedTitle]) groupsByTitle[normalizedTitle] = [];
+                groupsByTitle[normalizedTitle].push(event);
             } else {
-                workshops.push({ ...event, type: 'workshop' });
+                uniqueEvents.push(event);
             }
         }
 
-        // Pick the best instance for each recurring event title group.
+        // 4. Process unique events (always workshops)
+        uniqueEvents.forEach(e => workshops.push({ ...e, type: 'workshop' }));
+
+        // 5. Process grouped events: Pick the best instance and categorize
         const now = new Date();
-        for (const [, instances] of Object.entries(recurringByTitle)) {
+        for (const [normalizedTitle, instances] of Object.entries(groupsByTitle)) {
+            // Find the best instance (current or soonest)
             let best = null;
             let bestScore = Infinity;
 
             for (const event of instances) {
                 const [isoYear, isoMonth, isoDay] = (event.dateISO || '').split('-').map(Number);
-                if (!isoYear) continue; // skip events with no date at all
+                if (!isoYear) continue;
 
-                // If no parseable time, score by date midnight (all-day treatment)
                 const startMatch = event.time ? event.time.match(/(\d{1,2})[:.](\d{2})/) : null;
                 const startTime = startMatch
                     ? new Date(isoYear, isoMonth - 1, isoDay, parseInt(startMatch[1], 10), parseInt(startMatch[2], 10))
@@ -706,24 +704,12 @@ app.get('/api/screen-data', async (_req, res) => {
 
                 const effectiveEnd = new Date(endTime.getTime() + 5 * 60 * 1000);
                 const isNow = startTime <= now && now < effectiveEnd;
-
-                // Also treat an all-day event on today's date as "happening now"
-                const isAllDayToday = !startMatch &&
-                    isoYear === now.getFullYear() &&
-                    (isoMonth - 1) === now.getMonth() &&
-                    isoDay === now.getDate();
+                const isAllDayToday = !startMatch && isoYear === now.getFullYear() && (isoMonth - 1) === now.getMonth() && isoDay === now.getDate();
 
                 let score;
-                if (isNow || isAllDayToday) {
-                    // Happening right now — guaranteed winner
-                    score = -Infinity;
-                } else if (effectiveEnd <= now) {
-                    // Already finished — only use as last resort
-                    score = Infinity;
-                } else {
-                    // Future: sooner start = lower score
-                    score = startTime.getTime() - now.getTime();
-                }
+                if (isNow || isAllDayToday) score = -Infinity;
+                else if (effectiveEnd <= now) score = Infinity;
+                else score = startTime.getTime() - now.getTime();
 
                 if (best === null || score < bestScore) {
                     best = event;
@@ -731,7 +717,19 @@ app.get('/api/screen-data', async (_req, res) => {
                 }
             }
 
-            if (best) recurringEvents.push({ ...best, type: 'recurring' });
+            if (!best) continue;
+
+            // Categorize the group
+            const isService = RECURRING_SERVICE_KEYWORDS.some(kw => normalizedTitle.includes(kw));
+            const isWorkshop = WORKSHOP_KEYWORDS.some(kw => normalizedTitle.includes(kw));
+            const hasPrice = best.price && best.price.trim().length > 0 && !/gratis|free/i.test(best.price);
+
+            // A group is a workshop if it has workshop keywords or a price, UNLESS it's a known recurring service
+            if ((isWorkshop || hasPrice) && !isService) {
+                workshops.push({ ...best, type: 'workshop' });
+            } else {
+                recurringEvents.push({ ...best, type: 'recurring' });
+            }
         }
 
         // Add type tag to news for easy combining on the frontend
@@ -746,6 +744,7 @@ app.get('/api/screen-data', async (_req, res) => {
             config: {
                 transitionTime: CAROUSEL_TRANSITION_TIME,
                 tipsTransitionTime: TIPS_TRANSITION_TIME,
+                statusRotationTime: STATUS_ROTATION_TIME,
                 paymentQrUrl: PAYMENT_QR_URL,
                 wikiQrUrl: WIKI_QR_URL,
                 eventPriority: EVENT_PRIORITY,

@@ -75,6 +75,8 @@ export type ScreenConfig = {
     transitionTime: number;
     /** Seconds each tip is shown before advancing */
     tipsTransitionTime: number;
+    /** Seconds the status block rotates between "Next Event" and "Next Workshop" */
+    statusRotationTime: number;
     /** URL encoded into the payment QR code in the drinks panel */
     paymentQrUrl: string;
     /** URL encoded into the wiki QR code in the tips footer */
