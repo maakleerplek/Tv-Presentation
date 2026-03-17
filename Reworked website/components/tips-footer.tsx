@@ -25,15 +25,23 @@ export function TipsFooter() {
         </div>
       </div>
 
-      {/* Middle: HTL Logo */}
-      <div className="flex items-center h-full py-2">
+      {/* Middle: HTL Logo & Info */}
+      <div className="flex flex-col items-center justify-center h-full py-1">
         <Image
           src="/HTL_logo_CMYK_white-04.svg"
           alt="HTL Logo"
-          width={150}
-          height={50}
-          className="object-contain max-h-full brightness-0 opacity-80"
+          width={130}
+          height={40}
+          className="object-contain brightness-0 opacity-60 mb-1"
         />
+        <div className="flex flex-col items-center">
+          <span className="text-[9px] font-black uppercase tracking-[0.2em] text-[#2C1E16] opacity-40 leading-none">
+            Beta 0.8
+          </span>
+          <span className="text-[7px] font-bold uppercase tracking-tight text-[#2C1E16] opacity-25 mt-1 leading-none">
+            In development - info may be inaccurate
+          </span>
+        </div>
       </div>
 
       {/* Right side: Wiki QR */}

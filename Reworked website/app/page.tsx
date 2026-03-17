@@ -30,9 +30,6 @@ export default function Page() {
       {/* Bottom Section - 80px fixed height */}
       <footer className="h-[80px] shrink-0 bg-[#F5F2EB] relative">
         <TipsFooter />
-        <div className="absolute bottom-1 right-2 text-[10px] font-mono font-bold opacity-30 uppercase tracking-tighter">
-          BETA 0.8
-        </div>
       </footer>
     </div>
   );
