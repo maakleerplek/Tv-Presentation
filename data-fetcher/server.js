@@ -13,6 +13,7 @@ process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
 
 // ── Configurable via .env ────────────────────────────────────────
 const MAAKLEERPLEK_URL  = (process.env.MAAKLEERPLEK_URL || 'https://maakleerplek.be').replace(/\/$/, '');
+const VERHALEN_URL      = `${MAAKLEERPLEK_URL}/verhalen/`;
 const CALENDAR_URL      = `${MAAKLEERPLEK_URL}/kalender/`;
 const HOMEPAGE_URL      = `${MAAKLEERPLEK_URL}/`;
 const CACHE_DURATION_MS = parseInt(process.env.CACHE_DURATION_MINUTES || '15', 10) * 60 * 1000;
@@ -350,8 +351,8 @@ async function scrapeCalendar() {
 async function scrapeNews() {
     if (isCacheValid(newsCache)) return newsCache.data;
 
-    console.log('[News] Scraping', HOMEPAGE_URL);
-    const response = await fetch(HOMEPAGE_URL, {
+    console.log('[News] Scraping', VERHALEN_URL);
+    const response = await fetch(VERHALEN_URL, {
         headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36' }
     });
     const html = await response.text();
@@ -361,45 +362,46 @@ async function scrapeNews() {
     const cutoffDate = new Date();
     cutoffDate.setDate(cutoffDate.getDate() - NEWS_MAX_AGE_DAYS);
 
-    // News items are listed as links in the "Nieuws" section on the homepage.
-    // We collect candidate URLs here; titles will be replaced by og:title from the detail fetch.
-    // Only keep slug-like paths (no taxonomy/system paths, no query strings, no anchors).
-    const EXCLUDED_PATHS = [
-        '/wp-admin/', '/wp-json/', '/wp-content/', '/wp-includes/',
-        '/kalender/', '/partners/', '/deelplekken/', '/contact/', '/zoeken',
-        '/nieuwsbrief', '/leefregels/', '/foto-studio/', '/word-vrijwilliger/',
-        '/wat-is-maakleerplek/', '/wat-kan-ik-er-komen-doen/',
-        '/leuven-river-upcycling/', '/kantine', '/feed/', '/page/',
-        '/algemene-voorwaarden/', '/privacy', '/toegankelijkheid/',
-    ];
+    // News items in /verhalen/ are inside <article class="archive_item">
+    $('article.archive_item').each((_, el) => {
+        const titleEl = $(el).find('h3 a');
+        const href = titleEl.attr('href');
+        const title = titleEl.text().trim();
+        const dateStr = $(el).find('p.date').text().trim(); // Format: DD/MM/YYYY
 
-    // News items are listed in a specific block on the homepage.
-    $('ul.wp-block-latest-posts__list a').each((_, el) => {
-        const href = $(el).attr('href');
-        if (!href) return;
+        if (!href || !title) return;
 
-        // Must be a clean slug URL (no hash, no query string)
-        if (href.includes('#') || href.includes('?')) return;
-
-        // Skip all known non-article paths
-        if (EXCLUDED_PATHS.some(p => href.includes(p))) return;
-
-        // Skip the bare homepage itself
-        if (href.replace(/\/$/, '') === 'https://maakleerplek.be') return;
+        // Parse date to check against cutoff
+        let modifiedTime = '';
+        if (dateStr) {
+            const [d, m, y] = dateStr.split('/').map(Number);
+            if (!isNaN(d) && !isNaN(m) && !isNaN(y)) {
+                modifiedTime = new Date(y, m - 1, d).toISOString();
+            }
+        }
 
         // Avoid duplicate URLs
         if (newsItems.some(n => n.link === href)) return;
 
-        // Use href as placeholder title — will be overwritten by og:title below
-        newsItems.push({ title: '', link: href });
+        newsItems.push({ 
+            title, 
+            link: href, 
+            dateStr,
+            modifiedTime 
+        });
     });
 
     // Fetch detail info from each news article page.
-    // We scan up to MAX_NEWS_ITEMS * 4 candidate URLs to find MAX_NEWS_ITEMS recent articles,
-    // since many candidate links may be older than NEWS_MAX_AGE_DAYS.
     const enrichedItems = [];
-    for (const item of newsItems.slice(0, MAX_NEWS_ITEMS * 4)) {
+    for (const item of newsItems) {
         if (enrichedItems.length >= MAX_NEWS_ITEMS) break;
+
+        // Check if article is within the age limit
+        if (item.modifiedTime) {
+            const articleDate = new Date(item.modifiedTime);
+            if (articleDate < cutoffDate) continue; 
+        }
+
         try {
             const resp = await fetch(item.link, {
                 headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36' }
@@ -408,25 +410,11 @@ async function scrapeNews() {
             const articleHtml = await resp.text();
             const $a = cheerio.load(articleHtml);
 
-            // Get the REAL title from og:title (most reliable)
-            const ogTitle = $a('meta[property="og:title"]').attr('content') || '';
-            const pageTitle = $a('title').text().trim().split('|')[0].trim();
-            const h1Title = $a('h1.entry-title, h1.post-title, h1').first().text().trim();
-
-            // Pick the best title: og:title > h1 > page title > clean scraped title > slug
-            // Strip " - maakleerplek" suffix that WordPress appends to og:title
-            let cleanTitle = (ogTitle || h1Title || pageTitle).replace(/\s*[-–]\s*maakleerplek\s*$/i, '').trim();
-            if (!cleanTitle || cleanTitle.startsWith('<')) {
-                // Fallback: extract title from URL slug
-                const slug = item.link.replace(/\/$/, '').split('/').pop() || '';
-                cleanTitle = slug.replace(/-/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
-                console.warn(`[News] No clear title found for ${item.link}, using slug: ${cleanTitle}`);
-            }
-
+            // Real title might be better in og:title, but we already have a good one from the archive list.
             const description = $a('meta[property="og:description"]').attr('content') || 
                                 $a('meta[name="description"]').attr('content') || '';
             
-            // Image extraction strategy: og:image > body images (check multiple attributes for lazy-loading)
+            // Image extraction strategy: og:image > body images
             const bodyImageSelectors = [
                 '.wp-post-image',
                 '.post-thumbnail img',
@@ -447,49 +435,33 @@ async function scrapeNews() {
                                    imgEl.attr('data-srcset')?.split(',')[0].trim().split(' ')[0] ||
                                    imgEl.attr('data-orig-file') || 
                                    imgEl.attr('src') || '';
-                        if (imageUrl) {
-                            console.log(`[News] Found fallback image for ${item.link} via ${selector}`);
-                            break;
-                        }
+                        if (imageUrl) break;
                     }
                 }
-            }
-
-            if (!imageUrl) {
-                console.warn(`[News] No image found for ${item.link}`);
             }
 
             if (imageUrl.startsWith('http://')) {
                 imageUrl = imageUrl.replace('http://', 'https://');
             } else if (imageUrl && !imageUrl.startsWith('https://') && imageUrl.startsWith('/')) {
                 imageUrl = `${MAAKLEERPLEK_URL}${imageUrl}`;
-            } else if (imageUrl && !imageUrl.startsWith('http')) {
-                imageUrl = `${MAAKLEERPLEK_URL}/${imageUrl}`;
-            }
-            const modifiedTime = $a('meta[property="article:modified_time"]').attr('content') || '';
-
-            // Check if article is within the last 2 weeks
-            if (modifiedTime) {
-                const articleDate = new Date(modifiedTime);
-                if (articleDate < cutoffDate) continue; // Skip old articles
             }
 
             enrichedItems.push({
                 ...item,
-                title: cleanTitle,
-                description,
+                description: truncate(stripHtml(description), 200),
                 imageUrl,
-                date: modifiedTime ? new Date(modifiedTime).toLocaleDateString('nl-BE') : '',
+                date: item.dateStr || (item.modifiedTime ? new Date(item.modifiedTime).toLocaleDateString('nl-BE') : ''),
             });
-        } catch {
-            // Skip articles that fail to fetch
+        } catch (err) {
+            console.error(`[News] Failed to fetch details for ${item.link}:`, err.message);
         }
     }
 
     newsCache = { data: enrichedItems, timestamp: Date.now() };
-    console.log(`[News] Found ${enrichedItems.length} recent news items`);
+    console.log(`[News] Found ${enrichedItems.length} recent news items from /verhalen/`);
     return enrichedItems;
 }
+
 
 // ── Inventree Drinks Scraper ───────────────────────────────────────
 const INVENTREE_URL = process.env.INVENTREE_URL || 'https://10.72.3.68:8443';
