@@ -44,10 +44,132 @@ let forceTransitionTime = Date.now();
 let calendarCache = { data: null, timestamp: 0 };
 let newsCache = { data: null, timestamp: 0 };
 let drinksCache = { data: null, timestamp: 0 };
+let pricingCache = { data: null, timestamp: 0 };
 
 /** Wrap isCacheValidUtil with a default duration from this module's config. */
 function isCacheValid(cache, duration = CACHE_DURATION_MS) {
     return isCacheValidUtil(cache, duration);
+}
+
+// ── Wiki Pricing Scraper ─────────────────────────────────────────
+async function scrapeWikiPricing() {
+    if (isCacheValid(pricingCache)) return pricingCache.data;
+
+    const WIKI_URL = process.env.WIKI_PRICING_URL || 'https://wiki.maakleerplek.be/en/hightechlab';
+    console.log('[Pricing] Scraping', WIKI_URL);
+
+    try {
+        const response = await fetch(WIKI_URL, {
+            headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36' }
+        });
+        const html = await response.text();
+        const $ = cheerio.load(html);
+
+        const pricing = {
+            memberships: [],
+            equipment: [],
+            materials: [],
+            workshops: []
+        };
+
+        // Helper to clean price strings
+        const cleanPrice = (str) => str.replace(/&nbsp;/g, ' ').trim();
+
+        // 1. Memberships
+        const membershipHeader = $('h3:contains("MEMBERSHIP"), h2:contains("MEMBERSHIP"), h3:contains("Membership"), h2:contains("Membership")').first();
+        if (membershipHeader.length) {
+            membershipHeader.nextAll('ul').first().find('li').each((_, el) => {
+                const text = $(el).text();
+                if (text.includes(':')) {
+                    const [name, pricePart] = text.split(':');
+                    pricing.memberships.push({
+                        name: name.trim(),
+                        price: cleanPrice(pricePart.split('(')[0].trim())
+                    });
+                }
+            });
+        }
+
+        // 2. Equipment
+        const equipHeader = $('h3:contains("EQUIPMENT"), h2:contains("EQUIPMENT"), h3:contains("Equipment"), h2:contains("Equipment")').first();
+        if (equipHeader.length) {
+            const table = equipHeader.nextAll('table').first();
+            table.find('tbody tr').each((_, tr) => {
+                const tds = $(tr).find('td');
+                if (tds.length >= 2) {
+                    pricing.equipment.push({
+                        name: $(tds[0]).text().trim(),
+                        price: cleanPrice($(tds[1]).text().trim())
+                    });
+                }
+            });
+        }
+
+        // 3. Materials
+        const materialHeader = $('h3:contains("MATERIAL"), h2:contains("MATERIAL"), h3:contains("Material"), h2:contains("Material")').first();
+        if (materialHeader.length) {
+            materialHeader.nextAll('ul').first().find('li').each((_, el) => {
+                const text = $(el).text();
+                if (text.includes(':')) {
+                    const [name, price] = text.split(':');
+                    pricing.materials.push({
+                        name: name.trim(),
+                        price: cleanPrice(price.trim())
+                    });
+                }
+            });
+        }
+
+        // 4. Workshops & Training
+        const workshopHeader = $('h3:contains("WORKSHOP"), h2:contains("WORKSHOP"), h3:contains("Workshop"), h2:contains("Workshop")').first();
+        if (workshopHeader.length) {
+            workshopHeader.nextAll('ul').first().find('li').each((_, el) => {
+                const text = $(el).text();
+                if (text.includes(':')) {
+                    const [name, pricePart] = text.split(':');
+                    pricing.workshops.push({
+                        name: name.trim(),
+                        price: cleanPrice(pricePart.split('(')[0].trim())
+                    });
+                }
+            });
+        }
+
+        // Fallback to hardcoded values if scraping failed significantly
+        if (pricing.memberships.length === 0 && pricing.equipment.length === 0) {
+            console.warn('[Pricing] Scraping returned empty results, using fallbacks');
+            pricing.memberships = [
+                { name: 'Basic (20% korting)', price: '€25/m' },
+                { name: 'Maker (+10u incl)', price: '€50/m' },
+                { name: 'Pro (Onbeperkt)', price: '€100/m' },
+            ];
+            pricing.equipment = [
+                { name: 'FDM 3D Printer', price: '€0.50/u' },
+                { name: 'Resin 3D Printer', price: '€2.00/u' },
+                { name: 'CO2 Laser Cutter', price: '€1.50/u' },
+                { name: 'CNC Mill/Router', price: '€3.00/u' },
+                { name: 'Vacuum Former', price: '€1.00/u' },
+            ];
+            pricing.materials = [
+                { name: 'PLA (1kg)', price: '€20' },
+                { name: 'PETG (1kg)', price: '€25' },
+                { name: 'Resin (1L)', price: '€60' },
+                { name: 'Acrylic (A4)', price: '€3' },
+                { name: 'Plywood (A4)', price: '€1.50' },
+            ];
+            pricing.workshops = [
+                { name: 'Laser Certificatie', price: '€10' },
+                { name: 'Intro 3D Printing', price: '€15' },
+                { name: 'CNC Workshop', price: '€25' },
+            ];
+        }
+
+        pricingCache = { data: pricing, timestamp: Date.now() };
+        return pricing;
+    } catch (err) {
+        console.error('[Pricing] Error scraping wiki:', err.message);
+        return null;
+    }
 }
 
 // ── Calendar Scraper ─────────────────────────────────────────────
@@ -325,6 +447,8 @@ const CAROUSEL_TRANSITION_TIME = parseInt(process.env.CAROUSEL_TRANSITION_TIME |
 const TIPS_TRANSITION_TIME = parseInt(process.env.TIPS_TRANSITION_TIME || '10', 10);
 // URL encoded into the payment QR code in the drinks panel
 const PAYMENT_QR_URL = process.env.PAYMENT_QR_URL || '';
+// URL encoded into the wiki QR code in the tips footer
+const WIKI_QR_URL = process.env.WIKI_QR_URL || 'https://wiki.maakleerplek.be/a/general';
 
 // Helper function to fetch with a timeout
 const fetchWithTimeout = async (resource, options = {}, timeout = 5000) => {
@@ -479,10 +603,11 @@ app.get('/api/drinks', async (_req, res) => {
 app.get('/api/screen-data', async (_req, res) => {
     try {
         // Fetch all data sources concurrently
-        const [calendar, news, drinks] = await Promise.all([
+        const [calendar, news, drinks, pricing] = await Promise.all([
             scrapeCalendar(),
             scrapeNews(),
-            fetchDrinks()
+            fetchDrinks(),
+            scrapeWikiPricing()
         ]);
 
         const workshops = [];
@@ -577,10 +702,12 @@ app.get('/api/screen-data', async (_req, res) => {
             news: newsWithType,
             recurringEvents,
             drinks,
+            pricing,
             config: {
                 transitionTime: CAROUSEL_TRANSITION_TIME,
                 tipsTransitionTime: TIPS_TRANSITION_TIME,
                 paymentQrUrl: PAYMENT_QR_URL,
+                wikiQrUrl: WIKI_QR_URL,
                 eventPriority: EVENT_PRIORITY,
                 tips: TIPS,
                 websiteQrUrl: MAAKLEERPLEK_URL,

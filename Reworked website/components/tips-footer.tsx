@@ -28,6 +28,8 @@ export function TipsFooter() {
   const transitionTime = data?.config?.tipsTransitionTime ?? 10;
   const websiteUrl = data?.config?.websiteQrUrl || 'https://maakleerplek.be';
   const websiteLabel = websiteUrl.replace(/^https?:\/\//, '').replace(/\/$/, '');
+  const wikiUrl = data?.config?.wikiQrUrl || 'https://wiki.maakleerplek.be/a/general';
+  const wikiLabel = wikiUrl.replace(/^https?:\/\//, '').replace(/\/$/, '').split('/')[0];
 
   // Reset index when tip list changes (e.g. on first data load)
   useEffect(() => {
@@ -77,15 +79,27 @@ export function TipsFooter() {
         </div>
       </div>
 
-      {/* Right side: HTL Logo */}
-      <div className="shrink-0 flex items-center h-full py-4 bg-[#F5F2EB] mr-4">
-        <Image
-          src="/HTL_logo_CMYK_white-04.svg"
-          alt="HTL Logo"
-          width={180}
-          height={60}
-          className="object-contain max-h-full brightness-0 opacity-80"
-        />
+      {/* Right side: Wiki QR + HTL Logo */}
+      <div className="flex items-center gap-8 shrink-0 mr-4">
+        <div className="flex items-center gap-4">
+          <div className="flex flex-col justify-center text-right">
+            <span className="text-[10px] font-black uppercase tracking-widest text-[#2C1E16]">Wiki</span>
+            <span className="text-sm font-black uppercase tracking-widest text-[#2C1E16]">{wikiLabel}</span>
+          </div>
+          <div className="border-2 border-[#2C1E16] p-1.5 bg-[#F5F2EB]">
+            <QRCode value={wikiUrl} size={60} bgColor="#F5F2EB" fgColor="#2C1E16" />
+          </div>
+        </div>
+
+        <div className="shrink-0 flex items-center h-full py-4 bg-[#F5F2EB]">
+          <Image
+            src="/HTL_logo_CMYK_white-04.svg"
+            alt="HTL Logo"
+            width={180}
+            height={60}
+            className="object-contain max-h-full brightness-0 opacity-80"
+          />
+        </div>
       </div>
     </div>
   );

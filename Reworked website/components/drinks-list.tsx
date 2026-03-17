@@ -4,6 +4,7 @@ import { Coffee, QrCode } from 'lucide-react';
 import QRCode from 'react-qr-code';
 import { useScreenData } from '@/hooks/useScreenData';
 import type { DrinkItem } from '@/lib/types';
+import { PricingTable } from './pricing-table';
 
 const HeaderRow = () => (
   <div className="grid grid-cols-[32px_1fr_auto_auto] gap-3 items-end border-b-2 border-[#2C1E16] pb-2 shrink-0">
@@ -73,6 +74,8 @@ export function DrinksList() {
           ))}
         </div>
       </div>
+
+      <PricingTable />
 
       {PAYMENT_QR_URL && (
         <div className="p-4 border-t-2 border-[#2C1E16] bg-[#F5F2EB] flex flex-row items-center justify-center gap-6 shrink-0">

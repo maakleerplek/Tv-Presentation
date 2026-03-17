@@ -51,6 +51,24 @@ export type DrinkItem = {
     imageUrl: string | null;
 };
 
+/** Pricing information scraped from the wiki. */
+export type PricingData = {
+    memberships: { name: string; price: string }[];
+    equipment: { name: string; price: string }[];
+    materials: { name: string; price: string }[];
+    workshops: { name: string; price: string }[];
+};
+
+/** The full payload returned by /api/screen-data. */
+export type ScreenData = {
+    workshops: CalendarEvent[];
+    news: NewsItem[];
+    recurringEvents: CalendarEvent[];
+    drinks: DrinkItem[];
+    pricing: PricingData;
+    config: ScreenConfig;
+};
+
 /** Config values delivered from the data-fetcher alongside the data. */
 export type ScreenConfig = {
     /** Seconds each carousel slide is shown before advancing */
@@ -59,6 +77,8 @@ export type ScreenConfig = {
     tipsTransitionTime: number;
     /** URL encoded into the payment QR code in the drinks panel */
     paymentQrUrl: string;
+    /** URL encoded into the wiki QR code in the tips footer */
+    wikiQrUrl: string;
     /** Ordered keyword list for event priority; earlier index = higher priority */
     eventPriority: string[];
     /** Custom tip strings shown in the footer */

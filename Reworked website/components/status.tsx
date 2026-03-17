@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useScreenData } from '@/hooks/useScreenData';
 import { priorityOf } from '@/lib/utils';
-import type { ScreenData } from '@/hooks/useScreenData';
+import type { ScreenData } from '@/lib/types';
 
 // Re-export so existing tests (status.test.ts) keep passing
 export { priorityOf };

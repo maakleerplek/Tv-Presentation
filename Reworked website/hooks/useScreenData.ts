@@ -1,15 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import type { CalendarEvent, NewsItem, DrinkItem, ScreenConfig } from '@/lib/types';
-
-export type ScreenData = {
-    workshops: CalendarEvent[];
-    news: NewsItem[];
-    recurringEvents: CalendarEvent[];
-    drinks: DrinkItem[];
-    config?: ScreenConfig;
-};
+import type { ScreenData } from '@/lib/types';
 
 // NEXT_PUBLIC_ prefix required so the value is inlined at build time for client components
 const POLL_INTERVAL_MS =
