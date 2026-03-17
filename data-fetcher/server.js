@@ -754,10 +754,15 @@ app.get('/api/screen-data', async (_req, res) => {
             }
         };
 
-        console.log(`[ScreenData] eventPriority: ${JSON.stringify(EVENT_PRIORITY)}`);
-        console.log(`[ScreenData] workshops: ${workshops.length} (${workshops.map(e => e.title).join(', ')})`);
-        console.log(`[ScreenData] recurringEvents: ${recurringEvents.length} (${recurringEvents.map(e => e.title).join(', ')})`);
-        console.log(`[ScreenData] news: ${newsWithType.length} (${newsWithType.map(e => e.title).join(', ')})`);
+        console.log(`[ScreenData] Classification Summary:`);
+        console.log(`  --- News (${newsWithType.length} items) ---`);
+        newsWithType.forEach((n, idx) => console.log(`    ${idx + 1}. [${n.date || '??'}] ${n.title}`));
+        
+        console.log(`  --- Workshops (${workshops.length} items) ---`);
+        workshops.forEach((w, idx) => console.log(`    ${idx + 1}. [${w.dateISO} ${w.time || '??:??'}] ${w.title}${w.price ? ` (${w.price})` : ''}`));
+        
+        console.log(`  --- Recurring Events (${recurringEvents.length} items) ---`);
+        recurringEvents.forEach((r, idx) => console.log(`    ${idx + 1}. [${r.dateISO} ${r.time || '??:??'}] ${r.title}`));
 
         res.json(responseObj);
     } catch (err) {
