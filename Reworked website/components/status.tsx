@@ -79,9 +79,10 @@ export function resolveEvent(
         : new Date(isoYear, isoMonth - 1, isoDay, 23, 59, 59, 999);
 
     const isInProgress = startTime <= now && now < effectiveEnd;
+    const isPast = effectiveEnd <= now;
 
-    // Skip events fully in the past
-    if (!isInProgress && effectiveEnd < now) continue;
+    // Skip events that have already ended
+    if (isPast) continue;
 
     // Format display labels
     const startLabel = startParsed
@@ -110,34 +111,29 @@ export function resolveEvent(
   if (candidates.length === 0) return null;
 
   // Final selection logic:
-  // 1. Closest day wins (Today < Tomorrow < Next Week)
-  // 2. Highest priority wins on the same day (index 0 < 1 < ... < Infinity)
-  // 3. Current events win over upcoming events of SAME priority on the same day
-  // 4. Tie-break: if both Now, most recent wins. If both Upcoming, soonest wins.
+  // 1. Current events (isNow) always win over upcoming ones.
+  // 2. Among current events, highest priority wins.
+  // 3. Among upcoming events, closest day wins (Today < Tomorrow < Next Week)
+  // 4. On the same day, highest priority wins.
+  // 5. Tie-break: soonest start time wins.
   return candidates.reduce((best, c) => {
-    // a. Compare Day (YYYY-MM-DD)
+    // a. If one is now and the other isn't, prefer the active one.
+    if (c.isNow && !best.isNow) return c;
+    if (!c.isNow && best.isNow) return best;
+
+    // b. Compare Day (YYYY-MM-DD)
     const cScore = c.startTime.getFullYear() * 10000 + (c.startTime.getMonth() + 1) * 100 + c.startTime.getDate();
     const bScore = best.startTime.getFullYear() * 10000 + (best.startTime.getMonth() + 1) * 100 + best.startTime.getDate();
 
     if (cScore < bScore) return c;
     if (cScore > bScore) return best;
 
-    // b. Same day: Compare Priority
+    // c. Same day / status: Compare Priority
     if (c.priority < best.priority) return c;
     if (c.priority > best.priority) return best;
 
-    // c. Same priority: prefer Now over Upcoming
-    if (c.isNow && !best.isNow) return c;
-    if (!c.isNow && best.isNow) return best;
-
     // d. Tie-break by startTime
-    if (c.isNow) {
-      // For simultaneous active events, prefer the one that started more recently
-      return c.startTime > best.startTime ? c : best;
-    } else {
-      // For future events, prefer the one starting soonest
-      return c.startTime < best.startTime ? c : best;
-    }
+    return c.startTime < best.startTime ? c : best;
   });
 }
 
