@@ -245,6 +245,7 @@ async function scrapeCalendar() {
     const $ = cheerio.load(html);
 
     const events = [];
+    const seenEvents = new Set();
 
     // Each .agenda_element contains one day
     $('.agenda_element').each((_, dayEl) => {
@@ -296,11 +297,15 @@ async function scrapeCalendar() {
 
             if (title) {
                 // Build dateISO from local date parts to avoid UTC timezone shift.
-                // new Date(...).toISOString() converts to UTC which can give the wrong
-                // calendar day when the server runs in a timezone east of UTC (e.g. Belgium).
                 const mm = String(date.getMonth() + 1).padStart(2, '0');
                 const dd = String(date.getDate()).padStart(2, '0');
                 const dateISO = `${date.getFullYear()}-${mm}-${dd}`;
+
+                // Deduplicate: same link + same day = same event
+                const eventKey = `${link}|${dateISO}|${title}`;
+                if (seenEvents.has(eventKey)) return;
+                seenEvents.add(eventKey);
+
                 events.push({
                     title,
                     location: locationStr,
@@ -648,10 +653,11 @@ app.get('/api/screen-data', async (_req, res) => {
         // Keywords to catch recurring events even if only 1 is currently in the calendar window
         const recurringKeywords = EVENT_PRIORITY;
 
-        // Count title occurrences to detect repeating events
+        // Count title occurrences to detect repeating events (case-insensitive)
         const titleCounts = {};
         for (const event of calendar) {
-            titleCounts[event.title] = (titleCounts[event.title] || 0) + 1;
+            const normalizedTitle = event.title.trim().toLowerCase();
+            titleCounts[normalizedTitle] = (titleCounts[normalizedTitle] || 0) + 1;
         }
 
         // For recurring events, collect ALL instances first, then pick the best one
@@ -659,23 +665,19 @@ app.get('/api/screen-data', async (_req, res) => {
         const recurringByTitle = {};
 
         for (const event of calendar) {
-            const isRecurringByCount = titleCounts[event.title] > 1;
-            const isRecurringByKeyword = recurringKeywords.some(kw => event.title.toLowerCase().includes(kw));
+            const normalizedTitle = event.title.trim().toLowerCase();
+            const isRecurringByCount = titleCounts[normalizedTitle] > 1;
+            const isRecurringByKeyword = recurringKeywords.some(kw => normalizedTitle.includes(kw));
 
             if (isRecurringByCount || isRecurringByKeyword) {
-                if (!recurringByTitle[event.title]) recurringByTitle[event.title] = [];
-                recurringByTitle[event.title].push(event);
+                if (!recurringByTitle[normalizedTitle]) recurringByTitle[normalizedTitle] = [];
+                recurringByTitle[normalizedTitle].push(event);
             } else {
                 workshops.push({ ...event, type: 'workshop' });
             }
         }
 
-        // Pick the best instance for each recurring event title.
-        // Scoring rules (lower = better):
-        //   - Happening right now:  -Infinity (always wins)
-        //   - Future with time:     ms until start (sooner = lower)
-        //   - No time info:         ms until midnight of that day (treated as all-day, lower than distant future)
-        //   - Past events:          +Infinity (never picked if anything better exists)
+        // Pick the best instance for each recurring event title group.
         const now = new Date();
         for (const [, instances] of Object.entries(recurringByTitle)) {
             let best = null;
