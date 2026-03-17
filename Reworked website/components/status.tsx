@@ -69,19 +69,19 @@ export function resolveEvent(
       : null;
 
     // Logic for effective end:
-    // 1. Explicit end time + 5 min grace
+    // 1. Explicit end time
     // 2. No end time but explicit start time: 1 hour duration
     // 3. No time at all (all-day): end of the calendar day
     const effectiveEnd = endTime
-      ? new Date(endTime.getTime() + 5 * 60 * 1000)
+      ? endTime
       : startParsed
         ? new Date(startTime.getTime() + 60 * 60 * 1000)
         : new Date(isoYear, isoMonth - 1, isoDay, 23, 59, 59, 999);
 
     const isInProgress = startTime <= now && now < effectiveEnd;
 
-    // Skip events fully in the past (with a 5-min grace window)
-    if (!isInProgress && effectiveEnd < new Date(now.getTime() - 5 * 60 * 1000)) continue;
+    // Skip events fully in the past
+    if (!isInProgress && effectiveEnd < now) continue;
 
     // Format display labels
     const startLabel = startParsed
