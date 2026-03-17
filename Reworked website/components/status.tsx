@@ -111,26 +111,25 @@ export function resolveEvent(
   if (candidates.length === 0) return null;
 
   // Final selection logic:
-  // 1. Current events (isNow) always win over upcoming ones.
-  // 2. Among current events, highest priority wins.
-  // 3. Among upcoming events, closest day wins (Today < Tomorrow < Next Week)
-  // 4. On the same day, highest priority wins.
-  // 5. Tie-break: soonest start time wins.
+  // 1. Highest keyword priority wins (Keyword index 0 < 1 < ... < Infinity)
+  // 2. Among same priority: Current events (isNow) win over upcoming ones.
+  // 3. Among same priority and status: Closest day wins.
+  // 4. Tie-break: soonest start time wins.
   return candidates.reduce((best, c) => {
-    // a. If one is now and the other isn't, prefer the active one.
+    // a. Compare Priority first (Absolute rule)
+    if (c.priority < best.priority) return c;
+    if (c.priority > best.priority) return best;
+
+    // b. Same priority: prefer Now over Upcoming
     if (c.isNow && !best.isNow) return c;
     if (!c.isNow && best.isNow) return best;
 
-    // b. Compare Day (YYYY-MM-DD)
+    // c. Same priority & status: Compare Day (YYYY-MM-DD)
     const cScore = c.startTime.getFullYear() * 10000 + (c.startTime.getMonth() + 1) * 100 + c.startTime.getDate();
     const bScore = best.startTime.getFullYear() * 10000 + (best.startTime.getMonth() + 1) * 100 + best.startTime.getDate();
 
     if (cScore < bScore) return c;
     if (cScore > bScore) return best;
-
-    // c. Same day / status: Compare Priority
-    if (c.priority < best.priority) return c;
-    if (c.priority > best.priority) return best;
 
     // d. Tie-break by startTime
     return c.startTime < best.startTime ? c : best;

@@ -155,7 +155,7 @@ describe('resolveEvent', () => {
         expect(result!.title).toBe('Openlab');
     });
 
-    test('prefers low priority today over high priority tomorrow (FIXED BEHAVIOR)', () => {
+    test('prefers high priority tomorrow over low priority today', () => {
         const now = new Date(2026, 2, 16, 12, 0);
         
         // Event A: today at 19:00, low priority
@@ -175,8 +175,8 @@ describe('resolveEvent', () => {
         });
 
         const result = resolveEvent(data, now);
-        // Should pick Today's event even if lower priority
-        expect(result!.title).toBe('Gewone workshop');
+        // Priority wins even if it's tomorrow
+        expect(result!.title).toBe('Openlab');
     });
 
     test('does not skip all-day events (no time) during the day', () => {
