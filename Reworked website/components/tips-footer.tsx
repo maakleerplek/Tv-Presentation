@@ -9,7 +9,7 @@ export function TipsFooter() {
   
   const websiteUrl = data?.config?.websiteQrUrl || 'https://maakleerplek.be';
   const websiteLabel = websiteUrl.replace(/^https?:\/\//, '').replace(/\/$/, '');
-  const wikiUrl = data?.config?.wikiQrUrl || 'https://wiki.maakleerplek.be/a/general';
+  const wikiUrl = data?.config?.wikiQrUrl || 'https://wiki.maakleerplek.be/en/hightechlab';
   const wikiLabel = wikiUrl.replace(/^https?:\/\//, '').replace(/\/$/, '').split('/')[0];
 
   return (

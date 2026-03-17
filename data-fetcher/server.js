@@ -508,7 +508,7 @@ const TIPS_TRANSITION_TIME = parseInt(process.env.TIPS_TRANSITION_TIME || '10', 
 // URL encoded into the payment QR code in the drinks panel
 const PAYMENT_QR_URL = process.env.PAYMENT_QR_URL || '';
 // URL encoded into the wiki QR code in the tips footer
-const WIKI_QR_URL = process.env.WIKI_QR_URL || 'https://wiki.maakleerplek.be/a/general';
+const WIKI_QR_URL = process.env.WIKI_QR_URL || 'https://wiki.maakleerplek.be/en/hightechlab';
 
 // Helper function to fetch with a timeout
 const fetchWithTimeout = async (resource, options = {}, timeout = 5000) => {
