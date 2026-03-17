@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
+import { motion, AnimatePresence } from 'motion/react';
 import QRCode from 'react-qr-code';
 import { useScreenData } from '@/hooks/useScreenData';
 import { priorityOf } from '@/lib/utils';
@@ -210,54 +211,66 @@ export function Status() {
   })();
 
   return (
-    <div className="p-4 bg-[#F5F2EB] flex-1 flex flex-col justify-start min-h-0 gap-3">
-      <h2 className="text-[#2C1E16] uppercase tracking-widest text-[10px] font-black shrink-0">
-        {showWorkshop ? 'Volgende Workshop' : active.isNow ? 'Nu bezig' : 'Volgend evenement'}
-      </h2>
+    <div className="bg-[#F5F2EB] flex-1 relative overflow-hidden">
+      <AnimatePresence mode="wait">
+        <motion.div
+          key={showWorkshop ? 'workshop' : 'status'}
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={{ opacity: 0, y: -20 }}
+          transition={{ duration: 0.5, ease: 'easeOut' }}
+          className="absolute inset-0 p-4 flex flex-col justify-start min-h-0 gap-3"
+        >
+          <h2 className="text-[#2C1E16] uppercase tracking-widest text-[10px] font-black shrink-0">
+            {showWorkshop ? 'Volgende Workshop' : active.isNow ? 'Nu bezig' : 'Volgend evenement'}
+          </h2>
 
-      {/* When badge */}
-      <div
-        className="inline-flex items-center gap-2 border-2 border-[#2C1E16] px-3 py-1 shrink-0 self-start"
-        style={{ backgroundColor: badgeColor }}
-      >
-        <span className="text-[#2C1E16] font-black text-xs uppercase tracking-widest">
-          {whenLabel}
-        </span>
-      </div>
-
-      {/* Title */}
-      <p className="text-[#2C1E16] font-black text-sm uppercase leading-snug shrink-0">
-        {active.title}
-      </p>
-
-      {/* Extra: Price for workshops */}
-      {showWorkshop && active.price && (
-        <p className="text-[#2C1E16] font-black text-xs uppercase tracking-widest opacity-60">
-          Prijs: {active.price}
-        </p>
-      )}
-
-      {/* Time and optional QR code */}
-      <div className="mt-auto flex items-end justify-between gap-4">
-        {timeDisplay && (
-          <div className="shrink-0">
-            <p className="text-[#2C1E16] text-[10px] uppercase tracking-widest font-black mb-1">
-              {active.isNow ? 'Eindigt' : 'Tijd'}
-            </p>
-            <p className="text-[#2C1E16] font-black text-lg uppercase leading-tight">
-              {timeDisplay}
-            </p>
+          {/* When badge */}
+          <div
+            className="inline-flex items-center gap-2 border-2 border-[#2C1E16] px-3 py-1 shrink-0 self-start"
+            style={{ backgroundColor: badgeColor }}
+          >
+            <span className="text-[#2C1E16] font-black text-xs uppercase tracking-widest">
+              {whenLabel}
+            </span>
           </div>
-        )}
 
-        {showWorkshop && active.link && (
-          <div className="border-2 border-[#2C1E16] p-1 bg-[#F5F2EB] shrink-0">
-            <QRCode value={active.link} size={40} bgColor="#F5F2EB" fgColor="#2C1E16" />
+          {/* Title */}
+          <p className="text-[#2C1E16] font-black text-sm uppercase leading-snug shrink-0">
+            {active.title}
+          </p>
+
+          {/* Extra: Price for workshops */}
+          {showWorkshop && active.price && (
+            <p className="text-[#2C1E16] font-black text-xs uppercase tracking-widest opacity-60">
+              Prijs: {active.price}
+            </p>
+          )}
+
+          {/* Time and optional QR code */}
+          <div className="mt-auto flex items-end justify-between gap-4">
+            {timeDisplay && (
+              <div className="shrink-0">
+                <p className="text-[#2C1E16] text-[10px] uppercase tracking-widest font-black mb-1">
+                  {active.isNow ? 'Eindigt' : 'Tijd'}
+                </p>
+                <p className="text-[#2C1E16] font-black text-lg uppercase leading-tight">
+                  {timeDisplay}
+                </p>
+              </div>
+            )}
+
+            {showWorkshop && active.link && (
+              <div className="border-2 border-[#2C1E16] p-1 bg-[#F5F2EB] shrink-0">
+                <QRCode value={active.link} size={40} bgColor="#F5F2EB" fgColor="#2C1E16" />
+              </div>
+            )}
           </div>
-        )}
-      </div>
+        </motion.div>
+      </AnimatePresence>
     </div>
   );
 }
+
 
 
