@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
+import QRCode from 'react-qr-code';
 import { useScreenData } from '@/hooks/useScreenData';
 import { priorityOf } from '@/lib/utils';
 import type { ScreenData } from '@/lib/types';
@@ -19,6 +20,7 @@ type NextEvent = {
   isTomorrow: boolean;
   startTime: Date;
   price?: string;
+  link?: string;
 };
 
 /** Parse "HH:MM" or "HH.MM" from a string, returns { h, m } or null. */
@@ -99,6 +101,7 @@ export function resolveEvent(
       isTomorrow: startTime >= tomorrowMidnight && startTime < dayAfterMidnight,
       startTime,
       price:      event.price,
+      link:       event.link,
       priority:   priorityOf(event.title, priorityKeywords),
     });
   }
@@ -234,18 +237,27 @@ export function Status() {
         </p>
       )}
 
-      {/* Time */}
-      {timeDisplay && (
-        <div className="mt-auto shrink-0">
-          <p className="text-[#2C1E16] text-[10px] uppercase tracking-widest font-black mb-1">
-            {active.isNow ? 'Eindigt' : 'Tijd'}
-          </p>
-          <p className="text-[#2C1E16] font-black text-lg uppercase leading-tight">
-            {timeDisplay}
-          </p>
-        </div>
-      )}
+      {/* Time and optional QR code */}
+      <div className="mt-auto flex items-end justify-between gap-4">
+        {timeDisplay && (
+          <div className="shrink-0">
+            <p className="text-[#2C1E16] text-[10px] uppercase tracking-widest font-black mb-1">
+              {active.isNow ? 'Eindigt' : 'Tijd'}
+            </p>
+            <p className="text-[#2C1E16] font-black text-lg uppercase leading-tight">
+              {timeDisplay}
+            </p>
+          </div>
+        )}
+
+        {showWorkshop && active.link && (
+          <div className="border-2 border-[#2C1E16] p-1 bg-[#F5F2EB] shrink-0">
+            <QRCode value={active.link} size={40} bgColor="#F5F2EB" fgColor="#2C1E16" />
+          </div>
+        )}
+      </div>
     </div>
   );
 }
+
 
