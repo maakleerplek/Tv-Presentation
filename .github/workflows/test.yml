@@ -1,0 +1,46 @@
+name: Test CI
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+
+jobs:
+  test-data-fetcher:
+    name: Test Data Fetcher
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Install Dependencies
+        run: bun install
+        working-directory: data-fetcher
+
+      - name: Run Tests
+        run: bun test
+        working-directory: data-fetcher
+
+  test-reworked-website:
+    name: Test Reworked Website
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Install Dependencies
+        run: bun install
+        working-directory: "Reworked website"
+
+      - name: Run Tests
+        run: bun test
+        working-directory: "Reworked website"
