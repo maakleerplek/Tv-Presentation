@@ -38,7 +38,7 @@ export function DrinksList() {
 
   return (
     <div className="flex-1 bg-[#F5F2EB] flex flex-col h-full overflow-hidden">
-      <div className="p-4 border-b-2 border-[#2C1E16] bg-[#C8A98B] shrink-0">
+      <div className="p-2 border-b-2 border-[#2C1E16] bg-[#C8A98B] shrink-0">
         <h2 className="text-[#2C1E16] uppercase tracking-widest text-xs font-black flex items-center justify-center gap-2">
           <Coffee className="w-4 h-4" /> Drinks, Snacks & Materialen
         </h2>
@@ -75,8 +75,6 @@ export function DrinksList() {
         </div>
       </div>
 
-      <PricingTable />
-
       {PAYMENT_QR_URL && (
         <div className="p-4 border-t-2 border-[#2C1E16] bg-[#F5F2EB] flex flex-row items-center justify-center gap-6 shrink-0">
           <div className="flex flex-col items-end gap-1 text-[#2C1E16]">
@@ -88,6 +86,8 @@ export function DrinksList() {
           </div>
         </div>
       )}
+
+      <PricingTable />
     </div>
   );
 }
