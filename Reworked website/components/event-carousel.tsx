@@ -121,14 +121,19 @@ export function EventCarousel() {
         <AnimatePresence mode="wait">
           <motion.div
             key={currentIndex}
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 0.5 }}
+            initial={{ opacity: 0, x: 50 }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: -50 }}
+            transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
             className="absolute top-0 right-0 bottom-0 left-0 flex flex-col"
           >
             {/* Top section: Image — flex-[3] gives ~60% of the card height */}
-            <div className="flex-[3_1_0%] border-b-2 border-[#2C1E16] bg-[#2C1E16] min-h-0 overflow-hidden flex items-center justify-center">
+            <motion.div 
+              initial={{ scale: 1.05, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              transition={{ duration: 0.8, ease: "easeOut" }}
+              className="flex-[3_1_0%] border-b-2 border-[#2C1E16] bg-[#2C1E16] min-h-0 overflow-hidden flex items-center justify-center"
+            >
               {hasImage ? (
                 // eslint-disable-next-line @next/next/no-img-element
                 <img
@@ -145,17 +150,27 @@ export function EventCarousel() {
                   className="w-48 h-16 object-contain"
                 />
               )}
-            </div>
+            </motion.div>
 
             {/* Bottom section: Content — flex-[2] gives ~40% of the card height */}
             <div className="flex-[2_1_0%] px-6 pt-5 pb-4 flex flex-col gap-3 bg-[#F5F2EB] min-h-0 overflow-hidden">
               {/* Title */}
-              <h3 className="shrink-0 text-lg xl:text-xl font-black leading-tight text-[#2C1E16] uppercase tracking-tighter line-clamp-2">
+              <motion.h3 
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.3, duration: 0.5 }}
+                className="shrink-0 text-lg xl:text-xl font-black leading-tight text-[#2C1E16] uppercase tracking-tighter line-clamp-2"
+              >
                 {currentItem.title}
-              </h3>
+              </motion.h3>
 
               {/* Chips row: type, date, time, location/source */}
-              <div className="shrink-0 flex flex-row gap-2 flex-wrap items-center">
+              <motion.div 
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ delay: 0.4, duration: 0.5 }}
+                className="shrink-0 flex flex-row gap-2 flex-wrap items-center"
+              >
                 {/* Event type tag */}
                 <span
                   className="inline-flex items-center gap-2 px-2.5 py-1 text-[10px] xl:text-xs font-black uppercase tracking-widest text-[#2C1E16] border-2 border-[#2C1E16]"
@@ -200,10 +215,15 @@ export function EventCarousel() {
                     <span>{location}</span>
                   </div>
                 ) : null}
-              </div>
+              </motion.div>
 
               {/* Description + QR side-by-side */}
-              <div className="flex-1 min-h-0 flex flex-row items-start gap-4">
+              <motion.div 
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.5, duration: 0.5 }}
+                className="flex-1 min-h-0 flex flex-row items-start gap-4"
+              >
                 {currentItem.description ? (
                   <p className="text-sm xl:text-base text-[#2C1E16] font-medium leading-normal flex-1 overflow-y-auto max-h-full pr-2">
                     {currentItem.description}
@@ -221,7 +241,7 @@ export function EventCarousel() {
                     />
                   </div>
                 )}
-              </div>
+              </motion.div>
             </div>
           </motion.div>
         </AnimatePresence>
