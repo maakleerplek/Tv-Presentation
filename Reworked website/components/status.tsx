@@ -1,7 +1,6 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import { motion, AnimatePresence } from 'motion/react';
 import QRCode from 'react-qr-code';
 import { useScreenData } from '@/hooks/useScreenData';
 import { priorityOf } from '@/lib/utils';
@@ -207,14 +206,18 @@ export function Status() {
 
   return (
     <div className="bg-[#F5F2EB] flex-1 relative overflow-hidden">
-      <AnimatePresence mode="wait">
-        <motion.div
+        <style dangerouslySetInnerHTML={{__html: `
+          @keyframes status-fade-in {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+          }
+          .animate-status-fade-in {
+            animation: status-fade-in 0.5s ease-out;
+          }
+        `}} />
+        <div
           key={showWorkshop ? 'workshop' : 'status'}
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          exit={{ opacity: 0, y: -20 }}
-          transition={{ duration: 0.5, ease: 'easeOut' }}
-          className="absolute inset-0 p-4 flex flex-col justify-start min-h-0 gap-3"
+          className="absolute inset-0 p-4 flex flex-col justify-start min-h-0 gap-3 animate-status-fade-in"
         >
           <h2 className="text-[#2C1E16] uppercase tracking-widest text-[10px] font-black shrink-0">
             {showWorkshop ? 'Volgende Workshop' : active.isNow ? 'Nu bezig' : 'Volgend evenement'}
@@ -261,8 +264,7 @@ export function Status() {
               </div>
             )}
           </div>
-        </motion.div>
-      </AnimatePresence>
+        </div>
     </div>
   );
 }

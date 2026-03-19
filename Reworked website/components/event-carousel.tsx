@@ -1,7 +1,6 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { motion, AnimatePresence } from 'motion/react';
 import QRCode from 'react-qr-code';
 import { Calendar, Clock as ClockIcon, Globe, MapPin, Newspaper, Repeat, Tag } from 'lucide-react';
 import { useScreenData } from '@/hooks/useScreenData';
@@ -38,6 +37,8 @@ export function EventCarousel() {
   const priorityKeywords: string[] = data?.config?.eventPriority ?? [];
   const [currentIndex, setCurrentIndex] = useState(0);
   const [carouselItems, setCarouselItems] = useState<CarouselItem[]>([]);
+  // Use a simple ticker state to force CSS transition restart
+  const [progressKey, setProgressKey] = useState(0);
 
   // When data loads, combine the 3 buckets and shuffle them.
   useEffect(() => {
@@ -57,6 +58,7 @@ export function EventCarousel() {
       console.log(`[Carousel] Setting ${shuffled.length} items to state`);
       setCarouselItems(shuffled); 
       setCurrentIndex(0); 
+      setProgressKey(prev => prev + 1);
     }, 0);
   }, [data]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -64,6 +66,7 @@ export function EventCarousel() {
     if (carouselItems.length === 0) return;
     const timer = setInterval(() => {
       setCurrentIndex((prev) => (prev + 1) % carouselItems.length);
+      setProgressKey(prev => prev + 1);
     }, transitionTime * 1000);
     return () => clearInterval(timer);
   }, [carouselItems.length, transitionTime]);
@@ -106,27 +109,37 @@ export function EventCarousel() {
 
   return (
     <div className="flex-1 relative flex flex-col bg-[#F5F2EB] overflow-hidden">
-      {/* Top Progress Bar */}
+      {/* Top Progress Bar - Uses pure CSS animation via key remount */}
       <div className="absolute top-0 left-0 right-0 h-1.5 bg-[#E5E0D8] z-50">
-        <motion.div
-          key={currentIndex}
-          initial={{ width: '0%' }}
-          animate={{ width: '100%' }}
-          transition={{ duration: transitionTime, ease: 'linear' }}
+        <div
+          key={progressKey}
           className="h-full bg-[#2C1E16]"
+          style={{
+            animation: `progress-bar ${transitionTime}s linear forwards`
+          }}
         />
+        <style dangerouslySetInnerHTML={{__html: `
+          @keyframes progress-bar {
+            from { width: 0%; }
+            to { width: 100%; }
+          }
+        `}} />
       </div>
 
       <div className="flex-1 relative h-full mt-1.5">
-        <AnimatePresence mode="wait">
-          <motion.div
+          <div
             key={currentIndex}
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 0.4 }}
-            className="absolute top-0 right-0 bottom-0 left-0 flex flex-col"
+            className="absolute top-0 right-0 bottom-0 left-0 flex flex-col animate-fade-in"
           >
+            <style dangerouslySetInnerHTML={{__html: `
+              @keyframes fade-in {
+                from { opacity: 0; }
+                to { opacity: 1; }
+              }
+              .animate-fade-in {
+                animation: fade-in 0.4s ease-in-out;
+              }
+            `}} />
             {/* Top section: Image — flex-[3] gives ~60% of the card height */}
             <div className="flex-[3_1_0%] border-b-2 border-[#2C1E16] bg-[#2C1E16] min-h-0 overflow-hidden flex items-center justify-center">
               {hasImage ? (
@@ -223,8 +236,7 @@ export function EventCarousel() {
                 )}
               </div>
             </div>
-          </motion.div>
-        </AnimatePresence>
+          </div>
       </div>
 
       {/* Progress dots — sliding window, max 7 visible */}
