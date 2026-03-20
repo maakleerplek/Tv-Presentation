@@ -1,9 +1,11 @@
 import { checkAuth, logoutAction } from './actions';
 import { getScreenData } from '@/lib/data';
 import Link from 'next/link';
-import { Calendar, Globe, Repeat, LogOut, LayoutDashboard, Database } from 'lucide-react';
+import { Calendar, Globe, Repeat, LogOut, LayoutDashboard } from 'lucide-react';
 import type { CalendarEvent, NewsItem } from '@/lib/types';
 import { LoginForm } from './login-form';
+import { AddNewsForm } from './add-news-form';
+import { DeleteNewsButton } from './delete-news-button';
 
 export default async function AdminPage() {
   const isAuthenticated = await checkAuth();
@@ -47,6 +49,11 @@ export default async function AdminPage() {
       </header>
 
       <main className="max-w-7xl mx-auto p-8 flex flex-col gap-12">
+        {/* Custom News Integration Section */}
+        <section>
+           <AddNewsForm />
+        </section>
+
         {/* News Section */}
         <section>
           <div className="flex items-center justify-between border-b-4 border-[#2C1E16] pb-2 mb-6">
@@ -98,15 +105,6 @@ export default async function AdminPage() {
           </div>
         </section>
 
-        {/* Database Integration Placeholder */}
-        <section className="bg-white border-2 border-dashed border-[#2C1E16] p-8 flex flex-col items-center justify-center text-center opacity-70">
-          <Database className="w-12 h-12 mb-4 text-[#C8A98B]" />
-          <h2 className="text-xl font-black uppercase tracking-widest mb-2">Custom Database (Coming Soon)</h2>
-          <p className="text-sm font-bold max-w-md mx-auto">
-            The SQL database integration for adding custom stories and events directly from this panel will be implemented in the next phase.
-          </p>
-        </section>
-
       </main>
     </div>
   );
@@ -114,8 +112,11 @@ export default async function AdminPage() {
 
 // Sub-components for Cards
 function NewsCard({ item }: { item: NewsItem }) {
+  const isCustom = item._id !== undefined;
+
   return (
-    <div className="bg-white border-2 border-[#2C1E16] flex flex-col h-full shadow-[4px_4px_0_0_#2C1E16]">
+    <div className="bg-white border-2 border-[#2C1E16] flex flex-col h-full shadow-[4px_4px_0_0_#2C1E16] relative">
+      {isCustom && <DeleteNewsButton id={item._id!} />}
       {item.imageUrl && (
         <div className="h-40 border-b-2 border-[#2C1E16] bg-[#E5E0D8] overflow-hidden">
           {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -123,14 +124,23 @@ function NewsCard({ item }: { item: NewsItem }) {
         </div>
       )}
       <div className="p-4 flex flex-col flex-1">
-        <div className="text-[10px] font-black uppercase tracking-widest bg-[#BBF7D0] border-2 border-[#2C1E16] inline-block px-2 py-0.5 mb-2 self-start">
-          {item.date || 'Recent'}
+        <div className="flex justify-between items-start mb-2">
+          <div className="text-[10px] font-black uppercase tracking-widest bg-[#BBF7D0] border-2 border-[#2C1E16] inline-block px-2 py-0.5 self-start">
+            {item.date || 'Recent'}
+          </div>
+          {isCustom && (
+            <div className="text-[10px] font-black uppercase tracking-widest bg-[#FEF08A] border-2 border-[#2C1E16] inline-block px-2 py-0.5 ml-2">
+              Custom
+            </div>
+          )}
         </div>
-        <h3 className="font-black text-lg leading-tight mb-2 line-clamp-2" title={item.title}>{item.title}</h3>
+        <h3 className={`font-black text-lg leading-tight mb-2 line-clamp-2 ${isCustom ? 'pr-8' : ''}`} title={item.title}>{item.title}</h3>
         <p className="text-sm opacity-80 line-clamp-3 mb-4 flex-1" title={item.description}>{item.description}</p>
-        <a href={item.link} target="_blank" rel="noreferrer" className="text-xs font-bold uppercase underline hover:text-[#C8A98B] mt-auto">
-          Source Link &rarr;
-        </a>
+        {item.link && (
+            <a href={item.link} target="_blank" rel="noreferrer" className="text-xs font-bold uppercase underline hover:text-[#C8A98B] mt-auto">
+              Source Link &rarr;
+            </a>
+        )}
       </div>
     </div>
   );

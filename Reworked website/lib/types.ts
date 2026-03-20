@@ -38,6 +38,8 @@ export type NewsItem = {
     /** Formatted date string from article:modified_time, nl-BE locale */
     date: string;
     type: 'news';
+    /** Optional database ID for custom injected news items */
+    _id?: number;
 };
 
 /** A drink/snack item from the InvenTree inventory. */

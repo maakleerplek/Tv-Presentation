@@ -1,5 +1,6 @@
-import type { ScreenData } from './types';
+import type { ScreenData, NewsItem } from './types';
 import type { WeatherData } from '@/app/api/weather/route';
+import { getCustomNews } from './db';
 
 const INTERNAL_URL = process.env.DATA_FETCHER_INTERNAL_URL || 'http://data-fetcher:8080';
 const EXTERNAL_URL = process.env.DATA_FETCHER_EXTERNAL_URL || 'http://localhost:8085';
@@ -17,17 +18,39 @@ export async function getScreenData(): Promise<ScreenData | null> {
             // failed to connect to docker container
         }
 
+        let rawData: ScreenData | null = null;
+
         if (!res || !res.ok) {
             const localRes = await fetch(`${EXTERNAL_URL}/api/screen-data`, {
                 next: { revalidate: CACHE_REVALIDATE }
             });
-            if (!localRes.ok) {
-                return null;
+            if (localRes.ok) {
+                rawData = await localRes.json();
             }
-            return await localRes.json();
+        } else {
+            rawData = await res.json();
         }
 
-        return await res.json();
+        if (!rawData) return null;
+
+        // Fetch custom news from local SQLite database
+        const customNewsRows = getCustomNews();
+        
+        // Map database rows to the NewsItem type expected by the frontend
+        const customNewsItems: NewsItem[] = customNewsRows.map(row => ({
+            title: row.title,
+            description: row.description,
+            link: row.url || '',
+            imageUrl: '', // Custom news might not have images yet, fallback to logo
+            date: 'Aankondiging',
+            type: 'news',
+            _id: row.id // Attach the DB id for the admin interface to allow deleting
+        }));
+
+        // Merge custom news at the top of the scraped news
+        rawData.news = [...customNewsItems, ...rawData.news];
+
+        return rawData;
     } catch (error) {
         console.error('getScreenData error:', error);
         return null;
