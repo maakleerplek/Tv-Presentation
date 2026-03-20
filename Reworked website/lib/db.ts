@@ -17,49 +17,57 @@ let dbInstance: any = null;
 function getDb() {
   if (dbInstance) return dbInstance;
   
-  // In production (Docker), this will be saved in the container's working directory.
   const dbPath = path.join(process.cwd(), 'custom-news.db');
   
-  // Hide from Webpack using dynamic string to prevent build errors in Next.js
-  const bunSqlite = 'bun' + ':sqlite';
-  const { Database } = require(bunSqlite);
-  dbInstance = new Database(dbPath);
-  dbInstance.exec('PRAGMA journal_mode = WAL;');
+  // Only import bun:sqlite if we are actually running inside Bun
+  if (typeof process !== 'undefined' && process.versions && process.versions.bun) {
+    const bunSqlite = 'bun' + ':sqlite';
+    const { Database } = require(/* webpackIgnore: true */ bunSqlite);
+    dbInstance = new Database(dbPath);
+    dbInstance.exec('PRAGMA journal_mode = WAL;');
 
-  // Create the table if it doesn't exist
-  dbInstance.exec(`
-    CREATE TABLE IF NOT EXISTS custom_news (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      title TEXT NOT NULL,
-      description TEXT NOT NULL,
-      url TEXT,
-      tags TEXT,
-      created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-    )
-  `);
+    // Create the table if it doesn't exist
+    dbInstance.exec(`
+      CREATE TABLE IF NOT EXISTS custom_news (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        title TEXT NOT NULL,
+        description TEXT NOT NULL,
+        url TEXT,
+        tags TEXT,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
 
-  // Migrate to add image_url if it doesn't exist
-  try {
-    dbInstance.exec(`ALTER TABLE custom_news ADD COLUMN image_url TEXT`);
-  } catch (e) {
-    // Column might already exist, safe to ignore
-  }
+    // Migrate to add image_url if it doesn't exist
+    try {
+      dbInstance.exec(`ALTER TABLE custom_news ADD COLUMN image_url TEXT`);
+    } catch (e) {
+      // Column might already exist, safe to ignore
+    }
 
-  // Create admin users table
-  dbInstance.exec(`
-    CREATE TABLE IF NOT EXISTS admin_users (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      username TEXT UNIQUE NOT NULL,
-      password TEXT NOT NULL
-    )
-  `);
+    // Create admin users table
+    dbInstance.exec(`
+      CREATE TABLE IF NOT EXISTS admin_users (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        username TEXT UNIQUE NOT NULL,
+        password TEXT NOT NULL
+      )
+    `);
 
-  // Seed the admin user if it doesn't exist
-  const stmt = dbInstance.prepare(`SELECT 1 FROM admin_users WHERE username = 'admin'`);
-  const adminExists = stmt.get();
-  
-  if (!adminExists) {
-    dbInstance.prepare(`INSERT INTO admin_users (username, password) VALUES ('admin', '3EmmertjesWater')`).run();
+    // Seed the admin user if it doesn't exist
+    const stmt = dbInstance.prepare(`SELECT 1 FROM admin_users WHERE username = 'admin'`);
+    const adminExists = stmt.get();
+    
+    if (!adminExists) {
+      dbInstance.prepare(`INSERT INTO admin_users (username, password) VALUES ('admin', '3EmmertjesWater')`).run();
+    }
+  } else {
+    // Dummy DB instance for Node.js build process to prevent crashes
+    // In production, the Next.js server runs inside Bun, so it will use the block above
+    dbInstance = {
+      prepare: () => ({ get: () => null, all: () => [], run: () => ({ lastInsertRowid: 0 }) }),
+      exec: () => {}
+    };
   }
 
   return dbInstance;
