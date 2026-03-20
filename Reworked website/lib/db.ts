@@ -20,17 +20,11 @@ function getDb() {
   // In production (Docker), this will be saved in the container's working directory.
   const dbPath = path.join(process.cwd(), 'custom-news.db');
   
-  if (typeof process !== 'undefined' && process.versions && process.versions.bun) {
-    // Hide from Webpack using dynamic string
-    const bunSqlite = 'bun' + ':sqlite';
-    const { Database } = require(bunSqlite);
-    dbInstance = new Database(dbPath);
-    dbInstance.exec('PRAGMA journal_mode = WAL;');
-  } else {
-    const Database = require('better-sqlite3');
-    dbInstance = new Database(dbPath, { timeout: 5000 }); // Add timeout to wait for locks
-    dbInstance.pragma('journal_mode = WAL');
-  }
+  // Hide from Webpack using dynamic string to prevent build errors in Next.js
+  const bunSqlite = 'bun' + ':sqlite';
+  const { Database } = require(bunSqlite);
+  dbInstance = new Database(dbPath);
+  dbInstance.exec('PRAGMA journal_mode = WAL;');
 
   // Create the table if it doesn't exist
   dbInstance.exec(`
@@ -89,9 +83,7 @@ export function addCustomNews(title: string, description: string, url: string, i
     VALUES (?, ?, ?, ?, ?)
   `);
   const info = stmt.run(title, description, url, image_url, tags);
-  return typeof process !== 'undefined' && process.versions && process.versions.bun 
-    ? info.lastInsertRowid 
-    : info.lastInsertRowid;
+  return info.lastInsertRowid; 
 }
 
 export function deleteCustomNews(id: number) {
