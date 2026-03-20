@@ -2,10 +2,10 @@ FROM oven/bun:1-alpine
 WORKDIR /app
 
 # Copy dependency files first for layer caching
-COPY package.json bun.lock* ./
+COPY package.json ./
 
 # Install dependencies using bun (much faster than npm)
-RUN bun install --frozen-lockfile --production
+RUN bun install --production
 
 # Copy source code
 COPY . .
