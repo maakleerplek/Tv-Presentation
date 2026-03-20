@@ -1,4 +1,3 @@
-import Database from 'better-sqlite3';
 import path from 'path';
 
 // Define the shape of our custom news
@@ -13,17 +12,25 @@ export type CustomNewsRow = {
 };
 
 // Lazily initialize the database connection
-let dbInstance: ReturnType<typeof Database> | null = null;
+let dbInstance: any = null;
 
 function getDb() {
   if (dbInstance) return dbInstance;
   
   // In production (Docker), this will be saved in the container's working directory.
   const dbPath = path.join(process.cwd(), 'custom-news.db');
-  dbInstance = new Database(dbPath, { timeout: 5000 }); // Add timeout to wait for locks
   
-  // Enable WAL mode for better performance
-  dbInstance.pragma('journal_mode = WAL');
+  if (typeof process !== 'undefined' && process.versions && process.versions.bun) {
+    // Hide from Webpack using dynamic string
+    const bunSqlite = 'bun' + ':sqlite';
+    const { Database } = require(bunSqlite);
+    dbInstance = new Database(dbPath);
+    dbInstance.exec('PRAGMA journal_mode = WAL;');
+  } else {
+    const Database = require('better-sqlite3');
+    dbInstance = new Database(dbPath, { timeout: 5000 }); // Add timeout to wait for locks
+    dbInstance.pragma('journal_mode = WAL');
+  }
 
   // Create the table if it doesn't exist
   dbInstance.exec(`
@@ -54,7 +61,9 @@ function getDb() {
   `);
 
   // Seed the admin user if it doesn't exist
-  const adminExists = dbInstance.prepare(`SELECT 1 FROM admin_users WHERE username = 'admin'`).get();
+  const stmt = dbInstance.prepare(`SELECT 1 FROM admin_users WHERE username = 'admin'`);
+  const adminExists = stmt.get();
+  
   if (!adminExists) {
     dbInstance.prepare(`INSERT INTO admin_users (username, password) VALUES ('admin', '3EmmertjesWater')`).run();
   }
@@ -80,7 +89,9 @@ export function addCustomNews(title: string, description: string, url: string, i
     VALUES (?, ?, ?, ?, ?)
   `);
   const info = stmt.run(title, description, url, image_url, tags);
-  return info.lastInsertRowid;
+  return typeof process !== 'undefined' && process.versions && process.versions.bun 
+    ? info.lastInsertRowid 
+    : info.lastInsertRowid;
 }
 
 export function deleteCustomNews(id: number) {
