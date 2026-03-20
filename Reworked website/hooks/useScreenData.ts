@@ -7,9 +7,9 @@ import type { ScreenData } from '@/lib/types';
 const POLL_INTERVAL_MS =
     parseInt(process.env.NEXT_PUBLIC_SCREEN_DATA_POLL_MINUTES || '5', 10) * 60 * 1000;
 
-export function useScreenData() {
-    const [data, setData] = useState<ScreenData | null>(null);
-    const [loading, setLoading] = useState(true);
+export function useScreenData(initialData?: ScreenData | null) {
+    const [data, setData] = useState<ScreenData | null>(initialData || null);
+    const [loading, setLoading] = useState(!initialData);
     const [error, setError] = useState<Error | null>(null);
 
     useEffect(() => {
@@ -37,8 +37,10 @@ export function useScreenData() {
             }
         }
 
-        // Initial fetch
-        fetchData();
+        // Only fetch if we don't have initial data OR if we want to start polling immediately
+        if (!initialData) {
+            fetchData();
+        }
 
         // Re-fetch on the configured interval to keep display fresh without reloading
         const interval = setInterval(fetchData, POLL_INTERVAL_MS);
@@ -47,7 +49,7 @@ export function useScreenData() {
             mounted = false;
             clearInterval(interval);
         };
-    }, []);
+    }, [initialData]);
 
     return { data, loading, error };
 }

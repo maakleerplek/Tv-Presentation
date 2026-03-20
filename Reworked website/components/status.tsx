@@ -143,8 +143,8 @@ export function resolveNextWorkshop(data: ScreenData | null, nowOverride?: Date)
   return resolveEvent(workshopOnlyData, nowOverride);
 }
 
-export function Status() {
-  const { data } = useScreenData();
+export function Status({ initialData }: { initialData?: ScreenData }) {
+  const { data } = useScreenData(initialData);
   const [nextEvent, setNextEvent] = useState<NextEvent | null>(null);
   const [nextWorkshop, setNextWorkshop] = useState<NextEvent | null>(null);
   const [showWorkshop, setShowWorkshop] = useState(false);

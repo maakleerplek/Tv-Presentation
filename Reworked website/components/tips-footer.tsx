@@ -3,9 +3,10 @@
 import QRCode from 'react-qr-code';
 import Image from 'next/image';
 import { useScreenData } from '@/hooks/useScreenData';
+import type { ScreenData } from '@/lib/types';
 
-export function TipsFooter() {
-  const { data } = useScreenData();
+export function TipsFooter({ initialData }: { initialData?: ScreenData }) {
+  const { data } = useScreenData(initialData);
   
   const websiteUrl = data?.config?.websiteQrUrl || 'https://maakleerplek.be';
   const websiteLabel = websiteUrl.replace(/^https?:\/\//, '').replace(/\/$/, '');

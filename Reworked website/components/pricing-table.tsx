@@ -2,9 +2,10 @@
 
 import { Tag, Box } from 'lucide-react';
 import { useScreenData } from '@/hooks/useScreenData';
+import type { ScreenData } from '@/lib/types';
 
-export function PricingTable() {
-  const { data } = useScreenData();
+export function PricingTable({ initialData }: { initialData?: ScreenData }) {
+  const { data } = useScreenData(initialData);
 
   const items = data?.pricing?.equipment || [];
 

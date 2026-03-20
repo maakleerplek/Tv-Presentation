@@ -5,7 +5,7 @@ import QRCode from 'react-qr-code';
 import { Calendar, Clock as ClockIcon, Globe, MapPin, Newspaper, Repeat, Tag } from 'lucide-react';
 import { useScreenData } from '@/hooks/useScreenData';
 import { priorityOf, formatDutchDate } from '@/lib/utils';
-import type { CalendarEvent, NewsItem } from '@/lib/types';
+import type { CalendarEvent, NewsItem, ScreenData } from '@/lib/types';
 
 // Helper to shuffle an array (Fisher-Yates)
 export function shuffleArray<T>(array: T[]): T[] {
@@ -31,8 +31,8 @@ type CarouselDecoration = {
 
 type CarouselItem = (CalendarEvent | NewsItem) & CarouselDecoration;
 
-export function EventCarousel() {
-  const { data, loading, error } = useScreenData();
+export function EventCarousel({ initialData }: { initialData?: ScreenData }) {
+  const { data, loading, error } = useScreenData(initialData);
   const transitionTime = data?.config?.transitionTime ?? 15;
   const priorityKeywords: string[] = data?.config?.eventPriority ?? [];
   const [currentIndex, setCurrentIndex] = useState(0);

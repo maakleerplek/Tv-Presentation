@@ -85,8 +85,17 @@ plain **Node.js `assert`** or Vitest for the data-fetcher.
 ### Data Flow
 
 1. `data-fetcher/server.js` scrapes `maakleerplek.be` (calendar + homepage) with Cheerio.
-2. Next.js API route `app/api/screen-data/route.ts` proxies requests to the data-fetcher.
-3. `hooks/useScreenData.ts` polls the API route from the browser and provides data to components.
+2. `Reworked website/lib/data.ts` provides server-side fetch functions (`getScreenData`, `getWeatherData`) with built-in caching.
+3. `app/page.tsx` (Server Component) fetches data at request time and passes it to components as `initialData`.
+4. `hooks/useScreenData.ts` uses the `initialData` for immediate render and continues polling the API route in the background.
+5. Next.js API routes (`app/api/screen-data/route.ts`) also use the shared `lib/data.ts` logic.
+
+### SSR and Caching
+
+The application uses **Server-Side Rendering (SSR)** to ensure the Raspberry Pi receives a fully rendered page on the first request.
+- **Caching:** Data fetched from the `data-fetcher` and external APIs is cached on the server for 5 minutes using Next.js's `fetch` cache (`next: { revalidate: 300 }`).
+- **Performance:** This reduces the load on the Raspberry Pi by offloading initial data fetching and HTML construction to the server.
+- **Hydration:** Client components use `initialData` to avoid a "loading" state during hydration.
 
 ### Key Scraper Selectors
 

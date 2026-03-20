@@ -30,8 +30,8 @@ export function interpretCode(code: number, isDay: boolean): WeatherInfo {
 
 const WEATHER_POLL_MS = 10 * 60 * 1000; // re-fetch every 10 minutes
 
-export function Weather() {
-  const [weather, setWeather] = useState<WeatherData | null>(null);
+export function Weather({ initialData }: { initialData?: WeatherData }) {
+  const [weather, setWeather] = useState<WeatherData | null>(initialData || null);
   const [error, setError] = useState(false);
 
   useEffect(() => {
@@ -48,7 +48,9 @@ export function Weather() {
       }
     }
 
-    fetchWeather();
+    if (!initialData) {
+      fetchWeather();
+    }
     const interval = setInterval(fetchWeather, WEATHER_POLL_MS);
     return () => { mounted = false; clearInterval(interval); };
   }, []);

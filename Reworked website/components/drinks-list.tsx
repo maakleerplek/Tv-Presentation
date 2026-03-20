@@ -3,7 +3,7 @@
 import { Coffee, QrCode } from 'lucide-react';
 import QRCode from 'react-qr-code';
 import { useScreenData } from '@/hooks/useScreenData';
-import type { DrinkItem } from '@/lib/types';
+import type { DrinkItem, ScreenData } from '@/lib/types';
 import { PricingTable } from './pricing-table';
 
 const HeaderRow = () => (
@@ -14,8 +14,8 @@ const HeaderRow = () => (
   </div>
 );
 
-export function DrinksList() {
-  const { data, loading, error } = useScreenData();
+export function DrinksList({ initialData }: { initialData?: ScreenData }) {
+  const { data, loading, error } = useScreenData(initialData);
   const PAYMENT_QR_URL = data?.config?.paymentQrUrl || '';
 
   if (loading) {
@@ -87,7 +87,7 @@ export function DrinksList() {
         </div>
       )}
 
-      <PricingTable />
+      <PricingTable initialData={data || undefined} />
     </div>
   );
 }
