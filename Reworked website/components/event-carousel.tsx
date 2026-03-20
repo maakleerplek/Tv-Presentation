@@ -129,15 +129,15 @@ export function EventCarousel({ initialData }: { initialData?: ScreenData }) {
       <div className="flex-1 relative h-full mt-1.5">
           <div
             key={currentIndex}
-            className="absolute top-0 right-0 bottom-0 left-0 flex flex-col animate-fade-in"
+            className="absolute top-0 right-0 bottom-0 left-0 flex flex-col animate-slide-fade"
           >
             <style dangerouslySetInnerHTML={{__html: `
-              @keyframes fade-in {
-                from { opacity: 0; }
-                to { opacity: 1; }
+              @keyframes slide-fade {
+                from { opacity: 0; transform: translateY(15px) scale(0.98); }
+                to { opacity: 1; transform: translateY(0) scale(1); }
               }
-              .animate-fade-in {
-                animation: fade-in 0.4s ease-in-out;
+              .animate-slide-fade {
+                animation: slide-fade 0.5s cubic-bezier(0.16, 1, 0.3, 1) forwards;
               }
             `}} />
             {/* Top section: Image — flex-[3] gives ~60% of the card height */}

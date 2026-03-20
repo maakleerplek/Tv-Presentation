@@ -46,6 +46,12 @@ export function AddNewsForm() {
       </div>
 
       <div className="flex flex-col gap-1">
+        <label className="text-xs font-bold uppercase tracking-widest text-[#2C1E16]">Image URL (Optional)</label>
+        <input name="imageUrl" type="url" className="border-2 border-[#2C1E16] p-2 bg-[#F5F2EB] focus:outline-none focus:ring-2 focus:ring-[#C8A98B]" placeholder="https://..." />
+        <p className="text-[10px] text-[#2C1E16] opacity-70">Best to use 16x9 aspect ratio.</p>
+      </div>
+
+      <div className="flex flex-col gap-1">
         <label className="text-xs font-bold uppercase tracking-widest text-[#2C1E16]">Tags (Optional, comma separated)</label>
         <input name="tags" className="border-2 border-[#2C1E16] p-2 bg-[#F5F2EB] focus:outline-none focus:ring-2 focus:ring-[#C8A98B]" placeholder="e.g. Workshop, Event" />
       </div>

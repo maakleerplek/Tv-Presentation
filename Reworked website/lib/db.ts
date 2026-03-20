@@ -7,6 +7,7 @@ export type CustomNewsRow = {
   title: string;
   description: string;
   url: string;
+  image_url: string | null;
   tags: string;
   created_at: string;
 };
@@ -36,6 +37,28 @@ function getDb() {
     )
   `);
 
+  // Migrate to add image_url if it doesn't exist
+  try {
+    dbInstance.exec(`ALTER TABLE custom_news ADD COLUMN image_url TEXT`);
+  } catch (e) {
+    // Column might already exist, safe to ignore
+  }
+
+  // Create admin users table
+  dbInstance.exec(`
+    CREATE TABLE IF NOT EXISTS admin_users (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      username TEXT UNIQUE NOT NULL,
+      password TEXT NOT NULL
+    )
+  `);
+
+  // Seed the admin user if it doesn't exist
+  const adminExists = dbInstance.prepare(`SELECT 1 FROM admin_users WHERE username = 'admin'`).get();
+  if (!adminExists) {
+    dbInstance.prepare(`INSERT INTO admin_users (username, password) VALUES ('admin', '3EmmertjesWater')`).run();
+  }
+
   return dbInstance;
 }
 
@@ -50,13 +73,13 @@ export function getCustomNews(): CustomNewsRow[] {
   }
 }
 
-export function addCustomNews(title: string, description: string, url: string, tags: string) {
+export function addCustomNews(title: string, description: string, url: string, image_url: string, tags: string) {
   const db = getDb();
   const stmt = db.prepare(`
-    INSERT INTO custom_news (title, description, url, tags)
-    VALUES (?, ?, ?, ?)
+    INSERT INTO custom_news (title, description, url, image_url, tags)
+    VALUES (?, ?, ?, ?, ?)
   `);
-  const info = stmt.run(title, description, url, tags);
+  const info = stmt.run(title, description, url, image_url, tags);
   return info.lastInsertRowid;
 }
 
@@ -64,4 +87,15 @@ export function deleteCustomNews(id: number) {
   const db = getDb();
   const stmt = db.prepare('DELETE FROM custom_news WHERE id = ?');
   stmt.run(id);
+}
+
+export function verifyAdmin(password: string): boolean {
+  try {
+    const db = getDb();
+    const row = db.prepare(`SELECT password FROM admin_users WHERE username = 'admin'`).get() as { password?: string } | undefined;
+    return row?.password === password;
+  } catch (error) {
+    console.error('[DB] Error verifying admin:', error);
+    return false;
+  }
 }

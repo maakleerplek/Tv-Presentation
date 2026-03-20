@@ -41,7 +41,7 @@ export async function getScreenData(): Promise<ScreenData | null> {
             title: row.title,
             description: row.description,
             link: row.url || '',
-            imageUrl: '', // Custom news might not have images yet, fallback to logo
+            imageUrl: row.image_url || '',
             date: 'Aankondiging',
             type: 'news',
             _id: row.id // Attach the DB id for the admin interface to allow deleting
