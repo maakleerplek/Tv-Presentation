@@ -37,6 +37,9 @@ COPY --from=builder /app/public ./public
 COPY --from=builder --chown=bun:bun /app/.next/standalone ./
 COPY --from=builder --chown=bun:bun /app/.next/static ./.next/static
 
+# Ensure bun user owns /app directory for SQLite database writes
+RUN chown -R bun:bun /app
+
 USER bun
 
 EXPOSE 3000

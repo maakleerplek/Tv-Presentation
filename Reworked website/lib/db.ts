@@ -19,47 +19,56 @@ function getDb() {
   
   const dbPath = path.join(process.cwd(), 'custom-news.db');
   
-  // Only import bun:sqlite if we are actually running inside Bun
-  if (typeof process !== 'undefined' && process.versions && process.versions.bun) {
-    const bunSqlite = 'bun' + ':sqlite';
-    const { Database } = require(/* webpackIgnore: true */ bunSqlite);
-    dbInstance = new Database(dbPath);
-    dbInstance.exec('PRAGMA journal_mode = WAL;');
-
-    // Create the table if it doesn't exist
-    dbInstance.exec(`
-      CREATE TABLE IF NOT EXISTS custom_news (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        title TEXT NOT NULL,
-        description TEXT NOT NULL,
-        url TEXT,
-        tags TEXT,
-        created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-      )
-    `);
-
-    // Migrate to add image_url if it doesn't exist
+  // Only import bun:sqlite if we are actually running inside Bun runtime
+  if (typeof process !== 'undefined' && process.versions && (process.versions as any).bun) {
     try {
-      dbInstance.exec(`ALTER TABLE custom_news ADD COLUMN image_url TEXT`);
-    } catch (e) {
-      // Column might already exist, safe to ignore
-    }
+      // Use eval to prevent Next.js from trying to bundle this at build time
+      const Database = eval('require("bun:sqlite")').Database;
+      dbInstance = new Database(dbPath);
+      dbInstance.exec('PRAGMA journal_mode = WAL;');
 
-    // Create admin users table
-    dbInstance.exec(`
-      CREATE TABLE IF NOT EXISTS admin_users (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        username TEXT UNIQUE NOT NULL,
-        password TEXT NOT NULL
-      )
-    `);
+      // Create the table if it doesn't exist
+      dbInstance.exec(`
+        CREATE TABLE IF NOT EXISTS custom_news (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          title TEXT NOT NULL,
+          description TEXT NOT NULL,
+          url TEXT,
+          tags TEXT,
+          created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        )
+      `);
 
-    // Seed the admin user if it doesn't exist
-    const stmt = dbInstance.prepare(`SELECT 1 FROM admin_users WHERE username = 'admin'`);
-    const adminExists = stmt.get();
-    
-    if (!adminExists) {
-      dbInstance.prepare(`INSERT INTO admin_users (username, password) VALUES ('admin', '3EmmertjesWater')`).run();
+      // Migrate to add image_url if it doesn't exist
+      try {
+        dbInstance.exec(`ALTER TABLE custom_news ADD COLUMN image_url TEXT`);
+      } catch (e) {
+        // Column might already exist, safe to ignore
+      }
+
+      // Create admin users table
+      dbInstance.exec(`
+        CREATE TABLE IF NOT EXISTS admin_users (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          username TEXT UNIQUE NOT NULL,
+          password TEXT NOT NULL
+        )
+      `);
+
+      // Seed the admin user if it doesn't exist
+      const stmt = dbInstance.prepare(`SELECT 1 FROM admin_users WHERE username = 'admin'`);
+      const adminExists = stmt.get();
+      
+      if (!adminExists) {
+        dbInstance.prepare(`INSERT INTO admin_users (username, password) VALUES ('admin', '3EmmertjesWater')`).run();
+      }
+    } catch (error) {
+      console.error('[DB] Failed to initialize SQLite:', error);
+      // Fallback to dummy instance
+      dbInstance = {
+        prepare: () => ({ get: () => null, all: () => [], run: () => ({ lastInsertRowid: 0 }) }),
+        exec: () => {}
+      };
     }
   } else {
     // Dummy DB instance for Node.js build process to prevent crashes
