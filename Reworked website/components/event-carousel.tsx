@@ -113,15 +113,15 @@ export function EventCarousel({ initialData }: { initialData?: ScreenData }) {
       <div className="absolute top-0 left-0 right-0 h-1.5 bg-[#E5E0D8] z-50">
         <div
           key={progressKey}
-          className="h-full bg-[#2C1E16]"
+          className="h-full bg-[#2C1E16] origin-left w-full"
           style={{
             animation: `progress-bar ${transitionTime}s linear forwards`
           }}
         />
         <style dangerouslySetInnerHTML={{__html: `
           @keyframes progress-bar {
-            from { width: 0%; }
-            to { width: 100%; }
+            from { transform: scaleX(0); }
+            to { transform: scaleX(1); }
           }
         `}} />
       </div>
@@ -250,7 +250,7 @@ export function EventCarousel({ initialData }: { initialData?: ScreenData }) {
             return carouselItems.map((_, idx) => (
               <div
                 key={idx}
-                className={`h-3 transition-all duration-300 border border-[#2C1E16] shrink-0 ${
+                className={`h-3 transition-colors duration-300 border border-[#2C1E16] shrink-0 ${
                   idx === currentIndex ? 'w-8 bg-[#2C1E16]' : 'w-3 bg-[#F5F2EB]'
                 }`}
               />
@@ -272,7 +272,7 @@ export function EventCarousel({ initialData }: { initialData?: ScreenData }) {
             return (
               <div
                 key={idx}
-                className={`h-3 transition-all duration-300 border border-[#2C1E16] shrink-0 ${
+                className={`h-3 transition-colors duration-300 border border-[#2C1E16] shrink-0 ${
                   isActive ? 'w-8 bg-[#2C1E16]' : isEdge ? 'w-2 bg-[#F5F2EB] opacity-40' : 'w-3 bg-[#F5F2EB]'
                 }`}
               />
