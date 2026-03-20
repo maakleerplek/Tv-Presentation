@@ -21,14 +21,22 @@ export async function getScreenData(): Promise<ScreenData | null> {
         let rawData: ScreenData | null = null;
 
         if (!res || !res.ok) {
-            const localRes = await fetch(`${EXTERNAL_URL}/api/screen-data`, {
-                next: { revalidate: CACHE_REVALIDATE }
-            });
-            if (localRes.ok) {
-                rawData = await localRes.json();
+            try {
+                const localRes = await fetch(`${EXTERNAL_URL}/api/screen-data`, {
+                    next: { revalidate: CACHE_REVALIDATE }
+                });
+                if (localRes.ok) {
+                    rawData = await localRes.json();
+                }
+            } catch {
+                // failed to connect to local fallback
             }
         } else {
-            rawData = await res.json();
+            try {
+                rawData = await res.json();
+            } catch {
+                // failed to parse json
+            }
         }
 
         if (!rawData) return null;
@@ -41,7 +49,7 @@ export async function getScreenData(): Promise<ScreenData | null> {
             title: row.title,
             description: row.description,
             link: row.url || '',
-            imageUrl: '', // Custom news might not have images yet, fallback to logo
+            imageUrl: row.image_url || '',
             date: 'Aankondiging',
             type: 'news',
             _id: row.id // Attach the DB id for the admin interface to allow deleting

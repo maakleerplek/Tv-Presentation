@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import QRCode from 'react-qr-code';
 import { Calendar, Clock as ClockIcon, Globe, MapPin, Newspaper, Repeat, Tag } from 'lucide-react';
 import { useScreenData } from '@/hooks/useScreenData';
@@ -34,33 +34,23 @@ type CarouselItem = (CalendarEvent | NewsItem) & CarouselDecoration;
 export function EventCarousel({ initialData }: { initialData?: ScreenData }) {
   const { data, loading, error } = useScreenData(initialData);
   const transitionTime = data?.config?.transitionTime ?? 15;
-  const priorityKeywords: string[] = data?.config?.eventPriority ?? [];
   const [currentIndex, setCurrentIndex] = useState(0);
-  const [carouselItems, setCarouselItems] = useState<CarouselItem[]>([]);
-  // Use a simple ticker state to force CSS transition restart
-  const [progressKey, setProgressKey] = useState(0);
 
-  // When data loads, combine the 3 buckets and shuffle them.
-  useEffect(() => {
-    if (!data) return;
+  // Compute carousel items immediately (works during SSR)
+  const carouselItems = useMemo(() => {
+    if (!data) return [];
 
     const workshops = data.workshops.map((w) => ({ ...w, _icon: Calendar,  _color: '#FEF08A' }));
     const recurring = data.recurringEvents.map((r) => ({ ...r, _icon: Repeat,    _color: '#BFDBFE' }));
-    // News items have no physical location — use a globe chip instead of a map pin
     const news      = data.news.map((n) => ({ ...n, _icon: Newspaper, _color: '#BBF7D0', _isNews: true }));
 
-    const all: CarouselItem[] = [...workshops, ...recurring, ...news];
-    console.log(`[Carousel] Total items combined: ${all.length}`);
-    console.log(`[Carousel] Items titles: ${all.map(i => i.title).join(', ')}`);
-    
-    setTimeout(() => { 
-      const shuffled = shuffleArray(all);
-      console.log(`[Carousel] Setting ${shuffled.length} items to state`);
-      setCarouselItems(shuffled); 
-      setCurrentIndex(0); 
-      setProgressKey(prev => prev + 1);
-    }, 0);
-  }, [data]); // eslint-disable-line react-hooks/exhaustive-deps
+    // We combine them here. Shuffling during SSR can cause hydration mismatches,
+    // so we just return the combined array.
+    return [...workshops, ...recurring, ...news];
+  }, [data]);
+
+  // Use a simple ticker state to force CSS transition restart
+  const [progressKey, setProgressKey] = useState(0);
 
   useEffect(() => {
     if (carouselItems.length === 0) return;
@@ -129,15 +119,15 @@ export function EventCarousel({ initialData }: { initialData?: ScreenData }) {
       <div className="flex-1 relative h-full mt-1.5">
           <div
             key={currentIndex}
-            className="absolute top-0 right-0 bottom-0 left-0 flex flex-col animate-fade-in"
+            className="absolute top-0 right-0 bottom-0 left-0 flex flex-col animate-slide-fade"
           >
             <style dangerouslySetInnerHTML={{__html: `
-              @keyframes fade-in {
-                from { opacity: 0; }
-                to { opacity: 1; }
+              @keyframes slide-fade {
+                from { opacity: 0; transform: translateY(15px) scale(0.98); }
+                to { opacity: 1; transform: translateY(0) scale(1); }
               }
-              .animate-fade-in {
-                animation: fade-in 0.4s ease-in-out;
+              .animate-slide-fade {
+                animation: slide-fade 0.5s cubic-bezier(0.16, 1, 0.3, 1) forwards;
               }
             `}} />
             {/* Top section: Image — flex-[3] gives ~60% of the card height */}
@@ -202,7 +192,7 @@ export function EventCarousel({ initialData }: { initialData?: ScreenData }) {
                   </div>
                 )}
                 {/* Events: show MapPin for location; News: show Globe for source */}
-                {currentItem._isNews ? (
+                {'_isNews' in currentItem && currentItem._isNews ? (
                   <div className="flex items-center gap-2 text-sm font-black text-[#2C1E16] border-2 border-[#2C1E16] px-3 py-1 bg-[#F5F2EB]">
                     <Globe className="w-4 h-4" />
                     <span>maakleerplek.be</span>

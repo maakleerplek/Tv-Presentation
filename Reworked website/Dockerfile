@@ -5,8 +5,8 @@ FROM base AS deps
 WORKDIR /app
 
 # Install dependencies
-COPY package.json bun.lock* ./
-RUN bun install --frozen-lockfile
+COPY package.json ./
+RUN bun install
 
 # Rebuild the source code only when needed
 FROM base AS builder
@@ -21,7 +21,8 @@ ENV NEXT_TELEMETRY_DISABLED=1
 ARG NEXT_PUBLIC_SCREEN_DATA_POLL_MINUTES=5
 ENV NEXT_PUBLIC_SCREEN_DATA_POLL_MINUTES=$NEXT_PUBLIC_SCREEN_DATA_POLL_MINUTES
 
-RUN bun run build
+# Mount a persistent cache directory so Next.js can reuse its build cache across Docker builds
+RUN --mount=type=cache,target=/app/.next/cache bun run build
 
 # Production image, copy all the files and run next
 FROM base AS runner
@@ -35,6 +36,9 @@ COPY --from=builder /app/public ./public
 # Automatically leverage output traces to reduce image size
 COPY --from=builder --chown=bun:bun /app/.next/standalone ./
 COPY --from=builder --chown=bun:bun /app/.next/static ./.next/static
+
+# Ensure bun user owns /app directory for SQLite database writes
+RUN chown -R bun:bun /app
 
 USER bun
 

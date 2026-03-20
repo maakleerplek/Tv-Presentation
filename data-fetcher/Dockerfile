@@ -1,7 +1,14 @@
-FROM node:20-alpine
+FROM oven/bun:1-alpine
 WORKDIR /app
-COPY package*.json ./
-RUN npm ci --omit=dev
+
+# Copy dependency files first for layer caching
+COPY package.json ./
+
+# Install dependencies using bun (much faster than npm)
+RUN bun install --production
+
+# Copy source code
 COPY . .
+
 EXPOSE 8080
-CMD ["node", "server.js"]
+CMD ["bun", "server.js"]

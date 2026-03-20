@@ -3,15 +3,14 @@
 import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
 import { revalidatePath } from 'next/cache';
-import { addCustomNews, deleteCustomNews } from '@/lib/db';
+import { addCustomNews, deleteCustomNews, verifyAdmin } from '@/lib/db';
 
-const ADMIN_PASSWORD = '3EmmertjesWater';
 const COOKIE_NAME = 'admin_session';
 
 export async function loginAction(prevState: any, formData: FormData) {
-  const password = formData.get('password');
+  const password = formData.get('password') as string;
 
-  if (password === ADMIN_PASSWORD) {
+  if (verifyAdmin(password)) {
     const cookieStore = await cookies();
     cookieStore.set(COOKIE_NAME, 'authenticated', {
       httpOnly: true,
@@ -44,6 +43,7 @@ export async function createNewsAction(prevState: any, formData: FormData) {
   const title = formData.get('title') as string;
   const description = formData.get('description') as string;
   const url = formData.get('url') as string;
+  const imageUrl = formData.get('imageUrl') as string;
   const tags = formData.get('tags') as string;
 
   if (!title || !description) {
@@ -51,7 +51,7 @@ export async function createNewsAction(prevState: any, formData: FormData) {
   }
 
   try {
-    addCustomNews(title, description, url || '', tags || '');
+    addCustomNews(title, description, url || '', imageUrl || '', tags || '');
     revalidatePath('/admin');
     revalidatePath('/');
     return { success: true };
