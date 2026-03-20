@@ -26,6 +26,11 @@ const MAX_EVENT_DETAILS = parseInt(process.env.MAX_EVENT_DETAILS       || '30', 
 const EVENT_PRIORITY = (process.env.EVENT_PRIORITY || '')
     .split(',').map(s => s.trim().toLowerCase()).filter(Boolean);
 
+// Keywords identifying workshop/training events (used for both detail-fetching and categorization)
+const WORKSHOP_KEYWORDS = ['workshop', 'initiatie', 'cursus', 'opleiding', 'naailes', 'leren', '3d-print'];
+// Keywords identifying recurring service events (open labs, repair cafés, etc.)
+const RECURRING_SERVICE_KEYWORDS = ['open lab', 'repair', 'gereedschappenbib', 'buurtkantine', 'herstel hub', 'geopend'];
+
 // Numbered tips shown in the footer: TIP_1, TIP_2, TIP_3, …
 // Collected in numeric order; stops at the first missing index.
 const TIPS = (() => {
@@ -318,16 +323,16 @@ async function scrapeCalendar() {
         });
     });
 
-    // Always fetch details for recurring-keyword events (they appear prominently in the UI
-    // regardless of their position in the calendar list). For all other events, only fetch
-    // details for the first MAX_EVENT_DETAILS to cap scraping time.
-    const recurringKeywordsForDetail = EVENT_PRIORITY;
+    // Always fetch details for:
+    // 1. Events matching EVENT_PRIORITY keywords (they appear prominently in the UI)
+    // 2. Events matching WORKSHOP_KEYWORDS (workshops need images for the carousel)
+    // For all other events, only fetch details for the first MAX_EVENT_DETAILS to cap scraping time.
     const detailPromises = events.map(async (event, i) => {
-        const isRecurringKeyword = recurringKeywordsForDetail.some(kw =>
-            event.title.toLowerCase().includes(kw)
-        );
+        const titleLower = event.title.toLowerCase();
+        const isPriorityKeyword = EVENT_PRIORITY.some(kw => titleLower.includes(kw));
+        const isWorkshopKeyword = WORKSHOP_KEYWORDS.some(kw => titleLower.includes(kw));
         const withinLimit = i < MAX_EVENT_DETAILS;
-        if (event.link && (isRecurringKeyword || withinLimit)) {
+        if (event.link && (isPriorityKeyword || isWorkshopKeyword || withinLimit)) {
             const detail = await fetchEventDetail(event.link);
             return {
                 ...event,
@@ -653,9 +658,7 @@ app.get('/api/screen-data', async (_req, res) => {
         const workshops = [];
         const recurringEvents = [];
 
-        // 1. Define categorization rules
-        const RECURRING_SERVICE_KEYWORDS = ['open lab', 'repair', 'gereedschappenbib', 'buurtkantine', 'herstel hub', 'geopend'];
-        const WORKSHOP_KEYWORDS = ['workshop', 'initiatie', 'cursus', 'opleiding', 'naailes', 'leren', '3d-print'];
+        // Categorization uses the module-level RECURRING_SERVICE_KEYWORDS and WORKSHOP_KEYWORDS constants
 
         // 2. Count title occurrences to detect repeating events (case-insensitive)
         const titleCounts = {};
