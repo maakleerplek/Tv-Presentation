@@ -41,7 +41,7 @@ function resolveMaakleerplekUrl(path = '') {
 }
 
 const VERHALEN_URL = resolveMaakleerplekUrl('verhalen/');
-const CALENDAR_URL      = resolveMaakleerplekUrl('kalender/');
+const CALENDAR_URL = resolveMaakleerplekUrl('kalender/');
 const HOMEPAGE_URL = resolveMaakleerplekUrl('');
 const CACHE_DURATION_MS = parseInt(process.env.CACHE_DURATION_MINUTES || '15', 10) * 60 * 1000;
 const DRINKS_CACHE_DURATION_MS = parseInt(process.env.DRINKS_CACHE_DURATION_MINUTES || '5', 10) * 60 * 1000;
