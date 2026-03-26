@@ -8,7 +8,9 @@
         "start": "node --no-warnings server.js",
         "dev": "node --no-warnings --watch server.js",
         "test": "bun test",
-        "test:watch": "bun test --watch"
+        "test:watch": "bun test --watch",
+        "check:images": "node --no-warnings check-images.js",
+        "check:time": "node --no-warnings check-time.js"
     },
     "dependencies": {
         "cheerio": "^1.0.0",

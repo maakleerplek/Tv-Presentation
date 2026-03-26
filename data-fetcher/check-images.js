@@ -1,9 +1,23 @@
-const fetch = require('node-fetch');
-const cheerio = require('cheerio');
+import * as cheerio from 'cheerio';
+import { MAAKLEERPLEK_URL as BASE_URL_RAW } from './scraper-config.js';
+
+// Reuse the same URL resolution pattern as server.js:
+// parse the base URL, resolve the sub-path, then restore the translate query string.
+const _base = new URL(BASE_URL_RAW.replace(/\/$/, ''));
+function resolveUrl(subPath) {
+    const resolved = new URL(subPath, _base);
+    if (_base.search) resolved.search = _base.search;
+    return resolved.href;
+}
+
+const calendarUrl = resolveUrl('kalender/');
 
 async function testScrape() {
     try {
-        const res = await fetch('https://maakleerplek.be/kalender/');
+        console.log('Fetching:', calendarUrl);
+        const res = await fetch(calendarUrl, {
+            headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36' }
+        });
         const html = await res.text();
         const $ = cheerio.load(html);
 
