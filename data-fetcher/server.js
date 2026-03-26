@@ -11,11 +11,38 @@ app.use(cors());
 // Global bypass for self-signed certificates (InvenTree)
 process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
 
-// ── Configurable via .env ────────────────────────────────────────
-const MAAKLEERPLEK_URL  = (process.env.MAAKLEERPLEK_URL || 'https://maakleerplek.be').replace(/\/$/, '');
-const VERHALEN_URL      = `${MAAKLEERPLEK_URL}/verhalen/`;
-const CALENDAR_URL      = `${MAAKLEERPLEK_URL}/kalender/`;
-const HOMEPAGE_URL      = `${MAAKLEERPLEK_URL}/`;
+// ── Configurable via JS config (preferred) with optional env fallback ──
+import { MAAKLEERPLEK_URL as MAAKLEERPLEK_URL_CONFIG } from './scraper-config.js';
+
+const MAAKLEERPLEK_URL_RAW = (
+    process.env.MAAKLEERPLEK_URL ||
+    MAAKLEERPLEK_URL_CONFIG ||
+    'https://maakleerplek.be'
+).replace(/\/$/, '');
+
+const MAAKLEERPLEK_URL = (() => {
+    try {
+        return new URL(MAAKLEERPLEK_URL_RAW);
+    } catch (err) {
+        console.warn('[Config] MAAKLEERPLEK_URL is invalid, fallback to plain string:', MAAKLEERPLEK_URL_RAW);
+        return null;
+    }
+})();
+
+function resolveMaakleerplekUrl(path = '') {
+    if (!MAAKLEERPLEK_URL) {
+        const sanitizedPath = path.replace(/^\/+/, '');
+        return sanitizedPath ? `${MAAKLEERPLEK_URL_RAW}/${sanitizedPath}` : MAAKLEERPLEK_URL_RAW;
+    }
+
+    const resolved = new URL(path, MAAKLEERPLEK_URL);
+    if (MAAKLEERPLEK_URL.search) resolved.search = MAAKLEERPLEK_URL.search;
+    return resolved.href;
+}
+
+const VERHALEN_URL      = resolveMaakleerplekUrl('verhalen/');
+const CALENDAR_URL      = resolveMaakleerplekUrl('kalender/');
+const HOMEPAGE_URL      = resolveMaakleerplekUrl('');
 const CACHE_DURATION_MS = parseInt(process.env.CACHE_DURATION_MINUTES || '15', 10) * 60 * 1000;
 const DRINKS_CACHE_DURATION_MS = parseInt(process.env.DRINKS_CACHE_DURATION_MINUTES || '5', 10) * 60 * 1000;
 const NEWS_MAX_AGE_DAYS = parseInt(process.env.NEWS_MAX_AGE_DAYS       || '14', 10);
@@ -455,7 +482,7 @@ async function scrapeNews() {
             if (imageUrl.startsWith('http://')) {
                 imageUrl = imageUrl.replace('http://', 'https://');
             } else if (imageUrl && !imageUrl.startsWith('https://') && imageUrl.startsWith('/')) {
-                imageUrl = `${MAAKLEERPLEK_URL}${imageUrl}`;
+                imageUrl = resolveMaakleerplekUrl(imageUrl);
             }
 
             enrichedItems.push({
