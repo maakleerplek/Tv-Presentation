@@ -40,14 +40,14 @@ function resolveMaakleerplekUrl(path = '') {
     return resolved.href;
 }
 
-const VERHALEN_URL      = resolveMaakleerplekUrl('verhalen/');
+const VERHALEN_URL = resolveMaakleerplekUrl('verhalen/');
 const CALENDAR_URL      = resolveMaakleerplekUrl('kalender/');
-const HOMEPAGE_URL      = resolveMaakleerplekUrl('');
+const HOMEPAGE_URL = resolveMaakleerplekUrl('');
 const CACHE_DURATION_MS = parseInt(process.env.CACHE_DURATION_MINUTES || '15', 10) * 60 * 1000;
 const DRINKS_CACHE_DURATION_MS = parseInt(process.env.DRINKS_CACHE_DURATION_MINUTES || '5', 10) * 60 * 1000;
-const NEWS_MAX_AGE_DAYS = parseInt(process.env.NEWS_MAX_AGE_DAYS       || '14', 10);
-const MAX_NEWS_ITEMS    = parseInt(process.env.MAX_NEWS_ITEMS          || '6',  10);
-const MAX_EVENT_DETAILS = parseInt(process.env.MAX_EVENT_DETAILS       || '30', 10);
+const NEWS_MAX_AGE_DAYS = parseInt(process.env.NEWS_MAX_AGE_DAYS || '14', 10);
+const MAX_NEWS_ITEMS = parseInt(process.env.MAX_NEWS_ITEMS || '6', 10);
+const MAX_EVENT_DETAILS = parseInt(process.env.MAX_EVENT_DETAILS || '30', 10);
 // Comma-separated list of title keywords in priority order, e.g. "openlab,repair,young maker"
 // Events whose title contains an earlier keyword beat those with a later keyword when both qualify.
 const EVENT_PRIORITY = (process.env.EVENT_PRIORITY || '')
@@ -111,13 +111,13 @@ async function scrapeWikiPricing() {
          */
         const parseEntries = (container, prefix = '') => {
             const results = [];
-            
+
             if (container.is('table')) {
                 const rows = container.find('tr').get();
                 if (rows.length === 0) return results;
 
                 // Extract all cells from all rows
-                const tableData = rows.map(tr => 
+                const tableData = rows.map(tr =>
                     $(tr).find('td, th').map((_, cell) => $(cell).text().trim()).get()
                 );
 
@@ -125,8 +125,8 @@ async function scrapeWikiPricing() {
                 const firstRow = tableData[0];
                 // Grid if: first cell is empty/small AND subsequent cells look like dimensions/headers
                 const looksLikeGrid = firstRow.length > 2 && firstRow.slice(1).every(h => h.length > 0 && h.length < 15)
-                                     && !firstRow.some(h => /price|kosten|equipment|item/i.test(h));
-                
+                    && !firstRow.some(h => /price|kosten|equipment|item/i.test(h));
+
                 if (looksLikeGrid) {
                     const headers = firstRow;
                     for (let i = 1; i < tableData.length; i++) {
@@ -134,7 +134,7 @@ async function scrapeWikiPricing() {
                         if (row.length < 2) continue;
                         const rowLabel = row[0];
                         if (!rowLabel || /thickness|dikte/i.test(rowLabel)) continue;
-                        
+
                         for (let j = 1; j < row.length; j++) {
                             const val = row[j];
                             if (!val || val === '-' || val === '—') continue;
@@ -151,16 +151,16 @@ async function scrapeWikiPricing() {
                         if (row.length < 2) return;
                         // Skip header rows
                         if (idx === 0 && row.some(c => /item|price|equipment|machine|naam|kosten/i.test(c))) return;
-                        
+
                         let name = row[0];
                         let price = row[1];
                         if (!name || !price || price === '-' || price === '—') return;
-                        
+
                         // Clean up generic header suffixes that might have been scraped if name is equal to header
                         if (/price|notes|equipment/i.test(name)) return;
 
-                        results.push({ 
-                            name: `${prefix}${name}`, 
+                        results.push({
+                            name: `${prefix}${name}`,
                             price: price.includes('€') || /free|gratis/i.test(price) ? price : `€${price}`
                         });
                     });
@@ -194,7 +194,7 @@ async function scrapeWikiPricing() {
         $('h1, h2, h3, h4').each((_, header) => {
             const headerText = $(header).text().toLowerCase();
             const section = sectionMap.find(s => s.keys.some(k => headerText.includes(k)));
-            
+
             if (section) {
                 console.log(`[Pricing] Found section matching "${section.prop}": "${headerText}"`);
                 let next = $(header).next();
@@ -205,8 +205,8 @@ async function scrapeWikiPricing() {
                         if (entries.length > 0) {
                             pricing[section.prop] = [...pricing[section.prop], ...entries];
                         }
-                    } 
-                    
+                    }
+
                     // 2. Check for details/accordion containers
                     if (next.is('details')) {
                         const summary = next.find('summary').text().trim();
@@ -232,7 +232,7 @@ async function scrapeWikiPricing() {
                             }
                         });
                     }
-                    
+
                     next = next.next();
                 }
             }
@@ -422,11 +422,11 @@ async function scrapeNews() {
         // Avoid duplicate URLs
         if (newsItems.some(n => n.link === href)) return;
 
-        newsItems.push({ 
-            title, 
-            link: href, 
+        newsItems.push({
+            title,
+            link: href,
             dateStr,
-            modifiedTime 
+            modifiedTime
         });
     });
 
@@ -438,7 +438,7 @@ async function scrapeNews() {
         // Check if article is within the age limit
         if (item.modifiedTime) {
             const articleDate = new Date(item.modifiedTime);
-            if (articleDate < cutoffDate) continue; 
+            if (articleDate < cutoffDate) continue;
         }
 
         try {
@@ -450,9 +450,9 @@ async function scrapeNews() {
             const $a = cheerio.load(articleHtml);
 
             // Real title might be better in og:title, but we already have a good one from the archive list.
-            const description = $a('meta[property="og:description"]').attr('content') || 
-                                $a('meta[name="description"]').attr('content') || '';
-            
+            const description = $a('meta[property="og:description"]').attr('content') ||
+                $a('meta[name="description"]').attr('content') || '';
+
             // Image extraction strategy: og:image > body images
             const bodyImageSelectors = [
                 '.wp-post-image',
@@ -469,11 +469,11 @@ async function scrapeNews() {
                 for (const selector of bodyImageSelectors) {
                     const imgEl = $a(selector).first();
                     if (imgEl.length > 0) {
-                        imageUrl = imgEl.attr('data-src') || 
-                                   imgEl.attr('data-lazy-src') || 
-                                   imgEl.attr('data-srcset')?.split(',')[0].trim().split(' ')[0] ||
-                                   imgEl.attr('data-orig-file') || 
-                                   imgEl.attr('src') || '';
+                        imageUrl = imgEl.attr('data-src') ||
+                            imgEl.attr('data-lazy-src') ||
+                            imgEl.attr('data-srcset')?.split(',')[0].trim().split(' ')[0] ||
+                            imgEl.attr('data-orig-file') ||
+                            imgEl.attr('src') || '';
                         if (imageUrl) break;
                     }
                 }
@@ -786,10 +786,10 @@ app.get('/api/screen-data', async (_req, res) => {
         console.log(`[ScreenData] Classification Summary:`);
         console.log(`  --- News (${newsWithType.length} items) ---`);
         newsWithType.forEach((n, idx) => console.log(`    ${idx + 1}. [${n.date || '??'}] ${n.title}`));
-        
+
         console.log(`  --- Workshops (${workshops.length} items) ---`);
         workshops.forEach((w, idx) => console.log(`    ${idx + 1}. [${w.dateISO} ${w.time || '??:??'}] ${w.title}${w.price ? ` (${w.price})` : ''}`));
-        
+
         console.log(`  --- Recurring Events (${recurringEvents.length} items) ---`);
         recurringEvents.forEach((r, idx) => console.log(`    ${idx + 1}. [${r.dateISO} ${r.time || '??:??'}] ${r.title}`));
 
