@@ -1,651 +1,56 @@
+/**
+ * server.js — Express entry-point for the maakleerplek TV data-fetcher.
+ *
+ * This file is intentionally kept small: it only wires up Express routes and
+ * delegates all scraping / data-fetching to purpose-built modules:
+ *
+ *   scrapers/calendar.js  — maakleerplek.be calendar
+ *   scrapers/news.js      — maakleerplek.be story archive
+ *   scrapers/pricing.js   — maakleerplek wiki pricing
+ *   scrapers/drinks.js    — Inventree stock / drinks inventory
+ *   categorise.js         — event classification (workshops vs recurring)
+ *   config.js             — all environment-variable constants
+ */
+
 import express from 'express';
-import cors from 'cors';
-import * as cheerio from 'cheerio';
-import https from 'https';
-import { parseDutchDate, stripHtml, truncate, isCacheValid as isCacheValidUtil, DUTCH_MONTHS } from './utils.js';
-import { fetchEventDetail } from './event-detail.js';
+import cors    from 'cors';
+
+// Global bypass for self-signed certificates (required for the local Inventree instance)
+process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
+
+import { scrapeCalendar } from './scrapers/calendar.js';
+import { scrapeNews     } from './scrapers/news.js';
+import { scrapeWikiPricing } from './scrapers/pricing.js';
+import { fetchDrinks    } from './scrapers/drinks.js';
+import { categoriseEvents } from './categorise.js';
+import {
+    MAAKLEERPLEK_URL,
+    CAROUSEL_TRANSITION_TIME,
+    TIPS_TRANSITION_TIME,
+    STATUS_ROTATION_TIME,
+    PAYMENT_QR_URL,
+    WIKI_QR_URL,
+    EVENT_PRIORITY,
+    TIPS,
+    INVENTREE_TOKEN,
+    INVENTREE_URL,
+} from './config.js';
+import { isCacheValid } from './utils.js';
+
+// ── Express setup ─────────────────────────────────────────────────────────────
 
 const app = express();
 app.use(cors());
 
-// Global bypass for self-signed certificates (InvenTree)
-process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
+// ── Transition state (for manual carousel-skip testing) ───────────────────────
 
-// ── Configurable via JS config (preferred) with optional env fallback ──
-import { MAAKLEERPLEK_URL as MAAKLEERPLEK_URL_CONFIG } from './scraper-config.js';
-
-const MAAKLEERPLEK_URL_RAW = (
-    process.env.MAAKLEERPLEK_URL ||
-    MAAKLEERPLEK_URL_CONFIG ||
-    'https://maakleerplek.be'
-).replace(/\/$/, '');
-
-const MAAKLEERPLEK_URL = (() => {
-    try {
-        return new URL(MAAKLEERPLEK_URL_RAW);
-    } catch (err) {
-        console.warn('[Config] MAAKLEERPLEK_URL is invalid, fallback to plain string:', MAAKLEERPLEK_URL_RAW);
-        return null;
-    }
-})();
-
-function resolveMaakleerplekUrl(path = '') {
-    if (!MAAKLEERPLEK_URL) {
-        const sanitizedPath = path.replace(/^\/+/, '');
-        return sanitizedPath ? `${MAAKLEERPLEK_URL_RAW}/${sanitizedPath}` : MAAKLEERPLEK_URL_RAW;
-    }
-
-    const resolved = new URL(path, MAAKLEERPLEK_URL);
-    if (MAAKLEERPLEK_URL.search) resolved.search = MAAKLEERPLEK_URL.search;
-    return resolved.href;
-}
-
-const VERHALEN_URL = resolveMaakleerplekUrl('verhalen/');
-const CALENDAR_URL = resolveMaakleerplekUrl('kalender/');
-const HOMEPAGE_URL = resolveMaakleerplekUrl('');
-const CACHE_DURATION_MS = parseInt(process.env.CACHE_DURATION_MINUTES || '15', 10) * 60 * 1000;
-const DRINKS_CACHE_DURATION_MS = parseInt(process.env.DRINKS_CACHE_DURATION_MINUTES || '5', 10) * 60 * 1000;
-const NEWS_MAX_AGE_DAYS = parseInt(process.env.NEWS_MAX_AGE_DAYS || '14', 10);
-const MAX_NEWS_ITEMS = parseInt(process.env.MAX_NEWS_ITEMS || '6', 10);
-const MAX_EVENT_DETAILS = parseInt(process.env.MAX_EVENT_DETAILS || '30', 10);
-// Comma-separated list of title keywords in priority order, e.g. "openlab,repair,young maker"
-// Events whose title contains an earlier keyword beat those with a later keyword when both qualify.
-const EVENT_PRIORITY = (process.env.EVENT_PRIORITY || '')
-    .split(',').map(s => s.trim().toLowerCase()).filter(Boolean);
-
-// Keywords identifying workshop/training events (used for both detail-fetching and categorization)
-const WORKSHOP_KEYWORDS = ['workshop', 'initiatie', 'cursus', 'opleiding', 'naailes', 'leren', '3d-print'];
-// Keywords identifying recurring service events (open labs, repair cafés, etc.)
-const RECURRING_SERVICE_KEYWORDS = ['open lab', 'repair', 'gereedschappenbib', 'buurtkantine', 'herstel hub', 'geopend'];
-
-// Numbered tips shown in the footer: TIP_1, TIP_2, TIP_3, …
-// Collected in numeric order; stops at the first missing index.
-const TIPS = (() => {
-    const tips = [];
-    for (let i = 1; ; i++) {
-        const val = process.env[`TIP_${i}`];
-        if (!val) break;
-        tips.push(val.trim());
-    }
-    return tips;
-})();
-
-// State for manual transitions via /api/transition
 let forceTransitionTime = Date.now();
 
-// ── In-memory cache ──────────────────────────────────────────────
-let calendarCache = { data: null, timestamp: 0 };
-let newsCache = { data: null, timestamp: 0 };
-let drinksCache = { data: null, timestamp: 0 };
-let pricingCache = { data: null, timestamp: 0 };
+// ── Routes ────────────────────────────────────────────────────────────────────
 
-/** Wrap isCacheValidUtil with a default duration from this module's config. */
-function isCacheValid(cache, duration = CACHE_DURATION_MS) {
-    return isCacheValidUtil(cache, duration);
-}
-
-// ── Wiki Pricing Scraper ─────────────────────────────────────────
-async function scrapeWikiPricing() {
-    if (isCacheValid(pricingCache)) return pricingCache.data;
-
-    const WIKI_URL = process.env.WIKI_PRICING_URL || 'https://wiki.maakleerplek.be/en/hightechlab';
-    console.log('[Pricing] Scraping', WIKI_URL);
-
-    try {
-        const response = await fetch(WIKI_URL, {
-            headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36' }
-        });
-        const html = await response.text();
-        const $ = cheerio.load(html);
-
-        const pricing = {
-            memberships: [],
-            equipment: [],
-            materials: [],
-            workshops: []
-        };
-
-        /**
-         * Generic parser for a list of items (either <ul> or <table>).
-         * Splits lines by common delimiters like ":" or " - " or detects "€".
-         */
-        const parseEntries = (container, prefix = '') => {
-            const results = [];
-
-            if (container.is('table')) {
-                const rows = container.find('tr').get();
-                if (rows.length === 0) return results;
-
-                // Extract all cells from all rows
-                const tableData = rows.map(tr =>
-                    $(tr).find('td, th').map((_, cell) => $(cell).text().trim()).get()
-                );
-
-                // Detect if it's a grid table (first row has multiple headers like A4, A3, A2)
-                const firstRow = tableData[0];
-                // Grid if: first cell is empty/small AND subsequent cells look like dimensions/headers
-                const looksLikeGrid = firstRow.length > 2 && firstRow.slice(1).every(h => h.length > 0 && h.length < 15)
-                    && !firstRow.some(h => /price|kosten|equipment|item/i.test(h));
-
-                if (looksLikeGrid) {
-                    const headers = firstRow;
-                    for (let i = 1; i < tableData.length; i++) {
-                        const row = tableData[i];
-                        if (row.length < 2) continue;
-                        const rowLabel = row[0];
-                        if (!rowLabel || /thickness|dikte/i.test(rowLabel)) continue;
-
-                        for (let j = 1; j < row.length; j++) {
-                            const val = row[j];
-                            if (!val || val === '-' || val === '—') continue;
-                            const colHeader = headers[j] || '';
-                            results.push({
-                                name: `${prefix}${rowLabel}${colHeader ? ` (${colHeader})` : ''}`,
-                                price: val.includes('€') ? val : `€${val}`
-                            });
-                        }
-                    }
-                } else {
-                    // Standard Key-Value table
-                    tableData.forEach((row, idx) => {
-                        if (row.length < 2) return;
-                        // Skip header rows
-                        if (idx === 0 && row.some(c => /item|price|equipment|machine|naam|kosten/i.test(c))) return;
-
-                        let name = row[0];
-                        let price = row[1];
-                        if (!name || !price || price === '-' || price === '—') return;
-
-                        // Clean up generic header suffixes that might have been scraped if name is equal to header
-                        if (/price|notes|equipment/i.test(name)) return;
-
-                        results.push({
-                            name: `${prefix}${name}`,
-                            price: price.includes('€') || /free|gratis/i.test(price) ? price : `€${price}`
-                        });
-                    });
-                }
-            } else {
-                // Try parsing as list
-                container.find('li').each((_, li) => {
-                    const text = $(li).text().trim();
-                    const match = text.match(/^(.*?)\s*[:\-\u2013\u2014\u20AC]\s*(.*)$/);
-                    if (match) {
-                        let name = match[1].trim();
-                        let price = match[2].trim();
-                        if (text.includes('€') && !price.includes('€')) {
-                            price = '€' + price;
-                        }
-                        results.push({ name: `${prefix}${name}`, price });
-                    }
-                });
-            }
-            return results;
-        };
-
-        // Section mappings: Header Keywords -> Pricing Property
-        const sectionMap = [
-            { keys: ['lidmaatschap', 'membership'], prop: 'memberships' },
-            { keys: ['equipment usage', 'machine gebruik', 'machine usage', 'gebruik'], prop: 'equipment' },
-            { keys: ['material', 'grondstof', 'benodigdheden'], prop: 'materials' },
-            { keys: ['workshop', 'training', 'certificatie', 'opleiding', 'cursus'], prop: 'workshops' }
-        ];
-
-        $('h1, h2, h3, h4').each((_, header) => {
-            const headerText = $(header).text().toLowerCase();
-            const section = sectionMap.find(s => s.keys.some(k => headerText.includes(k)));
-
-            if (section) {
-                console.log(`[Pricing] Found section matching "${section.prop}": "${headerText}"`);
-                let next = $(header).next();
-                while (next.length && !next.is('h1, h2, h3, h4')) {
-                    // 1. Check if next is a list or table directly
-                    if (next.is('ul, table')) {
-                        const entries = parseEntries(next);
-                        if (entries.length > 0) {
-                            pricing[section.prop] = [...pricing[section.prop], ...entries];
-                        }
-                    }
-
-                    // 2. Check for details/accordion containers
-                    if (next.is('details')) {
-                        const summary = next.find('summary').text().trim();
-                        const prefix = summary ? `${summary} ` : '';
-                        next.find('ul, table').each((_, inner) => {
-                            const entries = parseEntries($(inner), prefix);
-                            if (entries.length > 0) {
-                                pricing[section.prop] = [...pricing[section.prop], ...entries];
-                            }
-                        });
-                    }
-
-                    // 3. Search for lists/tables inside general containers (divs, etc)
-                    // but skip if we already parsed it via details logic
-                    if (!next.is('details')) {
-                        next.find('ul, table').each((_, inner) => {
-                            // Avoid double-parsing if this table is inside another already-handled container
-                            if ($(inner).parents('ul, table, details').length === 0 || $(inner).parent().is(next)) {
-                                const entries = parseEntries($(inner));
-                                if (entries.length > 0) {
-                                    pricing[section.prop] = [...pricing[section.prop], ...entries];
-                                }
-                            }
-                        });
-                    }
-
-                    next = next.next();
-                }
-            }
-        });
-
-        // Deduplicate entries by name
-        for (const prop in pricing) {
-            const seen = new Set();
-            pricing[prop] = pricing[prop].filter(item => {
-                if (seen.has(item.name)) return false;
-                seen.add(item.name);
-                return true;
-            });
-        }
-
-        console.log('[Pricing] Final scraped data:', JSON.stringify(pricing, null, 2));
-
-        // Fallback to hardcoded values ONLY for essential sections if completely empty
-        if (Object.values(pricing).every(arr => arr.length === 0)) {
-            console.warn('[Pricing] Scraping failed to find any sections, using defaults');
-            pricing.memberships = [{ name: 'Basis', price: '€25/m' }]; // etc...
-            // (Keeping the logic minimal here as requested to make it dynamic)
-        }
-
-        pricingCache = { data: pricing, timestamp: Date.now() };
-        return pricing;
-    } catch (err) {
-        console.error('[Pricing] Error scraping wiki:', err.message);
-        return null;
-    }
-}
-
-// ── Calendar Scraper ─────────────────────────────────────────────
-async function scrapeCalendar() {
-    if (isCacheValid(calendarCache)) return calendarCache.data;
-
-    console.log('[Calendar] Scraping', CALENDAR_URL);
-    const response = await fetch(CALENDAR_URL, {
-        headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36' }
-    });
-    const html = await response.text();
-    const $ = cheerio.load(html);
-
-    const events = [];
-    const seenEvents = new Set();
-
-    // Each .agenda_element contains one day
-    $('.agenda_element').each((_, dayEl) => {
-        const dateText = $(dayEl).find('.agenda_date h4').text().trim();
-        const date = parseDutchDate(dateText);
-        if (!date) return;
-
-        // Skip dates that have already passed (before today)
-        const today = new Date();
-        today.setHours(0, 0, 0, 0);
-        if (date < today) return;
-
-        // Each .agenda_item is one event
-        $(dayEl).find('.agenda_item').each((_, itemEl) => {
-            const titleRaw = $(itemEl).find('.agenda_item_title').text().trim();
-            const timeRaw = $(itemEl).find('.agenda_item_time').text().trim();
-            const link = $(itemEl).find('a').attr('href') || '';
-
-            if (!titleRaw) {
-                console.warn(`[Calendar] Missing title for an event on ${dateText}`);
-            }
-
-            // The calendar list HTML uses `.agenda_item_time` for either the exact time OR the location!
-            let timeStr = '';
-            let locationStr = '';
-            // If the string contains a digit, it's a time (e.g. 18:00 - 20:00). Otherwise, it's a location (e.g. "Grafisch Lab").
-            if (/(\d{1,2}[:.]\d{2})/.test(timeRaw)) {
-                timeStr = timeRaw;
-            } else {
-                locationStr = timeRaw;
-            }
-
-            // If no time was found in .agenda_item_time, check if the title itself contains a
-            // time pattern like "Workshop naam 19:00" or "19:00 - 21:00 Naam".
-            // Extract the time range (or single time) from the title and strip it from the display title.
-            let title = titleRaw;
-            if (!timeStr) {
-                const titleTimeMatch = titleRaw.match(/\b(\d{1,2}[:.]\d{2}\s*[-–]\s*\d{1,2}[:.]\d{2}|\d{1,2}[:.]\d{2})\b/);
-                if (titleTimeMatch) {
-                    timeStr = titleTimeMatch[0].replace(/\./g, ':').trim();
-                    // Remove the matched time (and any surrounding separators/spaces) from the title
-                    title = titleRaw.replace(titleTimeMatch[0], '').replace(/^\s*[-–|:]\s*|\s*[-–|:]\s*$/g, '').trim();
-                }
-            }
-
-            if (!timeStr) {
-                console.warn(`[Calendar] No time found for "${titleRaw}" on ${dateText}`);
-            }
-
-            if (title) {
-                // Build dateISO from local date parts to avoid UTC timezone shift.
-                const mm = String(date.getMonth() + 1).padStart(2, '0');
-                const dd = String(date.getDate()).padStart(2, '0');
-                const dateISO = `${date.getFullYear()}-${mm}-${dd}`;
-
-                // Deduplicate: same link + same day = same event
-                const eventKey = `${link}|${dateISO}|${title}`;
-                if (seenEvents.has(eventKey)) return;
-                seenEvents.add(eventKey);
-
-                events.push({
-                    title,
-                    location: locationStr,
-                    time: timeStr,
-                    date: dateText,
-                    dateISO,
-                    link,
-                });
-            }
-        });
-    });
-
-    // Always fetch details for:
-    // 1. Events matching EVENT_PRIORITY keywords (they appear prominently in the UI)
-    // 2. Events matching WORKSHOP_KEYWORDS (workshops need images for the carousel)
-    // For all other events, only fetch details for the first MAX_EVENT_DETAILS to cap scraping time.
-    const detailPromises = events.map(async (event, i) => {
-        const titleLower = event.title.toLowerCase();
-        const isPriorityKeyword = EVENT_PRIORITY.some(kw => titleLower.includes(kw));
-        const isWorkshopKeyword = WORKSHOP_KEYWORDS.some(kw => titleLower.includes(kw));
-        const withinLimit = i < MAX_EVENT_DETAILS;
-        if (event.link && (isPriorityKeyword || isWorkshopKeyword || withinLimit)) {
-            const detail = await fetchEventDetail(event.link);
-            return {
-                ...event,
-                ...detail,
-                time: detail.time || event.time,
-                location: detail.location || event.location || 'maakleerplek'
-            };
-        }
-        return event;
-    });
-
-    const enrichedEvents = await Promise.all(detailPromises);
-    // Merge enriched events back
-    const result = events.map((event, i) => {
-        if (i < enrichedEvents.length) return enrichedEvents[i];
-        return event;
-    });
-
-    calendarCache = { data: result, timestamp: Date.now() };
-    console.log(`[Calendar] Scraped ${result.length} upcoming events:`);
-    result.forEach((e, idx) => {
-        console.log(`  ${idx + 1}. [${e.dateISO} ${e.time || '??:??'}] ${e.title} (@ ${e.location || 'maakleerplek'})`);
-    });
-    return result;
-}
-
-// ── News Scraper ─────────────────────────────────────────────────
-async function scrapeNews() {
-    if (isCacheValid(newsCache)) return newsCache.data;
-
-    console.log('[News] Scraping', VERHALEN_URL);
-    const response = await fetch(VERHALEN_URL, {
-        headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36' }
-    });
-    const html = await response.text();
-    const $ = cheerio.load(html);
-
-    const newsItems = [];
-    const cutoffDate = new Date();
-    cutoffDate.setDate(cutoffDate.getDate() - NEWS_MAX_AGE_DAYS);
-
-    // News items in /verhalen/ are inside <article class="archive_item">
-    $('article.archive_item').each((_, el) => {
-        const titleEl = $(el).find('h3 a');
-        const href = titleEl.attr('href');
-        const title = titleEl.text().trim();
-        const dateStr = $(el).find('p.date').text().trim(); // Format: DD/MM/YYYY
-
-        if (!href || !title) return;
-
-        // Parse date to check against cutoff
-        let modifiedTime = '';
-        if (dateStr) {
-            const [d, m, y] = dateStr.split('/').map(Number);
-            if (!isNaN(d) && !isNaN(m) && !isNaN(y)) {
-                modifiedTime = new Date(y, m - 1, d).toISOString();
-            }
-        }
-
-        // Avoid duplicate URLs
-        if (newsItems.some(n => n.link === href)) return;
-
-        newsItems.push({
-            title,
-            link: href,
-            dateStr,
-            modifiedTime
-        });
-    });
-
-    // Fetch detail info from each news article page.
-    const enrichedItems = [];
-    for (const item of newsItems) {
-        if (enrichedItems.length >= MAX_NEWS_ITEMS) break;
-
-        // Check if article is within the age limit
-        if (item.modifiedTime) {
-            const articleDate = new Date(item.modifiedTime);
-            if (articleDate < cutoffDate) continue;
-        }
-
-        try {
-            const resp = await fetch(item.link, {
-                headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36' }
-            });
-            if (!resp.ok) continue;
-            const articleHtml = await resp.text();
-            const $a = cheerio.load(articleHtml);
-
-            // Real title might be better in og:title, but we already have a good one from the archive list.
-            const description = $a('meta[property="og:description"]').attr('content') ||
-                $a('meta[name="description"]').attr('content') || '';
-
-            // Image extraction strategy: og:image > body images
-            const bodyImageSelectors = [
-                '.wp-post-image',
-                '.post-thumbnail img',
-                '.elementor-post__thumbnail img',
-                'article img',
-                'main img',
-                '.entry-content img'
-            ];
-
-            let imageUrl = $a('meta[property="og:image"]').attr('content') || '';
-
-            if (!imageUrl) {
-                for (const selector of bodyImageSelectors) {
-                    const imgEl = $a(selector).first();
-                    if (imgEl.length > 0) {
-                        imageUrl = imgEl.attr('data-src') ||
-                            imgEl.attr('data-lazy-src') ||
-                            imgEl.attr('data-srcset')?.split(',')[0].trim().split(' ')[0] ||
-                            imgEl.attr('data-orig-file') ||
-                            imgEl.attr('src') || '';
-                        if (imageUrl) break;
-                    }
-                }
-            }
-
-            if (imageUrl.startsWith('http://')) {
-                imageUrl = imageUrl.replace('http://', 'https://');
-            } else if (imageUrl && !imageUrl.startsWith('https://') && imageUrl.startsWith('/')) {
-                imageUrl = resolveMaakleerplekUrl(imageUrl);
-            }
-
-            enrichedItems.push({
-                ...item,
-                description: truncate(stripHtml(description), 200),
-                imageUrl,
-                date: item.dateStr || (item.modifiedTime ? new Date(item.modifiedTime).toLocaleDateString('nl-BE') : ''),
-            });
-        } catch (err) {
-            console.error(`[News] Failed to fetch details for ${item.link}:`, err.message);
-        }
-    }
-
-    newsCache = { data: enrichedItems, timestamp: Date.now() };
-    console.log(`[News] Found ${enrichedItems.length} recent news items from /verhalen/`);
-    return enrichedItems;
-}
-
-
-// ── Inventree Drinks Scraper ───────────────────────────────────────
-const INVENTREE_URL = process.env.INVENTREE_URL || 'https://10.72.3.68:8443';
-const INVENTREE_TOKEN = process.env.INVENTREE_TOKEN;
-// Supports comma-separated list of locations, e.g. "HTL-fridge,HTL-snacks"
-// Falls back to singular INVENTREE_DRINKS_LOCATION for backwards compatibility
-const INVENTREE_DRINKS_LOCATIONS = (
-    process.env.INVENTREE_DRINKS_LOCATIONS || process.env.INVENTREE_DRINKS_LOCATION || ''
-).split(',').map(s => s.trim().toLowerCase()).filter(Boolean);
-
-// Number of seconds each carousel slide is shown before advancing
-const CAROUSEL_TRANSITION_TIME = parseInt(process.env.CAROUSEL_TRANSITION_TIME || '15', 10);
-// Number of seconds each tip is shown before advancing
-const TIPS_TRANSITION_TIME = parseInt(process.env.TIPS_TRANSITION_TIME || '10', 10);
-// Number of seconds the status block rotates between "Next Event" and "Next Workshop"
-const STATUS_ROTATION_TIME = parseInt(process.env.STATUS_ROTATION_TIME || '10', 10);
-// URL encoded into the payment QR code in the drinks panel
-const PAYMENT_QR_URL = process.env.PAYMENT_QR_URL || '';
-// URL encoded into the wiki QR code in the tips footer
-const WIKI_QR_URL = process.env.WIKI_QR_URL || 'https://wiki.maakleerplek.be/en/hightechlab';
-
-// Helper function to fetch with a timeout
-const fetchWithTimeout = async (resource, options = {}, timeout = 5000) => {
-    const controller = new AbortController();
-    const id = setTimeout(() => controller.abort(), timeout);
-
-    try {
-        const response = await fetch(resource, {
-            ...options,
-            signal: controller.signal
-        });
-        clearTimeout(id);
-        return response;
-    } catch (err) {
-        clearTimeout(id);
-        throw err;
-    }
-};
-
-async function fetchDrinks() {
-    if (isCacheValid(drinksCache, DRINKS_CACHE_DURATION_MS)) return drinksCache.data;
-    if (!INVENTREE_TOKEN) {
-        console.warn('[Drinks] No INVENTREE_TOKEN configured');
-        return [];
-    }
-
-    console.log('[Drinks] Fetching from Inventree', INVENTREE_URL);
-    try {
-        // Fetch stock items with part and location details
-        const stockRes = await fetchWithTimeout(`${INVENTREE_URL}/api/stock/?part_detail=true&location_detail=true`, {
-            headers: { 'Authorization': `Token ${INVENTREE_TOKEN}` }
-        }, 15000);
-
-        if (!stockRes.ok) {
-            console.error('[Drinks] Failed to fetch stock', stockRes.status);
-            return [];
-        }
-
-        const stockData = await stockRes.json();
-        const stockItems = Array.isArray(stockData) ? stockData : (stockData.results || []);
-
-        console.log('[Drinks] Found', stockItems.length, 'total stock items');
-        if (stockItems.length > 0 && INVENTREE_DRINKS_LOCATIONS.length > 0) {
-            const locs = new Set(stockItems.map(i => i.location_detail?.name).filter(Boolean));
-            console.log('[Drinks] Available locations:', Array.from(locs).join(', '));
-            console.log('[Drinks] Filtering by locations:', INVENTREE_DRINKS_LOCATIONS.join(', '));
-        }
-
-        // Map and group by part ID to aggregate stock
-        const drinksMap = new Map();
-
-        for (const item of stockItems) {
-            const partDetail = item.part_detail || {};
-            const locDetail = item.location_detail || {};
-
-            // Filter by configured locations if any are specified — match any in the list
-            if (INVENTREE_DRINKS_LOCATIONS.length > 0) {
-                const locName = (locDetail.name || '').toLowerCase();
-                const locPath = (locDetail.pathstring || '').toLowerCase();
-                const matched = INVENTREE_DRINKS_LOCATIONS.some(
-                    loc => locName.includes(loc) || locPath.includes(loc)
-                );
-                if (!matched) continue;
-            }
-
-            // Exclude items without a valid part name
-            if (!partDetail.name) continue;
-
-            const partId = item.part;
-            const quantity = parseFloat(item.quantity || 0);
-
-            if (!drinksMap.has(partId)) {
-                // Determine price
-                let price = "-";
-                // In part_detail from stock, pricing might be in pricing_min or sell_price
-                if (partDetail.pricing_min) {
-                    price = '€' + parseFloat(partDetail.pricing_min).toFixed(2);
-                } else if (partDetail.pricing_min_string) {
-                    price = partDetail.pricing_min_string;
-                } else if (partDetail.sell_price) {
-                    price = '€' + parseFloat(partDetail.sell_price).toFixed(2);
-                } else if (partDetail.description && partDetail.description.toLowerCase() !== partDetail.name.toLowerCase()) {
-                    price = partDetail.description;
-                }
-
-                // Proxy image URL
-                let imageUrl = null;
-                const imgSource = partDetail.thumbnail || partDetail.image;
-                if (imgSource) {
-                    // Ensure it's an absolute URL
-                    const fullImgUrl = imgSource.startsWith('/') ? `${INVENTREE_URL}${imgSource}` : imgSource;
-                    imageUrl = `/api/proxy-image?url=${encodeURIComponent(fullImgUrl)}`;
-                }
-
-                drinksMap.set(partId, {
-                    name: partDetail.name,
-                    price: price,
-                    stock: quantity,
-                    imageUrl: imageUrl
-                });
-            } else {
-                // If we have multiple stock items for the same part, aggregate the quantity
-                const existing = drinksMap.get(partId);
-                existing.stock += quantity;
-            }
-        }
-
-        const formattedDrinks = Array.from(drinksMap.values());
-
-        console.log('[Drinks] Successfully mapped', formattedDrinks.length, 'unique drink items');
-        drinksCache = { data: formattedDrinks, timestamp: Date.now() };
-        console.log(`[Drinks] Fetched ${formattedDrinks.length} drinks`);
-        return formattedDrinks;
-
-    } catch (err) {
-        console.error('[Drinks] Exception fetching drinks:', err.message);
-        return [];
-    }
-}
-
-// ── API Routes ───────────────────────────────────────────────────
 app.get('/api/calendar', async (_req, res) => {
     try {
-        const events = await scrapeCalendar();
-        res.json(events);
+        res.json(await scrapeCalendar());
     } catch (err) {
         console.error('[Calendar] Error:', err.message);
         res.status(500).json({ error: 'Failed to scrape calendar' });
@@ -654,8 +59,7 @@ app.get('/api/calendar', async (_req, res) => {
 
 app.get('/api/news', async (_req, res) => {
     try {
-        const news = await scrapeNews();
-        res.json(news);
+        res.json(await scrapeNews());
     } catch (err) {
         console.error('[News] Error:', err.message);
         res.status(500).json({ error: 'Failed to scrape news' });
@@ -664,10 +68,9 @@ app.get('/api/news', async (_req, res) => {
 
 app.get('/api/drinks', async (_req, res) => {
     try {
-        const drinks = await fetchDrinks();
-        res.json(drinks);
-    } catch (e) {
-        console.error('[Drinks] Error in endpoint:', e);
+        res.json(await fetchDrinks());
+    } catch (err) {
+        console.error('[Drinks] Error:', err.message);
         res.status(500).json({ error: 'Failed to fetch drinks' });
     }
 });
@@ -679,138 +82,45 @@ app.get('/api/screen-data', async (_req, res) => {
             scrapeCalendar(),
             scrapeNews(),
             fetchDrinks(),
-            scrapeWikiPricing()
+            scrapeWikiPricing(),
         ]);
 
-        const workshops = [];
-        const recurringEvents = [];
-
-        // Categorization uses the module-level RECURRING_SERVICE_KEYWORDS and WORKSHOP_KEYWORDS constants
-
-        // 2. Count title occurrences to detect repeating events (case-insensitive)
-        const titleCounts = {};
-        for (const event of calendar) {
-            const normalizedTitle = event.title.trim().toLowerCase();
-            titleCounts[normalizedTitle] = (titleCounts[normalizedTitle] || 0) + 1;
-        }
-
-        // 3. Group repeating events and separate unique ones
-        const groupsByTitle = {};
-        const uniqueEvents = [];
-
-        for (const event of calendar) {
-            const normalizedTitle = event.title.trim().toLowerCase();
-            if (titleCounts[normalizedTitle] > 1) {
-                if (!groupsByTitle[normalizedTitle]) groupsByTitle[normalizedTitle] = [];
-                groupsByTitle[normalizedTitle].push(event);
-            } else {
-                uniqueEvents.push(event);
-            }
-        }
-
-        // 4. Process unique events (always workshops)
-        uniqueEvents.forEach(e => workshops.push({ ...e, type: 'workshop' }));
-
-        // 5. Process grouped events: Pick the best instance and categorize
-        const now = new Date();
-        for (const [normalizedTitle, instances] of Object.entries(groupsByTitle)) {
-            // Find the best instance (current or soonest)
-            let best = null;
-            let bestScore = Infinity;
-
-            for (const event of instances) {
-                const [isoYear, isoMonth, isoDay] = (event.dateISO || '').split('-').map(Number);
-                if (!isoYear) continue;
-
-                const startMatch = event.time ? event.time.match(/(\d{1,2})[:.](\d{2})/) : null;
-                const startTime = startMatch
-                    ? new Date(isoYear, isoMonth - 1, isoDay, parseInt(startMatch[1], 10), parseInt(startMatch[2], 10))
-                    : new Date(isoYear, isoMonth - 1, isoDay, 0, 0);
-
-                const endMatch = event.time ? event.time.match(/[-–](\d{1,2})[:.](\d{2})/) : null;
-                const endTime = endMatch
-                    ? new Date(isoYear, isoMonth - 1, isoDay, parseInt(endMatch[1], 10), parseInt(endMatch[2], 10))
-                    : new Date(startTime.getTime() + (startMatch ? 60 * 60 * 1000 : 24 * 60 * 60 * 1000));
-
-                const effectiveEnd = new Date(endTime.getTime() + 5 * 60 * 1000);
-                const isNow = startTime <= now && now < effectiveEnd;
-                const isAllDayToday = !startMatch && isoYear === now.getFullYear() && (isoMonth - 1) === now.getMonth() && isoDay === now.getDate();
-
-                let score;
-                if (isNow || isAllDayToday) score = -Infinity;
-                else if (effectiveEnd <= now) score = Infinity;
-                else score = startTime.getTime() - now.getTime();
-
-                if (best === null || score < bestScore) {
-                    best = event;
-                    bestScore = score;
-                }
-            }
-
-            if (!best) continue;
-
-            // Categorize the group
-            const isService = RECURRING_SERVICE_KEYWORDS.some(kw => normalizedTitle.includes(kw));
-            const isWorkshop = WORKSHOP_KEYWORDS.some(kw => normalizedTitle.includes(kw));
-            const hasPrice = best.price && best.price.trim().length > 0 && !/gratis|free/i.test(best.price);
-
-            // A group is a workshop if it has workshop keywords or a price, UNLESS it's a known recurring service
-            if ((isWorkshop || hasPrice) && !isService) {
-                workshops.push({ ...best, type: 'workshop' });
-            } else {
-                recurringEvents.push({ ...best, type: 'recurring' });
-            }
-        }
-
-        // Add type tag to news for easy combining on the frontend
+        const { workshops, recurringEvents } = categoriseEvents(calendar);
         const newsWithType = news.map(item => ({ ...item, type: 'news' }));
 
-        const responseObj = {
+        // Log a summary so it's easy to see what the screen will display
+        console.log('[ScreenData] Classification Summary:');
+        console.log(`  --- News (${newsWithType.length} items) ---`);
+        newsWithType.forEach((n, i) => console.log(`    ${i + 1}. [${n.date || '??'}] ${n.title}`));
+        console.log(`  --- Workshops (${workshops.length} items) ---`);
+        workshops.forEach((w, i) => console.log(`    ${i + 1}. [${w.dateISO} ${w.time || '??:??'}] ${w.title}${w.price ? ` (${w.price})` : ''}`));
+        console.log(`  --- Recurring Events (${recurringEvents.length} items) ---`);
+        recurringEvents.forEach((r, i) => console.log(`    ${i + 1}. [${r.dateISO} ${r.time || '??:??'}] ${r.title}`));
+
+        res.json({
             workshops,
             news: newsWithType,
             recurringEvents,
             drinks,
             pricing,
             config: {
-                transitionTime: CAROUSEL_TRANSITION_TIME,
+                transitionTime:     CAROUSEL_TRANSITION_TIME,
                 tipsTransitionTime: TIPS_TRANSITION_TIME,
                 statusRotationTime: STATUS_ROTATION_TIME,
-                paymentQrUrl: PAYMENT_QR_URL,
-                wikiQrUrl: WIKI_QR_URL,
-                eventPriority: EVENT_PRIORITY,
-                tips: TIPS,
-                websiteQrUrl: MAAKLEERPLEK_URL,
-            }
-        };
-
-        console.log(`[ScreenData] Classification Summary:`);
-        console.log(`  --- News (${newsWithType.length} items) ---`);
-        newsWithType.forEach((n, idx) => console.log(`    ${idx + 1}. [${n.date || '??'}] ${n.title}`));
-
-        console.log(`  --- Workshops (${workshops.length} items) ---`);
-        workshops.forEach((w, idx) => console.log(`    ${idx + 1}. [${w.dateISO} ${w.time || '??:??'}] ${w.title}${w.price ? ` (${w.price})` : ''}`));
-
-        console.log(`  --- Recurring Events (${recurringEvents.length} items) ---`);
-        recurringEvents.forEach((r, idx) => console.log(`    ${idx + 1}. [${r.dateISO} ${r.time || '??:??'}] ${r.title}`));
-
-        res.json(responseObj);
+                paymentQrUrl:       PAYMENT_QR_URL,
+                wikiQrUrl:          WIKI_QR_URL,
+                eventPriority:      EVENT_PRIORITY,
+                tips:               TIPS,
+                websiteQrUrl:       MAAKLEERPLEK_URL,
+            },
+        });
     } catch (err) {
         console.error('[Screen-Data] Error:', err.message);
         res.status(500).json({ error: 'Failed to aggregate screen data' });
     }
 });
 
-// --- Transition Testing Endpoints ---
-
-app.get('/api/transition', (req, res) => {
-    forceTransitionTime = Date.now();
-    console.log(`[Transition] Triggered at ${forceTransitionTime}`);
-    res.json({ success: true, message: "Transition triggered", timestamp: forceTransitionTime });
-});
-
-app.get('/api/transition/check', (req, res) => {
-    res.json({ forceTransitionTime });
-});
+// ── Image proxy (keeps Inventree token server-side) ───────────────────────────
 
 app.get('/api/proxy-image', async (req, res) => {
     const targetUrl = req.query.url;
@@ -818,44 +128,45 @@ app.get('/api/proxy-image', async (req, res) => {
 
     try {
         const response = await fetch(targetUrl, {
-            headers: {
-                'Authorization': `Token ${INVENTREE_TOKEN}`,
-            }
+            headers: { 'Authorization': `Token ${INVENTREE_TOKEN}` },
         });
+        if (!response.ok) return res.status(response.status).send(`Failed to fetch image: ${response.status}`);
 
-        if (!response.ok) {
-            return res.status(response.status).send(`Failed to fetch image: ${response.status}`);
-        }
-
-        const buffer = await response.arrayBuffer();
         const contentType = response.headers.get('content-type') || 'image/jpeg';
-
         res.setHeader('Content-Type', contentType);
-        res.setHeader('Cache-Control', 'public, max-age=3600'); // Cache for 1 hour
-        res.send(Buffer.from(buffer));
+        res.setHeader('Cache-Control', 'public, max-age=3600');
+        res.send(Buffer.from(await response.arrayBuffer()));
     } catch (err) {
-        console.error('[Image Proxy] Error fetching image:', err.message);
+        console.error('[Image Proxy] Error:', err.message);
         res.status(500).send('Error proxying image');
     }
 });
 
+// ── Health check ──────────────────────────────────────────────────────────────
+
 app.get('/api/health', (_req, res) => {
-    res.json({
-        status: 'ok',
-        cache: {
-            calendar: isCacheValid(calendarCache) ? 'valid' : 'stale',
-            news: isCacheValid(newsCache) ? 'valid' : 'stale',
-            drinks: isCacheValid(drinksCache) ? 'valid' : 'stale',
-        },
-    });
+    res.json({ status: 'ok' });
 });
 
-// ── Start ────────────────────────────────────────────────────────
+// ── Manual transition trigger (for UI testing) ────────────────────────────────
+
+app.get('/api/transition', (_req, res) => {
+    forceTransitionTime = Date.now();
+    console.log(`[Transition] Triggered at ${forceTransitionTime}`);
+    res.json({ success: true, message: 'Transition triggered', timestamp: forceTransitionTime });
+});
+
+app.get('/api/transition/check', (_req, res) => {
+    res.json({ forceTransitionTime });
+});
+
+// ── Start ─────────────────────────────────────────────────────────────────────
+
 const PORT = process.env.PORT || 8080;
 app.listen(PORT, () => {
     console.log(`Data-fetcher listening on port ${PORT}`);
-    // Pre-warm caches on startup
+    // Pre-warm caches so the first real request is instant
     scrapeCalendar().catch(err => console.error('[Calendar] Pre-warm failed:', err.message));
-    scrapeNews().catch(err => console.error('[News] Pre-warm failed:', err.message));
-    fetchDrinks().catch(err => console.error('[Drinks] Pre-warm failed:', err.message));
+    scrapeNews()    .catch(err => console.error('[News] Pre-warm failed:',     err.message));
+    fetchDrinks()   .catch(err => console.error('[Drinks] Pre-warm failed:',   err.message));
 });

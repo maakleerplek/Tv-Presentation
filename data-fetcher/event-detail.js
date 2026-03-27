@@ -7,34 +7,7 @@
  */
 import * as cheerio from 'cheerio';
 import { stripHtml, truncate } from './utils.js';
-
-import { MAAKLEERPLEK_URL as MAAKLEERPLEK_URL_CONFIG } from './scraper-config.js';
-
-const MAAKLEERPLEK_URL_RAW = (
-    process.env.MAAKLEERPLEK_URL ||
-    MAAKLEERPLEK_URL_CONFIG ||
-    'https://maakleerplek.be'
-).replace(/\/$/, '');
-
-const MAAKLEERPLEK_URL = (() => {
-    try {
-        return new URL(MAAKLEERPLEK_URL_RAW);
-    } catch (err) {
-        console.warn('[Config] MAAKLEERPLEK_URL is invalid, fallback to plain string:', MAAKLEERPLEK_URL_RAW);
-        return null;
-    }
-})();
-
-function resolveMaakleerplekUrl(path = '') {
-    if (!MAAKLEERPLEK_URL) {
-        const sanitizedPath = path.replace(/^\/+/, '');
-        return sanitizedPath ? `${MAAKLEERPLEK_URL_RAW}/${sanitizedPath}` : MAAKLEERPLEK_URL_RAW;
-    }
-
-    const resolved = new URL(path, MAAKLEERPLEK_URL);
-    if (MAAKLEERPLEK_URL.search) resolved.search = MAAKLEERPLEK_URL.search;
-    return resolved.href;
-}
+import { resolveMaakleerplekUrl } from './config.js';
 
 /**
  * @param {string} url  Absolute URL of the event detail page.

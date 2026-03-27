@@ -1,3 +1,11 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+@import "tailwindcss";
+
+/*
+ * Theme configuration — replaces tailwind.config.js in v4.
+ * Maps the CSS variables injected by next/font/google to the
+ * font-sans and font-mono utility classes.
+ */
+@theme {
+  --font-family-sans: var(--font-sans), sans-serif;
+  --font-family-mono: var(--font-mono), monospace;
+}

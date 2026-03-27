@@ -131,18 +131,34 @@ export function EventCarousel({ initialData }: { initialData?: ScreenData }) {
               }
             `}} />
             {/* Top section: Image — flex-[3] gives ~60% of the card height */}
-            <div className="flex-[3_1_0%] border-b-2 border-[#2C1E16] bg-[#2C1E16] min-h-0 overflow-hidden flex items-center justify-center">
+            {/* Image area — blurred backdrop fills any gaps so there are never black bars */}
+            <div className="flex-[3_1_0%] border-b-2 border-[#2C1E16] min-h-0 overflow-hidden relative flex items-center justify-center">
               {hasImage ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img
-                  src={displayImage}
-                  alt={currentItem.title}
-                  referrerPolicy="no-referrer"
-                  className="w-full h-full object-contain"
-                />
+                <>
+                  {/* Blurred background fill — same image, zoomed + blurred to eliminate letterbox bars */}
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    key={`bg-${displayImage}`}
+                    src={displayImage}
+                    alt=""
+                    aria-hidden="true"
+                    referrerPolicy="no-referrer"
+                    className="absolute inset-0 w-full h-full object-cover scale-110 blur-xl opacity-60"
+                  />
+                  {/* Foreground image — always fully visible, no cropping */}
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    key={displayImage}
+                    src={displayImage}
+                    alt={currentItem.title}
+                    referrerPolicy="no-referrer"
+                    className="relative z-10 w-full h-full object-contain"
+                  />
+                </>
               ) : (
                 // eslint-disable-next-line @next/next/no-img-element
                 <img
+                  key="placeholder"
                   src="/HTL_logo_CMYK_white-04.svg"
                   alt="maakleerplek"
                   className="w-48 h-16 object-contain"
