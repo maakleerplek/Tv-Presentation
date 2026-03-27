@@ -1,13 +1,15 @@
-name: Prerelease on PR
+name: Prerelease
 
 on:
   pull_request:
     branches: [ master ]
     types: [ opened, synchronize, reopened ]
-  workflow_dispatch:  # allows manual trigger from the GitHub Actions UI
+  push:
+    branches: [ master ]
+  workflow_dispatch:
 
 permissions:
-  contents: write  # needed to create tags and releases
+  contents: write
 
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
@@ -51,28 +53,50 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Compute release tag
-        id: tag
-        run: |
+      - name: Compute release metadata
+        id: meta
+        run: |-
           SHORT_SHA=$(git rev-parse --short HEAD)
-          TAG="pr-${{ github.event.pull_request.number }}-${SHORT_SHA}"
-          echo "tag=${TAG}" >> "$GITHUB_OUTPUT"
+          EVENT="${{ github.event_name }}"
+          PR_NUMBER="${{ github.event.pull_request.number }}"
+
+          if [ "${EVENT}" = "pull_request" ] && [ -n "${PR_NUMBER}" ]; then
+            TAG="pr-${PR_NUMBER}-${SHORT_SHA}"
+            TITLE="PR #${PR_NUMBER} -- ${{ github.event.pull_request.title }}"
+            PREFIX="pr-${PR_NUMBER}-"
+            SOURCE="PR #${PR_NUMBER} (${{ github.event.pull_request.html_url }})"
+            BRANCH="${{ github.head_ref }}"
+          else
+            TAG="master-${SHORT_SHA}"
+            TITLE="master ${SHORT_SHA}"
+            PREFIX="master-"
+            SOURCE="Direct push to master"
+            BRANCH="master"
+          fi
+
+          echo "tag=${TAG}"       >> "$GITHUB_OUTPUT"
+          echo "title=${TITLE}"   >> "$GITHUB_OUTPUT"
+          echo "prefix=${PREFIX}" >> "$GITHUB_OUTPUT"
+          echo "source=${SOURCE}" >> "$GITHUB_OUTPUT"
+          echo "branch=${BRANCH}" >> "$GITHUB_OUTPUT"
+          echo "sha=${SHORT_SHA}" >> "$GITHUB_OUTPUT"
 
       - name: Create or move tag
-        run: |
+        run: |-
           git config user.name  "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git tag -d "${{ steps.tag.outputs.tag }}" 2>/dev/null || true
-          git push origin ":refs/tags/${{ steps.tag.outputs.tag }}" 2>/dev/null || true
-          git tag "${{ steps.tag.outputs.tag }}"
-          git push origin "${{ steps.tag.outputs.tag }}"
+          git tag -d "${{ steps.meta.outputs.tag }}" 2>/dev/null || true
+          git push origin ":refs/tags/${{ steps.meta.outputs.tag }}" 2>/dev/null || true
+          git tag "${{ steps.meta.outputs.tag }}"
+          git push origin "${{ steps.meta.outputs.tag }}"
 
-      - name: Delete previous prereleases for this PR
+      - name: Delete previous prereleases with same prefix
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
+          PREFIX: ${{ steps.meta.outputs.prefix }}
+        run: |-
           gh release list --json tagName,isPrerelease \
-            | jq -r ".[] | select(.isPrerelease and (.tagName | startswith(\"pr-${{ github.event.pull_request.number }}-\"))) | .tagName" \
+            | jq -r ".[] | select(.isPrerelease and (.tagName | startswith(\"${PREFIX}\"))) | .tagName" \
             | while read OLD_TAG; do
                 gh release delete "${OLD_TAG}" --yes 2>/dev/null || true
                 git push origin ":refs/tags/${OLD_TAG}" 2>/dev/null || true
@@ -81,16 +105,15 @@ jobs:
       - name: Create prerelease
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          PR_NUMBER: ${{ github.event.pull_request.number }}
-          PR_TITLE: ${{ github.event.pull_request.title }}
-          PR_URL: ${{ github.event.pull_request.html_url }}
-          PR_BRANCH: ${{ github.head_ref }}
-          RELEASE_TAG: ${{ steps.tag.outputs.tag }}
+          RELEASE_TAG: ${{ steps.meta.outputs.tag }}
+          RELEASE_TITLE: ${{ steps.meta.outputs.title }}
+          SOURCE: ${{ steps.meta.outputs.source }}
+          BRANCH: ${{ steps.meta.outputs.branch }}
+          SHA: ${{ steps.meta.outputs.sha }}
         run: |-
-          SHORT_SHA=$(git rev-parse --short HEAD)
-          printf 'Prerelease for PR #%s\n\nBranch: %s\nCommit: %s\nPR: %s\n\nThis prerelease is updated on every push to the PR branch.\nIt will be superseded by a full release when the PR is merged into master.\n' \
-            "${PR_NUMBER}" "${PR_BRANCH}" "${SHORT_SHA}" "${PR_URL}" > /tmp/release-notes.md
+          printf 'Source: %s\nBranch: %s\nCommit: %s\n\nThis prerelease is created automatically and updated on every push.\n' \
+            "${SOURCE}" "${BRANCH}" "${SHA}" > /tmp/release-notes.md
           gh release create "${RELEASE_TAG}" \
             --prerelease \
-            --title "PR #${PR_NUMBER} -- ${PR_TITLE}" \
+            --title "${RELEASE_TITLE}" \
             --notes-file /tmp/release-notes.md
