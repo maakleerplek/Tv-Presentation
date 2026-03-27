@@ -87,64 +87,20 @@ cd data-fetcher
 bun test
 ```
 
-## Styling — Tailwind CSS v3 and TV compatibility
+## Styling — Tailwind CSS v4
 
-### Why Tailwind v3 (not v4)
+The project uses Tailwind CSS v4, which leverages native CSS features like `@theme` blocks and cascade layers (`@layer`) for maximum performance. Styling is driven by `@tailwindcss/postcss`.
 
-The presentation runs on a **Samsung Smart TV (Tizen 6.5)** whose built-in browser is based on **Chrome 85** (August 2020). Tailwind CSS v4 generates CSS that Chrome 85 silently rejects entirely, breaking the whole layout:
-
-| Tailwind v4 feature | Required Chrome version | Chrome 85 |
-|---|---|---|
-| `@layer` (cascade layers) | Chrome 99 | Not supported — **entire stylesheet dropped** |
-| `@property` (custom property descriptors) | Chrome 85 | Supported, but paired with `@layer` |
-| `oklch()` colour function | Chrome 111 | Not supported |
-
-Because `@layer` is used at the top level of every Tailwind v4 stylesheet, the TV browser discards the whole CSS file on load, leaving only unstyled HTML. **Tailwind v3 does not use `@layer`, `@property`, or `oklch()`**, so it is fully compatible with Chrome 85.
-
-### Tailwind v3 setup
-
-There is no `tailwind.config.js` auto-detection in v4 style — configuration lives in `tailwind.config.js` at the root of `Reworked website/`:
-
-```
-Reworked website/
-├── tailwind.config.js      # content paths + font variable wiring
-├── postcss.config.mjs      # uses `tailwindcss` plugin (not @tailwindcss/postcss)
-└── app/globals.css         # @tailwind base; @tailwind components; @tailwind utilities;
-```
-
-### CSS properties to avoid (Chrome 85 cutoffs)
-
-When writing styles — whether in Tailwind utility classes or inline — avoid anything that requires a browser newer than Chrome 85:
-
-| CSS feature | Tailwind class | Chrome support | Status |
-|---|---|---|---|
-| `inset` shorthand | `inset-*` | Chrome 87 | **Avoid** — use `top-0 right-0 bottom-0 left-0` |
-| `aspect-ratio` | `aspect-*` | Chrome 88 | **Avoid** — use explicit `w-*` / `h-*` |
-| `@layer` | — | Chrome 99 | **Avoid** in custom CSS |
-| `gap` on flex | `gap-*` | Chrome 84 | OK |
-| `object-fit` | `object-cover` etc. | Chrome 31 | OK |
-| CSS Grid | `grid-cols-*` etc. | Chrome 57 | OK |
-
-**The most common pitfall is `inset-0`** — it looks harmless but generates `inset: 0px`, which Chrome 85 silently drops. Always expand it to four separate directional utilities.
-
-### next/image and `fill` prop
-
-Next.js 13+ renders `<Image fill>` with the inline style `inset: 0px`, which Chrome 85 drops (same issue as above). Use a plain `<img>` tag instead:
-
-```tsx
-// Avoid on Chrome 85 — generates inset: 0px inline style
-<Image fill className="object-cover" src={url} alt="..." />
-
-// Use this instead
-// eslint-disable-next-line @next/next/no-img-element
-<img src={url} alt="..." className="w-full h-full object-cover" />
-```
-
-`<Image>` with explicit `width` and `height` props (not `fill`) is fine — it does not generate `inset`.
+- **Configuration:** No `tailwind.config.js`. CSS variables (originating from `next/font/google`) are mapped to utility classes inside `app/globals.css` via an `@theme` block.
+- **TV Display Context:** The frontend is displayed on a Raspberry Pi running a modern Chromium browser capable of supporting v4 features like `oklch()` and `@property`.
 
 ## Tech Stack
 
-- **Next.js 15** (App Router, TypeScript, Tailwind CSS v3)
-- **Node.js + Express + Cheerio** — scrapes maakleerplek.be for events and news
+- **Next.js 15** (App Router, TypeScript, Tailwind CSS v4)
+- **Node.js + Express + Cheerio** — Modular data-fetcher service (with dedicated scrapers for calendar, news, pricing, and drinks)
 - **InvenTree** — source for the drinks menu
 - **Docker Compose** — runs both services together
+
+## CI / CD
+
+A GitHub Actions workflow is set up to automatically create and update a **Prerelease** whenever code is pushed to a PR targeting `master` or directly to `master`. The prerelease is tagged dynamically (e.g. `pr-42-abc1234` or `master-abc1234`) and automatically includes test verification.
