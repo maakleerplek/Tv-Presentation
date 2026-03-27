@@ -4,6 +4,7 @@ on:
   pull_request:
     branches: [ master ]
     types: [ opened, synchronize, reopened ]
+  workflow_dispatch:  # allows manual trigger from the GitHub Actions UI
 
 permissions:
   contents: write  # needed to create tags and releases
