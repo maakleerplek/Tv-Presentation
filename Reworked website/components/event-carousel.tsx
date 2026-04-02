@@ -130,9 +130,9 @@ export function EventCarousel({ initialData }: { initialData?: ScreenData }) {
                 animation: slide-fade 0.5s cubic-bezier(0.16, 1, 0.3, 1) forwards;
               }
             `}} />
-            {/* Top section: Image — flex-[3] gives ~60% of the card height */}
+            {/* Top section: Image — flex-1 gives 50% of the card height */}
             {/* Image area — blurred backdrop fills any gaps so there are never black bars */}
-            <div className="flex-[3_1_0%] border-b-2 border-[#2C1E16] min-h-0 overflow-hidden relative flex items-center justify-center">
+            <div className="flex-1 border-b-2 border-[#2C1E16] min-h-0 overflow-hidden relative flex items-center justify-center">
               {hasImage ? (
                 <>
                   {/* Blurred background fill — same image, zoomed + blurred to eliminate letterbox bars */}
@@ -166,8 +166,8 @@ export function EventCarousel({ initialData }: { initialData?: ScreenData }) {
               )}
             </div>
 
-            {/* Bottom section: Content — flex-[2] gives ~40% of the card height */}
-            <div className="flex-[2_1_0%] px-6 pt-5 pb-4 flex flex-col gap-3 bg-[#F5F2EB] min-h-0 overflow-hidden">
+            {/* Bottom section: Content — flex-1 gives 50% of the card height */}
+            <div className="flex-1 px-6 pt-5 pb-4 flex flex-col gap-3 bg-[#F5F2EB] min-h-0 overflow-hidden">
               {/* Title */}
               <h3 className="shrink-0 text-lg xl:text-xl font-black leading-tight text-[#2C1E16] uppercase tracking-tighter line-clamp-2">
                 {currentItem.title}
