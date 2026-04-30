@@ -61,8 +61,9 @@ async function translateWithMyMemory(
     }
 }
 
-async function translateText(text: string): Promise<string> {
-    const source = text.trim();
+async function translateText(text: string | null | undefined): Promise<string> {
+    if (!text) return '';
+    const source = String(text).trim();
     if (!TRANSLATION_ENABLED || !source) return source;
     if (TRANSLATION_SOURCE_LANG === TRANSLATION_TARGET_LANG) return source;
 
