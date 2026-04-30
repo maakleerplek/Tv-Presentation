@@ -1,6 +1,7 @@
 'use client';
 
 import { Coffee, QrCode } from 'lucide-react';
+import Image from 'next/image';
 import QRCode from 'react-qr-code';
 import { useScreenData } from '@/hooks/useScreenData';
 import type { DrinkItem, ScreenData } from '@/lib/types';
@@ -55,10 +56,11 @@ export function DrinksList({ initialData }: { initialData?: ScreenData }) {
                 {drink.imageUrl ? (
                   // drink.imageUrl is "/api/proxy-image?url=..." — served by Next.js server-side,
                   // which forwards to the data-fetcher. Works in both Docker and local dev.
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img
+                  <Image
                     src={drink.imageUrl}
                     alt={drink.name}
+                    fill
+                    sizes="32px"
                     className="w-full h-full object-cover"
                   />
                 ) : (

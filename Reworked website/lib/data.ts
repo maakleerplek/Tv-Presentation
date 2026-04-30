@@ -6,6 +6,88 @@ const INTERNAL_URL = process.env.DATA_FETCHER_INTERNAL_URL || 'http://data-fetch
 const EXTERNAL_URL = process.env.DATA_FETCHER_EXTERNAL_URL || 'http://localhost:8085';
 
 const CACHE_REVALIDATE = 5 * 60; // 5 minutes
+const TRANSLATION_ENABLED = process.env.TRANSLATION_ENABLED !== 'false';
+const TRANSLATION_TARGET_LANG = (process.env.TRANSLATION_TARGET_LANG || 'en').toLowerCase();
+const TRANSLATION_SOURCE_LANG = (process.env.TRANSLATION_SOURCE_LANG || 'nl').toLowerCase();
+const LIBRETRANSLATE_URL = process.env.LIBRETRANSLATE_URL;
+const translationCache = new Map<string, string>();
+
+function buildTranslationKey(text: string, sourceLang: string, targetLang: string): string {
+    return `${sourceLang}:${targetLang}:${text}`;
+}
+
+async function translateWithLibreTranslate(
+    text: string,
+    sourceLang: string,
+    targetLang: string
+): Promise<string | null> {
+    if (!LIBRETRANSLATE_URL) return null;
+    try {
+        const res = await fetch(LIBRETRANSLATE_URL, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                q: text,
+                source: sourceLang,
+                target: targetLang,
+                format: 'text',
+            }),
+            cache: 'no-store',
+        });
+        if (!res.ok) return null;
+        const json = await res.json() as { translatedText?: string };
+        return json.translatedText?.trim() || null;
+    } catch {
+        return null;
+    }
+}
+
+async function translateWithMyMemory(
+    text: string,
+    sourceLang: string,
+    targetLang: string
+): Promise<string | null> {
+    try {
+        const langpair = `${sourceLang}|${targetLang}`;
+        const res = await fetch(
+            `https://api.mymemory.translated.net/get?q=${encodeURIComponent(text)}&langpair=${encodeURIComponent(langpair)}`,
+            { next: { revalidate: CACHE_REVALIDATE } }
+        );
+        if (!res.ok) return null;
+        const json = await res.json() as { responseData?: { translatedText?: string } };
+        return json.responseData?.translatedText?.trim() || null;
+    } catch {
+        return null;
+    }
+}
+
+async function translateText(text: string): Promise<string> {
+    const source = text.trim();
+    if (!TRANSLATION_ENABLED || !source) return source;
+    if (TRANSLATION_SOURCE_LANG === TRANSLATION_TARGET_LANG) return source;
+
+    const cacheKey = buildTranslationKey(source, TRANSLATION_SOURCE_LANG, TRANSLATION_TARGET_LANG);
+    const cached = translationCache.get(cacheKey);
+    if (cached) return cached;
+
+    // Keep free providers responsive by avoiding very long payloads.
+    const bounded = source.slice(0, 900);
+    const libre = await translateWithLibreTranslate(bounded, TRANSLATION_SOURCE_LANG, TRANSLATION_TARGET_LANG);
+    const translated = libre || await translateWithMyMemory(bounded, TRANSLATION_SOURCE_LANG, TRANSLATION_TARGET_LANG) || source;
+
+    translationCache.set(cacheKey, translated);
+    return translated;
+}
+
+async function translateNewsItems(items: NewsItem[]): Promise<NewsItem[]> {
+    return Promise.all(
+        items.map(async (item) => ({
+            ...item,
+            titleTranslated: await translateText(item.title),
+            descriptionTranslated: await translateText(item.description),
+        }))
+    );
+}
 
 export async function getScreenData(): Promise<ScreenData | null> {
     try {
@@ -57,6 +139,24 @@ export async function getScreenData(): Promise<ScreenData | null> {
 
         // Merge custom news at the top of the scraped news
         rawData.news = [...customNewsItems, ...rawData.news];
+
+        rawData.workshops = await Promise.all(
+            rawData.workshops.map(async (item) => ({
+                ...item,
+                titleTranslated: await translateText(item.title),
+                descriptionTranslated: await translateText(item.description),
+            }))
+        );
+
+        rawData.recurringEvents = await Promise.all(
+            rawData.recurringEvents.map(async (item) => ({
+                ...item,
+                titleTranslated: await translateText(item.title),
+                descriptionTranslated: await translateText(item.description),
+            }))
+        );
+
+        rawData.news = await translateNewsItems(rawData.news);
 
         return rawData;
     } catch (error) {

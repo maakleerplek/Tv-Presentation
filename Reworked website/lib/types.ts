@@ -6,6 +6,8 @@
 /** A calendar event enriched with detail-page data. Used for both workshops and recurringEvents. */
 export type CalendarEvent = {
     title: string;
+    /** Optional translated title for UI display */
+    titleTranslated?: string;
     /** Dutch short date string from the calendar list, e.g. "do 26 feb" */
     date: string;
     /** ISO date string "YYYY-MM-DD" derived from the parsed Dutch date */
@@ -18,6 +20,8 @@ export type CalendarEvent = {
     link: string;
     /** og:description text, stripped of HTML and truncated to 400 chars */
     description: string;
+    /** Optional translated description for UI display */
+    descriptionTranslated?: string;
     /** Absolute image URL from the event detail page, or "" */
     imageUrl: string;
     /** Price string, e.g. "€30", or "" if not found */
@@ -29,10 +33,14 @@ export type CalendarEvent = {
 /** A news article scraped from the maakleerplek.be homepage. */
 export type NewsItem = {
     title: string;
+    /** Optional translated title for UI display */
+    titleTranslated?: string;
     /** Absolute URL to the article */
     link: string;
     /** og:description text */
     description: string;
+    /** Optional translated description for UI display */
+    descriptionTranslated?: string;
     /** Absolute image URL from og:image or article body */
     imageUrl: string;
     /** Formatted date string from article:modified_time, nl-BE locale */

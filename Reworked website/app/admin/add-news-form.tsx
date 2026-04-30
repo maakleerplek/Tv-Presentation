@@ -1,6 +1,6 @@
 'use client';
 
-import { useActionState, useRef } from 'react';
+import { useActionState, useEffect, useRef } from 'react';
 import { createNewsAction } from './actions';
 
 export function AddNewsForm() {
@@ -8,9 +8,11 @@ export function AddNewsForm() {
   const formRef = useRef<HTMLFormElement>(null);
 
   // If successful, reset the form. Next.js server actions do not auto-reset forms on success.
-  if (state?.success && formRef.current) {
-    formRef.current.reset();
-  }
+  useEffect(() => {
+    if (state?.success) {
+      formRef.current?.reset();
+    }
+  }, [state?.success]);
 
   return (
     <form ref={formRef} action={formAction} className="bg-white p-6 border-2 border-[#2C1E16] shadow-[4px_4px_0_0_#2C1E16] flex flex-col gap-4">

@@ -12,25 +12,29 @@ export type CustomNewsRow = {
 };
 
 // Lazily initialize the database connection
-let dbInstance: any = null;
+type DbLike = {
+  prepare: (query: string) => { get: () => unknown; all: () => unknown[]; run: (...args: unknown[]) => { lastInsertRowid: number } };
+  exec: (sql: string) => void;
+};
 
-function getDb() {
+let dbInstance: DbLike | null = null;
+
+function getDb(): DbLike {
   if (dbInstance) return dbInstance;
   
   const dbPath = path.join(process.cwd(), 'custom-news.db');
   
   // Only import bun:sqlite if we are actually running inside Bun runtime
-  if (typeof process !== 'undefined' && process.versions && (process.versions as any).bun) {
+  if (typeof process !== 'undefined' && process.versions && Boolean((process.versions as NodeJS.ProcessVersions & { bun?: string }).bun)) {
     try {
       // Use import.meta.require to prevent Next.js from bundling bun:sqlite at build time.
       // import.meta.require is Bun's ESM-safe CJS bridge; eval('require') fails in ESM.
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const Database = (import.meta as any).require('bun:sqlite').Database;
-      dbInstance = new Database(dbPath);
-      dbInstance.exec('PRAGMA journal_mode = WAL;');
+      const Database = (import.meta as ImportMeta & { require: (id: string) => { Database: new (dbPath: string) => DbLike } }).require('bun:sqlite').Database;
+      const db = new Database(dbPath);
+      db.exec('PRAGMA journal_mode = WAL;');
 
       // Create the table if it doesn't exist
-      dbInstance.exec(`
+      db.exec(`
         CREATE TABLE IF NOT EXISTS custom_news (
           id INTEGER PRIMARY KEY AUTOINCREMENT,
           title TEXT NOT NULL,
@@ -43,13 +47,13 @@ function getDb() {
 
       // Migrate to add image_url if it doesn't exist
       try {
-        dbInstance.exec(`ALTER TABLE custom_news ADD COLUMN image_url TEXT`);
+        db.exec(`ALTER TABLE custom_news ADD COLUMN image_url TEXT`);
       } catch (e) {
         // Column might already exist, safe to ignore
       }
 
       // Create admin users table
-      dbInstance.exec(`
+      db.exec(`
         CREATE TABLE IF NOT EXISTS admin_users (
           id INTEGER PRIMARY KEY AUTOINCREMENT,
           username TEXT UNIQUE NOT NULL,
@@ -58,12 +62,13 @@ function getDb() {
       `);
 
       // Seed the admin user if it doesn't exist
-      const stmt = dbInstance.prepare(`SELECT 1 FROM admin_users WHERE username = 'admin'`);
+      const stmt = db.prepare(`SELECT 1 FROM admin_users WHERE username = 'admin'`);
       const adminExists = stmt.get();
       
       if (!adminExists) {
-        dbInstance.prepare(`INSERT INTO admin_users (username, password) VALUES ('admin', '3EmmertjesWater')`).run();
+        db.prepare(`INSERT INTO admin_users (username, password) VALUES ('admin', '3EmmertjesWater')`).run();
       }
+      dbInstance = db;
     } catch (error) {
       console.error('[DB] Failed to initialize SQLite:', error);
       // Fallback to dummy instance
@@ -75,6 +80,13 @@ function getDb() {
   } else {
     // Dummy DB instance for Node.js build process to prevent crashes
     // In production, the Next.js server runs inside Bun, so it will use the block above
+    dbInstance = {
+      prepare: () => ({ get: () => null, all: () => [], run: () => ({ lastInsertRowid: 0 }) }),
+      exec: () => {}
+    };
+  }
+
+  if (!dbInstance) {
     dbInstance = {
       prepare: () => ({ get: () => null, all: () => [], run: () => ({ lastInsertRowid: 0 }) }),
       exec: () => {}

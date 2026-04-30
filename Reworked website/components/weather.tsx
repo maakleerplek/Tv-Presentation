@@ -53,7 +53,7 @@ export function Weather({ initialData }: { initialData?: WeatherData }) {
     }
     const interval = setInterval(fetchWeather, WEATHER_POLL_MS);
     return () => { mounted = false; clearInterval(interval); };
-  }, []);
+  }, [initialData]);
 
   // ── Render ───────────────────────────────────────────────────────
   const base = 'border-b-2 border-[#2C1E16] p-4 bg-[#E6D5B8] flex-[1.2] flex flex-col justify-center items-center text-center';

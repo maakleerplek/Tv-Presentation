@@ -1,5 +1,6 @@
 import { checkAuth, logoutAction } from './actions';
 import { getScreenData } from '@/lib/data';
+import Image from 'next/image';
 import Link from 'next/link';
 import { Calendar, Globe, Repeat, LogOut, LayoutDashboard } from 'lucide-react';
 import type { CalendarEvent, NewsItem } from '@/lib/types';
@@ -119,8 +120,7 @@ function NewsCard({ item }: { item: NewsItem }) {
       {isCustom && <DeleteNewsButton id={item._id!} />}
       {item.imageUrl && (
         <div className="h-40 border-b-2 border-[#2C1E16] bg-[#E5E0D8] overflow-hidden">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={item.imageUrl} alt={item.title} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
+          <Image src={item.imageUrl} alt={item.title} width={640} height={240} className="w-full h-full object-cover" sizes="(min-width: 1024px) 360px, 100vw" />
         </div>
       )}
       <div className="p-4 flex flex-col flex-1">
@@ -151,8 +151,7 @@ function EventCard({ item, color }: { item: CalendarEvent, color: string }) {
     <div className="bg-white border-2 border-[#2C1E16] flex flex-col h-full shadow-[4px_4px_0_0_#2C1E16]">
       {item.imageUrl && (
         <div className="h-40 border-b-2 border-[#2C1E16] bg-[#2C1E16] overflow-hidden flex items-center justify-center">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={item.imageUrl.startsWith('/') ? `https://maakleerplek.be${item.imageUrl}` : item.imageUrl} alt={item.title} className="w-full h-full object-contain" referrerPolicy="no-referrer" />
+          <Image src={item.imageUrl.startsWith('/') ? `https://maakleerplek.be${item.imageUrl}` : item.imageUrl} alt={item.title} width={640} height={240} className="w-full h-full object-contain" sizes="(min-width: 1024px) 360px, 100vw" />
         </div>
       )}
       <div className="p-4 flex flex-col flex-1">

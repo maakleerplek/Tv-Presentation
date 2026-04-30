@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import QRCode from 'react-qr-code';
 import { useScreenData } from '@/hooks/useScreenData';
 import { priorityOf } from '@/lib/utils';
@@ -145,25 +145,22 @@ export function resolveNextWorkshop(data: ScreenData | null, nowOverride?: Date)
 
 export function Status({ initialData }: { initialData?: ScreenData }) {
   const { data } = useScreenData(initialData);
-  const [nextEvent, setNextEvent] = useState<NextEvent | null>(null);
-  const [nextWorkshop, setNextWorkshop] = useState<NextEvent | null>(null);
+  const [evaluationNow, setEvaluationNow] = useState<Date>(() => new Date());
   const [showWorkshop, setShowWorkshop] = useState(false);
 
-  const reEvaluate = useCallback(() => {
-    setNextEvent(resolveEvent(data));
-    setNextWorkshop(resolveNextWorkshop(data));
-  }, [data]);
+  const nextEvent = useMemo(() => resolveEvent(data, evaluationNow), [data, evaluationNow]);
+  const nextWorkshop = useMemo(() => resolveNextWorkshop(data, evaluationNow), [data, evaluationNow]);
 
   useEffect(() => {
-    reEvaluate();
-    const tick = setInterval(reEvaluate, 30 * 1000);
+    const tick = setInterval(() => setEvaluationNow(new Date()), 30 * 1000);
     return () => clearInterval(tick);
-  }, [reEvaluate]);
+  }, []);
 
   // Rotation logic: if we have both and they are different, swap based on config.
+  const canRotate = !!nextEvent && !!nextWorkshop && nextEvent.title !== nextWorkshop.title;
+
   useEffect(() => {
-    if (!nextEvent || !nextWorkshop || nextEvent.title === nextWorkshop.title) {
-      setShowWorkshop(false);
+    if (!canRotate) {
       return;
     }
 
@@ -173,9 +170,10 @@ export function Status({ initialData }: { initialData?: ScreenData }) {
     }, intervalSeconds * 1000);
 
     return () => clearInterval(rotation);
-  }, [nextEvent, nextWorkshop, data?.config?.statusRotationTime]);
+  }, [canRotate, data?.config?.statusRotationTime]);
 
-  const active = showWorkshop ? nextWorkshop : nextEvent;
+  const effectiveShowWorkshop = canRotate && showWorkshop;
+  const active = effectiveShowWorkshop ? nextWorkshop : nextEvent;
 
   if (!active) {
     return (
@@ -216,11 +214,11 @@ export function Status({ initialData }: { initialData?: ScreenData }) {
           }
         `}} />
         <div
-          key={showWorkshop ? 'workshop' : 'status'}
+          key={effectiveShowWorkshop ? 'workshop' : 'status'}
           className="absolute inset-0 p-4 flex flex-col justify-start min-h-0 gap-3 animate-status-fade-in"
         >
           <h2 className="text-[#2C1E16] uppercase tracking-widest text-[10px] font-black shrink-0">
-            {showWorkshop ? 'Volgende Workshop' : active.isNow ? 'Nu bezig' : 'Volgend evenement'}
+            {effectiveShowWorkshop ? 'Volgende Workshop' : active.isNow ? 'Nu bezig' : 'Volgend evenement'}
           </h2>
 
           {/* When badge */}
@@ -239,7 +237,7 @@ export function Status({ initialData }: { initialData?: ScreenData }) {
           </p>
 
           {/* Extra: Price for workshops */}
-          {showWorkshop && active.price && (
+          {effectiveShowWorkshop && active.price && (
             <p className="text-[#2C1E16] font-black text-xs uppercase tracking-widest opacity-60">
               Prijs: {active.price}
             </p>
@@ -258,7 +256,7 @@ export function Status({ initialData }: { initialData?: ScreenData }) {
               </div>
             )}
 
-            {showWorkshop && active.link && (
+            {effectiveShowWorkshop && active.link && (
               <div className="border-2 border-[#2C1E16] p-1 bg-[#F5F2EB] shrink-0">
                 <QRCode value={active.link} size={40} bgColor="#F5F2EB" fgColor="#2C1E16" />
               </div>

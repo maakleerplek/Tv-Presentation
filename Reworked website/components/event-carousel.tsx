@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
+import Image from 'next/image';
 import QRCode from 'react-qr-code';
 import { Calendar, Clock as ClockIcon, Globe, MapPin, Newspaper, Repeat, Tag } from 'lucide-react';
 import { useScreenData } from '@/hooks/useScreenData';
@@ -85,6 +86,8 @@ export function EventCarousel({ initialData }: { initialData?: ScreenData }) {
     displayImage = `https://maakleerplek.be${displayImage}`;
   }
   const hasImage = !!displayImage;
+  const translatedTitle = currentItem.titleTranslated || currentItem.title;
+  const translatedDescription = currentItem.descriptionTranslated || currentItem.description;
 
   // Format the date chip: prefer dateISO (reliable) over raw date string
   const dateISO = 'dateISO' in currentItem ? currentItem.dateISO : undefined;
@@ -135,32 +138,35 @@ export function EventCarousel({ initialData }: { initialData?: ScreenData }) {
             <div className="flex-1 border-b-2 border-[#2C1E16] min-h-0 overflow-hidden relative flex items-center justify-center">
               {hasImage ? (
                 <>
-                  {/* Blurred background fill — same image, zoomed + blurred to eliminate letterbox bars */}
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img
+                  {/* Use Next.js optimization so TV clients avoid downloading full-size source images */}
+                  <Image
                     key={`bg-${displayImage}`}
                     src={displayImage}
                     alt=""
+                    fill
                     aria-hidden="true"
-                    referrerPolicy="no-referrer"
+                    sizes="(min-width: 1280px) 720px, 50vw"
+                    quality={55}
                     className="absolute inset-0 w-full h-full object-cover scale-110 blur-xl opacity-60"
                   />
-                  {/* Foreground image — always fully visible, no cropping */}
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img
+                  <Image
                     key={displayImage}
                     src={displayImage}
                     alt={currentItem.title}
-                    referrerPolicy="no-referrer"
+                    fill
+                    sizes="(min-width: 1280px) 720px, 50vw"
+                    quality={55}
+                    priority
                     className="relative z-10 w-full h-full object-contain"
                   />
                 </>
               ) : (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img
+                <Image
                   key="placeholder"
                   src="/HTL_logo_CMYK_white-04.svg"
                   alt="maakleerplek"
+                  width={192}
+                  height={64}
                   className="w-48 h-16 object-contain"
                 />
               )}
@@ -170,7 +176,7 @@ export function EventCarousel({ initialData }: { initialData?: ScreenData }) {
             <div className="flex-1 px-6 pt-5 pb-4 flex flex-col gap-3 bg-[#F5F2EB] min-h-0 overflow-hidden">
               {/* Title */}
               <h3 className="shrink-0 text-lg xl:text-xl font-black leading-tight text-[#2C1E16] uppercase tracking-tighter line-clamp-2">
-                {currentItem.title}
+                {translatedTitle}
               </h3>
 
               {/* Chips row: type, date, time, location/source */}
@@ -225,7 +231,7 @@ export function EventCarousel({ initialData }: { initialData?: ScreenData }) {
               <div className="flex-1 min-h-0 flex flex-row items-start gap-4">
                 {currentItem.description ? (
                   <p className="text-sm xl:text-base text-[#2C1E16] font-medium leading-normal flex-1 overflow-y-auto max-h-full pr-2">
-                    {currentItem.description}
+                    {translatedDescription}
                   </p>
                 ) : (
                   <div className="flex-1" />
