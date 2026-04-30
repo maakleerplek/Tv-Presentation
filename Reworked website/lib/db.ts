@@ -27,9 +27,9 @@ function getDb(): DbLike {
   // Only import bun:sqlite if we are actually running inside Bun runtime
   if (typeof process !== 'undefined' && process.versions && Boolean((process.versions as NodeJS.ProcessVersions & { bun?: string }).bun)) {
     try {
-      // Use import.meta.require to prevent Next.js from bundling bun:sqlite at build time.
-      // import.meta.require is Bun's ESM-safe CJS bridge; eval('require') fails in ESM.
-      const Database = (import.meta as ImportMeta & { require: (id: string) => { Database: new (dbPath: string) => DbLike } }).require('bun:sqlite').Database;
+      // Use eval('require') to prevent Next.js from bundling bun:sqlite at build time
+      // and to avoid transpilation of import.meta.require into ({}.require).
+      const { Database } = eval('require')('bun:sqlite');
       const db = new Database(dbPath);
       db.exec('PRAGMA journal_mode = WAL;');
 
