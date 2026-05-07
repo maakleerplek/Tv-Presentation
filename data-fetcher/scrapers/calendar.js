@@ -12,6 +12,7 @@ import { isCacheValid } from '../utils.js';
 // ── In-memory cache ───────────────────────────────────────────────────────────
 
 let calendarCache = { data: null, timestamp: 0 };
+let inflightFetch = null; // shared promise — prevents duplicate concurrent fetches
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 
@@ -147,6 +148,22 @@ function mapItem(item, mediaMap) {
 export async function scrapeCalendar() {
     if (isCacheValid(calendarCache, CACHE_DURATION_MS)) return calendarCache.data;
 
+    // Stale-while-revalidate: if we have any data, return it immediately and
+    // kick off a background refresh so callers never wait for the long fetch.
+    if (calendarCache.data && !inflightFetch) {
+        inflightFetch = doFetch().finally(() => { inflightFetch = null; });
+        return calendarCache.data;
+    }
+
+    // If a fetch is already in progress, wait for it rather than starting another.
+    if (inflightFetch) return inflightFetch;
+
+    // No data at all (first startup) — must wait for the initial fetch.
+    inflightFetch = doFetch().finally(() => { inflightFetch = null; });
+    return inflightFetch;
+}
+
+async function doFetch() {
     console.log('[Calendar] Fetching from WP REST API', API_BASE);
 
     // First page gives us the total page count
@@ -189,3 +206,4 @@ export async function scrapeCalendar() {
 
     return events;
 }
+

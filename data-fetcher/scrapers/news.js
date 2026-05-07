@@ -17,6 +17,7 @@ import { truncate, stripHtml, isCacheValid } from '../utils.js';
 // ── In-memory cache ───────────────────────────────────────────────────────────
 
 let newsCache = { data: null, timestamp: 0 };
+let inflightFetch = null;
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -90,6 +91,16 @@ function parseDateStr(dateStr) {
 export async function scrapeNews() {
     if (isCacheValid(newsCache, CACHE_DURATION_MS)) return newsCache.data;
 
+    if (newsCache.data && !inflightFetch) {
+        inflightFetch = doFetch().finally(() => { inflightFetch = null; });
+        return newsCache.data;
+    }
+    if (inflightFetch) return inflightFetch;
+    inflightFetch = doFetch().finally(() => { inflightFetch = null; });
+    return inflightFetch;
+}
+
+async function doFetch() {
     console.log('[News] Scraping', VERHALEN_URL);
 
     const response = await fetch(VERHALEN_URL, { headers: { 'User-Agent': USER_AGENT } });
@@ -143,7 +154,8 @@ export async function scrapeNews() {
         }
     }
 
-    newsCache = { data: enrichedItems, timestamp: Date.now() };
+    if (enrichedItems.length > 0) newsCache = { data: enrichedItems, timestamp: Date.now() };
     console.log(`[News] Found ${enrichedItems.length} recent news items from /verhalen/`);
     return enrichedItems;
 }
+
