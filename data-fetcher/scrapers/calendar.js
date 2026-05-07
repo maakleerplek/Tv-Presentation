@@ -19,7 +19,8 @@ const USER_AGENT = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36
 
 const BASE = MAAKLEERPLEK_URL ? MAAKLEERPLEK_URL.origin : 'https://maakleerplek.be';
 const API_BASE = `${BASE}/wp-json/wp/v2/kalender`;
-const FIELDS = '_fields=id,title,link,excerpt,acf,featured_media&_embed=wp:featuredmedia';
+const FIELDS = '_fields=id,title,link,excerpt,acf,featured_media';
+const MEDIA_API = `${BASE}/wp-json/wp/v2/media`;
 
 const DUTCH_DAYS   = ['zo', 'ma', 'di', 'wo', 'do', 'vr', 'za'];
 const DUTCH_MONTHS = ['jan', 'feb', 'mrt', 'apr', 'mei', 'jun', 'jul', 'aug', 'sep', 'okt', 'nov', 'dec'];
@@ -55,8 +56,37 @@ async function fetchPage(page) {
     }
 }
 
+/**
+ * Batch-fetch image URLs for a set of media IDs.
+ * Returns a Map<id, source_url>.
+ */
+async function fetchMediaMap(mediaIds) {
+    const unique = [...new Set(mediaIds.filter(Boolean))];
+    if (unique.length === 0) return new Map();
+
+    // WP REST API supports up to 100 items per request via `include`
+    const chunks = [];
+    for (let i = 0; i < unique.length; i += 100) chunks.push(unique.slice(i, i + 100));
+
+    const results = await Promise.all(chunks.map(async chunk => {
+        const url = `${MEDIA_API}?include=${chunk.join(',')}&per_page=100&_fields=id,source_url`;
+        try {
+            const res = await fetch(url, { headers: { 'User-Agent': USER_AGENT } });
+            if (!res.ok) return [];
+            return await res.json();
+        } catch {
+            return [];
+        }
+    }));
+
+    const map = new Map();
+    results.flat().forEach(m => { if (m.id && m.source_url) map.set(m.id, m.source_url); });
+    console.log(`[Calendar] Resolved ${map.size}/${unique.length} media images`);
+    return map;
+}
+
 /** Map a single WP REST API item to our CalendarEvent shape. */
-function mapItem(item) {
+function mapItem(item, mediaMap) {
     const acf   = item.acf || {};
     const datum = (acf.datum || '').toString().trim();
     if (datum.length !== 8 || !/^\d{8}$/.test(datum)) return null;
@@ -68,13 +98,8 @@ function mapItem(item) {
     const priceRaw = acf.prijs;
     const price = priceRaw && String(priceRaw).trim() ? `€${priceRaw}` : '';
 
-    // Featured image via _embedded
-    const embedded = item._embedded || {};
-    const media = embedded['wp:featuredmedia'];
-    const imageUrl =
-        media?.[0]?.source_url ||
-        media?.[0]?.media_details?.sizes?.medium?.source_url ||
-        '';
+    // Featured image from the pre-fetched media map
+    const imageUrl = (item.featured_media && mediaMap.get(item.featured_media)) || '';
 
     // Description from excerpt (strip HTML)
     const description = (item.excerpt?.rendered || '')
@@ -110,16 +135,21 @@ export async function scrapeCalendar() {
     const extraResults = await Promise.all(extraPages.map(fetchPage));
     const allItems = [...firstItems, ...extraResults.flatMap(r => r.items)];
 
-    // Filter to upcoming events only, map, sort by date
+    // Filter to upcoming events only
     const today = new Date();
     const todayStr = `${today.getFullYear()}${String(today.getMonth() + 1).padStart(2, '0')}${String(today.getDate()).padStart(2, '0')}`;
 
-    const events = allItems
-        .filter(item => {
-            const datum = (item.acf?.datum || '').toString().trim();
-            return datum.length === 8 && datum >= todayStr;
-        })
-        .map(mapItem)
+    const upcomingItems = allItems.filter(item => {
+        const datum = (item.acf?.datum || '').toString().trim();
+        return datum.length === 8 && datum >= todayStr;
+    });
+
+    // Batch-fetch all unique media images in parallel with no extra per-event requests
+    const mediaIds = upcomingItems.map(item => item.featured_media).filter(Boolean);
+    const mediaMap = await fetchMediaMap(mediaIds);
+
+    const events = upcomingItems
+        .map(item => mapItem(item, mediaMap))
         .filter(e => e && e.title)
         .sort((a, b) => a.dateISO.localeCompare(b.dateISO));
 
