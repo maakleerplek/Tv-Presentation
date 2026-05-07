@@ -22,13 +22,13 @@ export default async function Page() {
           <Status initialData={screenData || undefined} />
         </aside>
 
-        {/* Middle Section - 5/12 (~42%) */}
-        <section className="col-span-5 border-r-2 border-[#2C1E16] flex flex-col h-full bg-[#F5F2EB]">
+        {/* Middle Section - 4/12 (~33%) */}
+        <section className="col-span-4 border-r-2 border-[#2C1E16] flex flex-col h-full bg-[#F5F2EB]">
           <EventCarousel initialData={screenData || undefined} />
         </section>
 
-        {/* Right Section - 5/12 (~42%) */}
-        <aside className="col-span-5 flex flex-col h-full bg-[#F5F2EB]">
+        {/* Right Section - 6/12 (~50%) */}
+        <aside className="col-span-6 flex flex-col h-full bg-[#F5F2EB]">
           <DrinksList initialData={screenData || undefined} />
         </aside>
       </main>

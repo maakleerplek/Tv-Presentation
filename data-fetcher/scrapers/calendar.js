@@ -1,149 +1,134 @@
 /**
- * scrapers/calendar.js — Scrapes the maakleerplek.be event calendar.
+ * scrapers/calendar.js — Fetches upcoming events from the maakleerplek WP REST API.
  *
- * Exported: scrapeCalendar()
+ * The legacy HTML scraper used `.agenda_element` CSS classes, but the calendar
+ * page switched to a JS-rendered layout. The WP REST API exposes a `kalender`
+ * custom post type with all event data in ACF fields, so we use that instead.
  */
 
-import * as cheerio from 'cheerio';
-import {
-    CALENDAR_URL,
-    CACHE_DURATION_MS,
-    EVENT_PRIORITY,
-    WORKSHOP_KEYWORDS,
-    MAX_EVENT_DETAILS,
-} from '../config.js';
-import { parseDutchDate, isCacheValid } from '../utils.js';
-import { fetchEventDetail } from '../event-detail.js';
+import { MAAKLEERPLEK_URL, CACHE_DURATION_MS } from '../config.js';
+import { isCacheValid } from '../utils.js';
 
 // ── In-memory cache ───────────────────────────────────────────────────────────
 
 let calendarCache = { data: null, timestamp: 0 };
 
-// ── Helpers ───────────────────────────────────────────────────────────────────
+// ── Constants ─────────────────────────────────────────────────────────────────
 
 const USER_AGENT = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36';
 
-/**
- * Parse a single `.agenda_item` element and return a raw event object,
- * or null if the item has no usable title.
- *
- * The `.agenda_item_time` field dual-purposes as either a time string
- * ("18:00 - 20:00") or a location label ("Grafisch Lab"); we detect
- * which by checking for digits.
- */
-function parseAgendaItem($, itemEl, date, dateText) {
-    const titleRaw  = $(itemEl).find('.agenda_item_title').text().trim();
-    const timeRaw   = $(itemEl).find('.agenda_item_time').text().trim();
-    const link      = $(itemEl).find('a').attr('href') || '';
+const BASE = MAAKLEERPLEK_URL ? MAAKLEERPLEK_URL.origin : 'https://maakleerplek.be';
+const API_BASE = `${BASE}/wp-json/wp/v2/kalender`;
+const FIELDS = '_fields=id,title,link,excerpt,acf,featured_media&_embed=wp:featuredmedia';
 
-    if (!titleRaw) {
-        console.warn(`[Calendar] Missing title for an event on ${dateText}`);
-        return null;
-    }
+const DUTCH_DAYS   = ['zo', 'ma', 'di', 'wo', 'do', 'vr', 'za'];
+const DUTCH_MONTHS = ['jan', 'feb', 'mrt', 'apr', 'mei', 'jun', 'jul', 'aug', 'sep', 'okt', 'nov', 'dec'];
 
-    // Determine whether timeRaw is a time or a location
-    let timeStr    = '';
-    let locationStr = '';
-    if (/(\d{1,2}[:.]?\d{2})/.test(timeRaw)) {
-        timeStr = timeRaw;
-    } else {
-        locationStr = timeRaw;
-    }
+// ── Helpers ───────────────────────────────────────────────────────────────────
 
-    // If still no time, check whether the title embeds one (e.g. "Workshop 19:00" or "19:00 - 21:00 naam")
-    let title = titleRaw;
-    if (!timeStr) {
-        const titleTimeMatch = titleRaw.match(/\b(\d{1,2}[:.]?\d{2}\s*[-–]\s*\d{1,2}[:.]?\d{2}|\d{1,2}[:.]?\d{2})\b/);
-        if (titleTimeMatch) {
-            timeStr = titleTimeMatch[0].replace(/\./g, ':').trim();
-            title   = titleRaw
-                .replace(titleTimeMatch[0], '')
-                .replace(/^\s*[-–|:]\s*|\s*[-–|:]\s*$/g, '')
-                .trim();
-        }
-    }
-
-    if (!timeStr) console.warn(`[Calendar] No time found for "${titleRaw}" on ${dateText}`);
-
-    // Build a timezone-safe ISO date string from local date parts
-    const mm      = String(date.getMonth() + 1).padStart(2, '0');
-    const dd      = String(date.getDate()).padStart(2, '0');
-    const dateISO = `${date.getFullYear()}-${mm}-${dd}`;
-
-    return { title, location: locationStr, time: timeStr, date: dateText, dateISO, link };
+/** "20260507" → "2026-05-07" */
+function datumToISO(datum) {
+    return `${datum.slice(0, 4)}-${datum.slice(4, 6)}-${datum.slice(6, 8)}`;
 }
 
-/**
- * Decide whether we should fetch the detail page for a given event.
- * We always fetch priority / workshop events; for others we cap at MAX_EVENT_DETAILS.
- */
-function shouldFetchDetail(event, index) {
-    const titleLower       = event.title.toLowerCase();
-    const isPriorityEvent  = EVENT_PRIORITY.some(kw => titleLower.includes(kw));
-    const isWorkshopEvent  = WORKSHOP_KEYWORDS.some(kw => titleLower.includes(kw));
-    return event.link && (isPriorityEvent || isWorkshopEvent || index < MAX_EVENT_DETAILS);
+/** "20260507" → "do 7 mei" */
+function datumToDutch(datum) {
+    const y = parseInt(datum.slice(0, 4), 10);
+    const m = parseInt(datum.slice(4, 6), 10) - 1;
+    const d = parseInt(datum.slice(6, 8), 10);
+    const dow = new Date(y, m, d).getDay();
+    return `${DUTCH_DAYS[dow]} ${d} ${DUTCH_MONTHS[m]}`;
+}
+
+/** Fetch one page; return { items, totalPages }. */
+async function fetchPage(page) {
+    const url = `${API_BASE}?per_page=100&page=${page}&${FIELDS}`;
+    try {
+        const res = await fetch(url, { headers: { 'User-Agent': USER_AGENT } });
+        if (!res.ok) return { items: [], totalPages: 1 };
+        const totalPages = parseInt(res.headers.get('X-WP-TotalPages') || '1', 10);
+        const items = await res.json();
+        return { items: Array.isArray(items) ? items : [], totalPages };
+    } catch (err) {
+        console.warn(`[Calendar] Page ${page} fetch failed:`, err.message);
+        return { items: [], totalPages: 1 };
+    }
+}
+
+/** Map a single WP REST API item to our CalendarEvent shape. */
+function mapItem(item) {
+    const acf   = item.acf || {};
+    const datum = (acf.datum || '').toString().trim();
+    if (datum.length !== 8 || !/^\d{8}$/.test(datum)) return null;
+
+    // Normalise time: "18:00-22:00" or "18:00 - 22:00" → "18:00 - 22:00"
+    const time = (acf.uur || '').replace(/\s*[-–]\s*/, ' - ').trim();
+
+    // Price: ACF stores it as a number (5) or empty string
+    const priceRaw = acf.prijs;
+    const price = priceRaw && String(priceRaw).trim() ? `€${priceRaw}` : '';
+
+    // Featured image via _embedded
+    const embedded = item._embedded || {};
+    const media = embedded['wp:featuredmedia'];
+    const imageUrl =
+        media?.[0]?.source_url ||
+        media?.[0]?.media_details?.sizes?.medium?.source_url ||
+        '';
+
+    // Description from excerpt (strip HTML)
+    const description = (item.excerpt?.rendered || '')
+        .replace(/<[^>]*>/g, ' ')
+        .replace(/\s{2,}/g, ' ')
+        .trim();
+
+    return {
+        title:       (item.title?.rendered || '').trim(),
+        location:    'maakleerplek',
+        time,
+        date:        datumToDutch(datum),
+        dateISO:     datumToISO(datum),
+        link:        item.link || '',
+        description,
+        imageUrl,
+        price,
+    };
 }
 
 // ── Main export ───────────────────────────────────────────────────────────────
 
-/**
- * Scrape the maakleerplek.be calendar and return an array of upcoming events,
- * each optionally enriched with detail-page data (description, image, time, …).
- * Results are cached for CACHE_DURATION_MS.
- */
 export async function scrapeCalendar() {
     if (isCacheValid(calendarCache, CACHE_DURATION_MS)) return calendarCache.data;
 
-    console.log('[Calendar] Scraping', CALENDAR_URL);
+    console.log('[Calendar] Fetching from WP REST API', API_BASE);
 
-    const response = await fetch(CALENDAR_URL, { headers: { 'User-Agent': USER_AGENT } });
-    const html     = await response.text();
-    const $        = cheerio.load(html);
+    // First page gives us the total page count
+    const { items: firstItems, totalPages } = await fetchPage(1);
 
-    const events    = [];
-    const seenKeys  = new Set();
-    const today     = new Date();
-    today.setHours(0, 0, 0, 0);
+    // Fetch all remaining pages concurrently
+    const extraPages = Array.from({ length: Math.max(0, totalPages - 1) }, (_, i) => i + 2);
+    const extraResults = await Promise.all(extraPages.map(fetchPage));
+    const allItems = [...firstItems, ...extraResults.flatMap(r => r.items)];
 
-    // Each .agenda_element represents one calendar day
-    $('.agenda_element').each((_, dayEl) => {
-        const dateText = $(dayEl).find('.agenda_date h4').text().trim();
-        const date     = parseDutchDate(dateText);
-        if (!date || date < today) return; // skip past dates
+    // Filter to upcoming events only, map, sort by date
+    const today = new Date();
+    const todayStr = `${today.getFullYear()}${String(today.getMonth() + 1).padStart(2, '0')}${String(today.getDate()).padStart(2, '0')}`;
 
-        $(dayEl).find('.agenda_item').each((_, itemEl) => {
-            const event = parseAgendaItem($, itemEl, date, dateText);
-            if (!event || !event.title) return;
-
-            // Deduplicate: same link + same day + same normalised title
-            const key = `${event.link}|${event.dateISO}|${event.title}`;
-            if (seenKeys.has(key)) return;
-            seenKeys.add(key);
-
-            events.push(event);
-        });
-    });
-
-    // Enrich events with data from their individual detail pages
-    const enriched = await Promise.all(
-        events.map(async (event, i) => {
-            if (!shouldFetchDetail(event, i)) return event;
-            const detail = await fetchEventDetail(event.link);
-            return {
-                ...event,
-                ...detail,
-                time:     detail.time     || event.time,
-                location: detail.location || event.location || 'maakleerplek',
-            };
+    const events = allItems
+        .filter(item => {
+            const datum = (item.acf?.datum || '').toString().trim();
+            return datum.length === 8 && datum >= todayStr;
         })
+        .map(mapItem)
+        .filter(e => e && e.title)
+        .sort((a, b) => a.dateISO.localeCompare(b.dateISO));
+
+    calendarCache = { data: events, timestamp: Date.now() };
+
+    console.log(`[Calendar] Fetched ${events.length} upcoming events from ${totalPages} pages:`);
+    events.slice(0, 15).forEach((e, i) =>
+        console.log(`  ${i + 1}. [${e.dateISO} ${e.time || '??:??'}] ${e.title}`)
     );
 
-    calendarCache = { data: enriched, timestamp: Date.now() };
-
-    console.log(`[Calendar] Scraped ${enriched.length} upcoming events:`);
-    enriched.forEach((e, i) =>
-        console.log(`  ${i + 1}. [${e.dateISO} ${e.time || '??:??'}] ${e.title} (@ ${e.location || 'maakleerplek'})`)
-    );
-
-    return enriched;
+    return events;
 }

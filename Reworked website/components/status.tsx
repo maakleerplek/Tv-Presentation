@@ -177,8 +177,13 @@ export function Status({ initialData }: { initialData?: ScreenData }) {
 
   if (!active) {
     return (
-      <div className="p-4 bg-[#F5F2EB] flex-1 flex flex-col justify-center min-h-0">
-        <div className="flex-1" />
+      <div className="p-4 bg-[#F5F2EB] flex-1 flex flex-col justify-start min-h-0 gap-2">
+        <h2 className="text-[#2C1E16] uppercase tracking-widest text-[10px] font-black">
+          Volgend evenement
+        </h2>
+        <p className="text-[#2C1E16] opacity-40 text-xs font-black uppercase tracking-widest">
+          Geen activiteiten<br />gepland
+        </p>
       </div>
     );
   }
