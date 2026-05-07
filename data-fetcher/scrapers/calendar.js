@@ -41,19 +41,41 @@ function datumToDutch(datum) {
     return `${DUTCH_DAYS[dow]} ${d} ${DUTCH_MONTHS[m]}`;
 }
 
-/** Fetch one page; return { items, totalPages }. */
+/** Fetch one page; return { items, totalPages }. Retries once on 5xx. */
 async function fetchPage(page) {
     const url = `${API_BASE}?per_page=100&page=${page}&${FIELDS}`;
-    try {
-        const res = await fetch(url, { headers: { 'User-Agent': USER_AGENT } });
-        if (!res.ok) return { items: [], totalPages: 1 };
-        const totalPages = parseInt(res.headers.get('X-WP-TotalPages') || '1', 10);
-        const items = await res.json();
-        return { items: Array.isArray(items) ? items : [], totalPages };
-    } catch (err) {
-        console.warn(`[Calendar] Page ${page} fetch failed:`, err.message);
-        return { items: [], totalPages: 1 };
+    for (let attempt = 0; attempt < 2; attempt++) {
+        try {
+            const res = await fetch(url, { headers: { 'User-Agent': USER_AGENT } });
+            if (res.ok) {
+                const totalPages = parseInt(res.headers.get('X-WP-TotalPages') || '1', 10);
+                const items = await res.json();
+                return { items: Array.isArray(items) ? items : [], totalPages };
+            }
+            if (res.status < 500) break; // 4xx won't improve with a retry
+            if (attempt === 0) await new Promise(r => setTimeout(r, 1000));
+        } catch (err) {
+            console.warn(`[Calendar] Page ${page} fetch failed:`, err.message);
+            if (attempt === 0) await new Promise(r => setTimeout(r, 1000));
+        }
     }
+    return { items: [], totalPages: null }; // null signals failure
+}
+
+/** Fetch pages in small concurrent batches to avoid hammering the WordPress site. */
+async function fetchAllPages(totalPages) {
+    const BATCH = 4;
+    const allItems = [];
+    for (let start = 2; start <= totalPages; start += BATCH) {
+        const batch = Array.from(
+            { length: Math.min(BATCH, totalPages - start + 1) },
+            (_, i) => fetchPage(start + i)
+        );
+        const results = await Promise.all(batch);
+        results.forEach(r => allItems.push(...r.items));
+        if (start + BATCH <= totalPages) await new Promise(r => setTimeout(r, 300));
+    }
+    return allItems;
 }
 
 /**
@@ -130,10 +152,14 @@ export async function scrapeCalendar() {
     // First page gives us the total page count
     const { items: firstItems, totalPages } = await fetchPage(1);
 
-    // Fetch all remaining pages concurrently
-    const extraPages = Array.from({ length: Math.max(0, totalPages - 1) }, (_, i) => i + 2);
-    const extraResults = await Promise.all(extraPages.map(fetchPage));
-    const allItems = [...firstItems, ...extraResults.flatMap(r => r.items)];
+    if (!totalPages) {
+        console.error('[Calendar] First page fetch failed, skipping cache update');
+        return calendarCache.data ?? [];
+    }
+
+    // Fetch remaining pages in small batches to avoid hammering the WP site
+    const extraItems = await fetchAllPages(totalPages);
+    const allItems = [...firstItems, ...extraItems];
 
     // Filter to upcoming events only
     const today = new Date();
@@ -153,7 +179,8 @@ export async function scrapeCalendar() {
         .filter(e => e && e.title)
         .sort((a, b) => a.dateISO.localeCompare(b.dateISO));
 
-    calendarCache = { data: events, timestamp: Date.now() };
+    // Only cache if we got real data — don't lock in an empty result on transient failures
+    if (events.length > 0) calendarCache = { data: events, timestamp: Date.now() };
 
     console.log(`[Calendar] Fetched ${events.length} upcoming events from ${totalPages} pages:`);
     events.slice(0, 15).forEach((e, i) =>
