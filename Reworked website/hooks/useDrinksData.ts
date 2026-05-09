@@ -9,12 +9,16 @@ export type DrinkChange = 'decreased' | 'increased' | null;
 
 export type DrinkWithChange = DrinkItem & { _change: DrinkChange };
 
+function drinkKey(d: DrinkItem) {
+    return `${d.name}::${d.location ?? ''}`;
+}
+
 export function useDrinksData(initialDrinks?: DrinkItem[]) {
     const [drinks, setDrinks] = useState<DrinkWithChange[]>(
         () => (initialDrinks ?? []).map(d => ({ ...d, _change: null })),
     );
     const prevRef = useRef<Map<string, number>>(
-        new Map((initialDrinks ?? []).map(d => [d.name, d.stock])),
+        new Map((initialDrinks ?? []).map(d => [drinkKey(d), d.stock])),
     );
 
     useEffect(() => {
@@ -29,10 +33,10 @@ export function useDrinksData(initialDrinks?: DrinkItem[]) {
                 if (!mounted) return;
 
                 const prev = prevRef.current;
-                const next = new Map(fresh.map(d => [d.name, d.stock]));
+                const next = new Map(fresh.map(d => [drinkKey(d), d.stock]));
 
                 setDrinks(fresh.map(d => {
-                    const oldStock = prev.get(d.name);
+                    const oldStock = prev.get(drinkKey(d));
                     let change: DrinkChange = null;
                     if (oldStock !== undefined) {
                         if (d.stock < oldStock) change = 'decreased';

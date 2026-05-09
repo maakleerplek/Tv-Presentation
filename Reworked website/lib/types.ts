@@ -55,10 +55,14 @@ export type DrinkItem = {
     name: string;
     /** Formatted price string, e.g. "€1.50", or "-" if unavailable */
     price: string;
-    /** Aggregated stock quantity across all matching locations */
+    /** Aggregated stock quantity for this part at this specific location */
     stock: number;
     /** Next.js-relative proxy URL, e.g. "/api/proxy-image?url=...", or null */
     imageUrl: string | null;
+    /** InvenTree stock location name, or null if unknown */
+    location: string | null;
+    /** InvenTree part category name, or null if unknown */
+    category: string | null;
 };
 
 /** Pricing information scraped from the wiki. */

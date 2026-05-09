@@ -5,16 +5,69 @@ import Image from 'next/image';
 import QRCode from 'react-qr-code';
 import { useScreenData } from '@/hooks/useScreenData';
 import { useDrinksData } from '@/hooks/useDrinksData';
-import type { ScreenData } from '@/lib/types';
+import type { ScreenData, DrinkItem } from '@/lib/types';
 import { PricingTable } from './pricing-table';
+import type { DrinkWithChange } from '@/hooks/useDrinksData';
 
 const HeaderRow = () => (
-  <div className="grid grid-cols-[32px_1fr_auto_auto] gap-3 items-end border-b-2 border-[#2C1E16] pb-2 shrink-0">
+  <div className="grid grid-cols-[32px_1fr_auto_auto] gap-3 items-end border-b-2 border-[#2C1E16] pb-2 mb-1">
     <span className="col-start-2 text-xs text-[#2C1E16] font-black uppercase">Item</span>
     <span className="text-xs text-[#2C1E16] font-black uppercase text-center w-10">Stock</span>
-    <span className="text-xs text-[#2C1E16] font-black uppercase text-right w-12">Price</span>
+    <span className="text-xs text-[#2C1E16] font-black uppercase text-right w-12">Prijs</span>
   </div>
 );
+
+function DrinkRow({ drink }: { drink: DrinkWithChange }) {
+  return (
+    <div
+      className={`grid grid-cols-[32px_1fr_auto_auto] gap-3 items-center border-b border-[#2C1E16]/30 pb-2 shrink-0 rounded-sm ${
+        drink._change === 'decreased' ? 'drink-sold' :
+        drink._change === 'increased' ? 'drink-restocked' : ''
+      }`}
+    >
+      <div className="w-8 h-8 relative border border-[#2C1E16] shrink-0 bg-[#E6D5B8] overflow-hidden">
+        {drink.imageUrl ? (
+          <Image
+            src={drink.imageUrl}
+            alt={drink.name}
+            fill
+            sizes="32px"
+            className="w-full h-full object-cover"
+          />
+        ) : (
+          <span className="absolute inset-0 flex items-center justify-center text-[8px] font-black text-[#2C1E16] uppercase leading-none text-center px-0.5">
+            {drink.name.slice(0, 4)}
+          </span>
+        )}
+      </div>
+      <span className="text-sm text-[#2C1E16] font-bold uppercase truncate leading-none" title={drink.name}>
+        {drink.name}
+      </span>
+      <span
+        className={`text-sm font-black text-center w-10 leading-none transition-colors ${
+          drink._change === 'decreased' ? 'text-red-600' :
+          drink._change === 'increased' ? 'text-green-700' :
+          'text-[#2C1E16]'
+        }`}
+      >
+        {drink.stock}
+      </span>
+      <span className="text-sm font-black text-[#2C1E16] text-right w-12 leading-none">{drink.price}</span>
+    </div>
+  );
+}
+
+function groupDrinks(drinks: DrinkWithChange[]) {
+  const groups = new Map<string, { location: string | null; category: string | null; items: DrinkWithChange[] }>();
+  for (const drink of drinks) {
+    const key = `${drink.location ?? ''}::${drink.category ?? ''}`;
+    if (!groups.has(key)) {
+      groups.set(key, { location: drink.location, category: drink.category, items: [] });
+    }
+    groups.get(key)!.items.push(drink);
+  }
+  return [...groups.values()];
+}
 
 export function DrinksList({ initialData }: { initialData?: ScreenData }) {
   const { data, loading, error } = useScreenData(initialData);
@@ -36,6 +89,8 @@ export function DrinksList({ initialData }: { initialData?: ScreenData }) {
       </div>
     );
   }
+
+  const groups = groupDrinks(drinks);
 
   return (
     <div className="flex-1 bg-[#F5F2EB] flex flex-col h-full overflow-hidden">
@@ -63,52 +118,33 @@ export function DrinksList({ initialData }: { initialData?: ScreenData }) {
 
       <div className="p-2 border-b-2 border-[#2C1E16] bg-[#C8A98B] shrink-0">
         <h2 className="text-[#2C1E16] uppercase tracking-widest text-xs font-black flex items-center justify-center gap-2">
-          <Coffee className="w-4 h-4" /> Drinks, Snacks & Materialen
+          <Coffee className="w-4 h-4" /> Inventory
         </h2>
       </div>
 
       {/* Scrollable item area */}
-      <div className="flex-1 flex flex-col p-6 min-h-0 overflow-y-auto">
-        <div className="grid grid-cols-2 gap-x-10 gap-y-2 content-start">
-          <HeaderRow />
-          <HeaderRow />
-          {drinks.map((drink, idx) => (
-            <div
-              key={idx}
-              className={`grid grid-cols-[32px_1fr_auto_auto] gap-3 items-center border-b border-[#2C1E16]/30 pb-2 shrink-0 rounded-sm ${
-                drink._change === 'decreased' ? 'drink-sold' :
-                drink._change === 'increased' ? 'drink-restocked' : ''
-              }`}
-            >
-              <div className="w-8 h-8 relative border border-[#2C1E16] shrink-0 bg-[#E6D5B8] overflow-hidden">
-                {drink.imageUrl ? (
-                  <Image
-                    src={drink.imageUrl}
-                    alt={drink.name}
-                    fill
-                    sizes="32px"
-                    className="w-full h-full object-cover"
-                  />
-                ) : (
-                  <span className="absolute top-0 right-0 bottom-0 left-0 flex items-center justify-center text-[8px] font-black text-[#2C1E16] uppercase leading-none text-center px-0.5">
-                    {drink.name.slice(0, 4)}
-                  </span>
-                )}
-              </div>
-              <span className="text-sm text-[#2C1E16] font-bold uppercase truncate leading-none" title={drink.name}>{drink.name}</span>
-              <span
-                className={`text-sm font-black text-center w-10 leading-none transition-colors ${
-                  drink._change === 'decreased' ? 'text-red-600' :
-                  drink._change === 'increased' ? 'text-green-700' :
-                  'text-[#2C1E16]'
-                }`}
-              >
-                {drink.stock}
-              </span>
-              <span className="text-sm font-black text-[#2C1E16] text-right w-12 leading-none">{drink.price}</span>
+      <div className="flex-1 flex flex-col p-4 min-h-0 overflow-y-auto gap-4">
+        {groups.map((group, gi) => (
+          <div key={gi} className="flex flex-col gap-1">
+            {/* Group header */}
+            <div className="flex items-baseline gap-2 mb-1">
+              {group.category && (
+                <span className="text-xs font-black uppercase tracking-widest text-[#2C1E16]">
+                  {group.category}
+                </span>
+              )}
+              {group.location && (
+                <span className="text-[10px] font-bold uppercase tracking-wider text-[#2C1E16]/60">
+                  {group.location}
+                </span>
+              )}
             </div>
-          ))}
-        </div>
+            <HeaderRow />
+            {group.items.map((drink, idx) => (
+              <DrinkRow key={idx} drink={drink} />
+            ))}
+          </div>
+        ))}
       </div>
 
       {PAYMENT_QR_URL && (
