@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 import Image from 'next/image';
 import QRCode from 'react-qr-code';
 import { Calendar, Clock as ClockIcon, Globe, MapPin, Newspaper, Repeat, Tag } from 'lucide-react';
@@ -36,6 +36,9 @@ export function EventCarousel({ initialData }: { initialData?: ScreenData }) {
   const { data, loading, error } = useScreenData(initialData);
   const transitionTime = data?.config?.transitionTime ?? 15;
   const [currentIndex, setCurrentIndex] = useState(0);
+  // 'cover' = fill cleanly, 'contain' = show full image (bars visible but needed)
+  const [imgFit, setImgFit] = useState<'cover' | 'contain'>('cover');
+  const imgContainerRef = useRef<HTMLDivElement>(null);
 
   // Compute carousel items immediately (works during SSR)
   const carouselItems = useMemo(() => {
@@ -49,6 +52,9 @@ export function EventCarousel({ initialData }: { initialData?: ScreenData }) {
     // so we just return the combined array.
     return [...workshops, ...recurring, ...news];
   }, [data]);
+
+  // Reset to cover optimistically whenever the carousel advances to a new item
+  useEffect(() => { setImgFit('cover'); }, [currentIndex]);
 
   // Use a simple ticker state to force CSS transition restart
   const [progressKey, setProgressKey] = useState(0);
@@ -133,12 +139,15 @@ export function EventCarousel({ initialData }: { initialData?: ScreenData }) {
                 animation: slide-fade 0.5s cubic-bezier(0.16, 1, 0.3, 1) forwards;
               }
             `}} />
-            {/* Top section: Image — 45% of the card height to minimise letterbox bars */}
-            {/* Image area — blurred backdrop fills any gaps so there are never black bars */}
-            <div className="basis-[45%] shrink-0 border-b-2 border-[#2C1E16] min-h-0 overflow-hidden relative flex items-center justify-center">
+            {/* Top section: Image — 45% of card height.
+                Adaptive fit: default to object-cover (no bars), but onLoad we check if the image's
+                aspect ratio differs from the container's by more than 50%. If it does, we fall back
+                to object-contain so extreme portrait/landscape images aren't badly cropped. The
+                blurred backdrop still fills any remaining gaps. */}
+            <div ref={imgContainerRef} className="basis-[45%] shrink-0 border-b-2 border-[#2C1E16] min-h-0 overflow-hidden relative flex items-center justify-center">
               {hasImage ? (
                 <>
-                  {/* Use Next.js optimization so TV clients avoid downloading full-size source images */}
+                  {/* Blurred backdrop — only visible when imgFit is 'contain' and bars appear */}
                   <Image
                     key={`bg-${displayImage}`}
                     src={displayImage}
@@ -146,7 +155,7 @@ export function EventCarousel({ initialData }: { initialData?: ScreenData }) {
                     fill
                     aria-hidden="true"
                     sizes="(min-width: 1280px) 720px, 50vw"
-                    quality={55}
+                    quality={40}
                     className="absolute inset-0 w-full h-full object-cover scale-110 blur-xl opacity-60"
                   />
                   <Image
@@ -157,7 +166,18 @@ export function EventCarousel({ initialData }: { initialData?: ScreenData }) {
                     sizes="(min-width: 1280px) 720px, 50vw"
                     quality={55}
                     priority
-                    className="relative z-10 w-full h-full object-contain"
+                    onLoad={(e) => {
+                      const img = e.currentTarget;
+                      const container = imgContainerRef.current;
+                      if (!container || !img.naturalWidth || !img.naturalHeight) return;
+                      const imgRatio = img.naturalWidth / img.naturalHeight;
+                      const containerRatio = container.clientWidth / container.clientHeight;
+                      // Switch to contain only when the image is more than 1.6× wider or taller
+                      // than the container — otherwise cover looks fine with minimal cropping
+                      const ratio = imgRatio / containerRatio;
+                      setImgFit(ratio > 1.6 || ratio < 0.625 ? 'contain' : 'cover');
+                    }}
+                    className={`relative z-10 w-full h-full transition-all duration-300 ${imgFit === 'cover' ? 'object-cover' : 'object-contain'}`}
                   />
                 </>
               ) : (
