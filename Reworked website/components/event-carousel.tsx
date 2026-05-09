@@ -133,9 +133,9 @@ export function EventCarousel({ initialData }: { initialData?: ScreenData }) {
                 animation: slide-fade 0.5s cubic-bezier(0.16, 1, 0.3, 1) forwards;
               }
             `}} />
-            {/* Top section: Image — 38% of the card height to minimise letterbox bars */}
+            {/* Top section: Image — 45% of the card height to minimise letterbox bars */}
             {/* Image area — blurred backdrop fills any gaps so there are never black bars */}
-            <div className="basis-[38%] shrink-0 border-b-2 border-[#2C1E16] min-h-0 overflow-hidden relative flex items-center justify-center">
+            <div className="basis-[45%] shrink-0 border-b-2 border-[#2C1E16] min-h-0 overflow-hidden relative flex items-center justify-center">
               {hasImage ? (
                 <>
                   {/* Use Next.js optimization so TV clients avoid downloading full-size source images */}
