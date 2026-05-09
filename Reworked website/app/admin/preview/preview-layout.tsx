@@ -7,7 +7,7 @@ import { EventCarousel } from '@/components/event-carousel';
 import { DrinksList } from '@/components/drinks-list';
 import { TipsFooter } from '@/components/tips-footer';
 import { Status } from '@/components/status';
-import { ScreenDataOverrideProvider } from '@/hooks/useScreenData';
+import { ScreenDataOverrideProvider } from '@/hooks/ScreenDataOverrideProvider';
 import type { ScreenData } from '@/lib/types';
 import type { WeatherData } from '@/app/api/weather/route';
 

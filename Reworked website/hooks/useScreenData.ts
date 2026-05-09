@@ -10,22 +10,9 @@ const POLL_INTERVAL_MS =
 /**
  * When a ScreenDataOverrideProvider wraps a subtree, useScreenData returns the
  * provided data directly with no polling.  Used by the preview page.
+ * The Provider component itself lives in ScreenDataOverrideProvider.tsx (JSX).
  */
 export const ScreenDataOverrideContext = createContext<ScreenData | null>(null);
-
-export function ScreenDataOverrideProvider({
-    data,
-    children,
-}: {
-    data: ScreenData;
-    children: React.ReactNode;
-}) {
-    return (
-        <ScreenDataOverrideContext.Provider value={data}>
-            {children}
-        </ScreenDataOverrideContext.Provider>
-    );
-}
 
 export function useScreenData(initialData?: ScreenData | null) {
     const override = useContext(ScreenDataOverrideContext);
