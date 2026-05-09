@@ -11,15 +11,15 @@ const ANIM_DURATION_MS = 2000;
 const ROW_STYLE = `
   @keyframes sold-flash {
     0%   { background-color: transparent; }
-    15%  { background-color: #FCA5A5; transform: translateX(-4px); }
-    35%  { background-color: #FCA5A5; transform: translateX(4px); }
-    55%  { background-color: #FCA5A5; transform: translateX(-2px); }
-    75%  { background-color: #FCA5A5; transform: translateX(0); }
+    15%  { background-color: #86EFAC; transform: translateX(-4px); }
+    35%  { background-color: #86EFAC; transform: translateX(4px); }
+    55%  { background-color: #86EFAC; transform: translateX(-2px); }
+    75%  { background-color: #86EFAC; transform: translateX(0); }
     100% { background-color: transparent; }
   }
   @keyframes stock-up-flash {
     0%   { background-color: transparent; }
-    20%  { background-color: #86EFAC; }
+    20%  { background-color: #BFDBFE; }
     100% { background-color: transparent; }
   }
   @keyframes delta-float {
@@ -52,8 +52,8 @@ function DrinkRow({ drink, anim }: { drink: DrinkItem; anim: AnimState }) {
       <span className="text-sm font-bold uppercase truncate leading-none text-[#2C1E16]">{drink.name}</span>
       <span className="relative w-10 flex justify-center">
         <span className={`text-sm font-black leading-none ${
-          anim.change === 'decreased' ? 'text-red-600' :
-          anim.change === 'increased' ? 'text-green-700' :
+          anim.change === 'decreased' ? 'text-green-700' :
+          anim.change === 'increased' ? 'text-blue-600' :
           'text-[#2C1E16]'
         }`}>
           {drink.stock}
@@ -62,8 +62,8 @@ function DrinkRow({ drink, anim }: { drink: DrinkItem; anim: AnimState }) {
           <span
             className={`delta-badge pointer-events-none absolute -top-1 left-1/2 -translate-x-1/2 text-lg font-black px-2 py-0.5 border-2 whitespace-nowrap ${
               anim.delta < 0
-                ? 'bg-red-500 text-white border-red-700'
-                : 'bg-green-500 text-white border-green-700'
+                ? 'bg-green-500 text-white border-green-700'
+                : 'bg-blue-400 text-white border-blue-600'
             }`}
           >
             {anim.delta > 0 ? '+' : ''}{anim.delta}
