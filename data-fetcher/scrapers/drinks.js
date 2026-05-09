@@ -7,7 +7,6 @@
 import {
     INVENTREE_URL,
     INVENTREE_TOKEN,
-    INVENTREE_DRINKS_LOCATIONS,
     DRINKS_CACHE_DURATION_MS,
 } from '../config.js';
 import { isCacheValid } from '../utils.js';
@@ -83,17 +82,6 @@ async function getCategoryName(categoryId, headers) {
 }
 
 /**
- * Determine whether a stock item belongs to one of the configured locations.
- * Returns true if no locations are configured (i.e. show everything).
- */
-function isInConfiguredLocation(locDetail) {
-    if (INVENTREE_DRINKS_LOCATIONS.length === 0) return true;
-    const locName = (locDetail.name      || '').toLowerCase();
-    const locPath = (locDetail.pathstring || '').toLowerCase();
-    return INVENTREE_DRINKS_LOCATIONS.some(loc => locName.includes(loc) || locPath.includes(loc));
-}
-
-/**
  * Derive a price string from a part_detail object.
  */
 function extractPrice(partDetail) {
@@ -148,11 +136,6 @@ export async function fetchDrinks() {
         );
 
         console.log('[Drinks] Found', stockItems.length, 'total stock items');
-        if (stockItems.length > 0 && INVENTREE_DRINKS_LOCATIONS.length > 0) {
-            const allLocations = new Set(stockItems.map(i => i.location_detail?.name).filter(Boolean));
-            console.log('[Drinks] Available locations:', [...allLocations].join(', '));
-            console.log('[Drinks] Filtering by locations:', INVENTREE_DRINKS_LOCATIONS.join(', '));
-        }
 
         // Aggregate quantities per (partId, locationId)
         const itemsByKey = new Map();
@@ -161,7 +144,6 @@ export async function fetchDrinks() {
             const partDetail = item.part_detail     || {};
             const locDetail  = item.location_detail || {};
 
-            if (!isInConfiguredLocation(locDetail)) continue;
             if (!partDetail.name) continue;
 
             const partId     = item.part;

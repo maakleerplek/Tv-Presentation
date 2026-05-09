@@ -53,8 +53,8 @@ export const HOMEPAGE_URL  = resolveMaakleerplekUrl('');
 /** General scraper cache lifetime (ms). Default: 15 minutes. */
 export const CACHE_DURATION_MS = parseInt(process.env.CACHE_DURATION_MINUTES || '15', 10) * 60 * 1000;
 
-/** Drinks cache lifetime (ms). Default: 1 minute so sold-item animations fire quickly. */
-export const DRINKS_CACHE_DURATION_MS = parseInt(process.env.DRINKS_CACHE_DURATION_MINUTES || '1', 10) * 60 * 1000;
+/** Drinks cache lifetime (ms). Hardcoded to 10 s for near-real-time stock updates. */
+export const DRINKS_CACHE_DURATION_MS = 10_000;
 
 // ── Event / news limits ───────────────────────────────────────────────────────
 
@@ -121,12 +121,3 @@ export const TIPS = (() => {
 
 export const INVENTREE_URL   = process.env.INVENTREE_URL   || 'https://10.72.3.68:8443';
 export const INVENTREE_TOKEN = process.env.INVENTREE_TOKEN;
-
-/**
- * One or more Inventree stock-location names to filter by.
- * Supports a comma-separated list, e.g. "HTL-fridge,HTL-snacks".
- * Falls back to the singular INVENTREE_DRINKS_LOCATION for backwards compatibility.
- */
-export const INVENTREE_DRINKS_LOCATIONS = (
-    process.env.INVENTREE_DRINKS_LOCATIONS || process.env.INVENTREE_DRINKS_LOCATION || ''
-).split(',').map(s => s.trim().toLowerCase()).filter(Boolean);

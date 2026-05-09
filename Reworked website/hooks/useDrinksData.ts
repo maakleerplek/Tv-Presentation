@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef } from 'react';
 import type { DrinkItem } from '@/lib/types';
 
-const POLL_INTERVAL_MS = 30_000; // 30 seconds — fast enough to catch a sale
+const POLL_INTERVAL_MS = 10_000;
 
 export type DrinkChange = 'decreased' | 'increased' | null;
 
