@@ -56,6 +56,17 @@ export function EventCarousel({ initialData }: { initialData?: ScreenData }) {
   // Reset to cover optimistically whenever the carousel advances to a new item
   useEffect(() => { setImgFit('cover'); }, [currentIndex]);
 
+  // Preload the next slide's image into the browser cache while the current one is showing
+  useEffect(() => {
+    if (carouselItems.length < 2) return;
+    const nextIndex = (currentIndex + 1) % carouselItems.length;
+    let url = carouselItems[nextIndex]?.imageUrl || '';
+    if (url.startsWith('/')) url = `https://maakleerplek.be${url}`;
+    if (!url) return;
+    const img = new window.Image();
+    img.src = url;
+  }, [currentIndex, carouselItems]);
+
   // Use a simple ticker state to force CSS transition restart
   const [progressKey, setProgressKey] = useState(0);
 
