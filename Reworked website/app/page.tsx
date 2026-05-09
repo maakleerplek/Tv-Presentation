@@ -17,7 +17,7 @@ export default async function Page() {
       <main className="flex-1 grid grid-cols-12 border-b-2 border-[#2C1E16] min-h-0">
         {/* Left Section - 2/12 (~16%) */}
         <aside className="col-span-2 border-r-2 border-[#2C1E16] flex flex-col h-full">
-          <Clock />
+          <Clock initialData={screenData || undefined} />
           <Weather initialData={weatherData || undefined} />
           <Status initialData={screenData || undefined} />
         </aside>

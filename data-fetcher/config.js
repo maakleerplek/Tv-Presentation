@@ -53,8 +53,8 @@ export const HOMEPAGE_URL  = resolveMaakleerplekUrl('');
 /** General scraper cache lifetime (ms). Default: 15 minutes. */
 export const CACHE_DURATION_MS = parseInt(process.env.CACHE_DURATION_MINUTES || '15', 10) * 60 * 1000;
 
-/** Drinks cache lifetime (ms). Default: 5 minutes (stock changes more often). */
-export const DRINKS_CACHE_DURATION_MS = parseInt(process.env.DRINKS_CACHE_DURATION_MINUTES || '5', 10) * 60 * 1000;
+/** Drinks cache lifetime (ms). Default: 1 minute so sold-item animations fire quickly. */
+export const DRINKS_CACHE_DURATION_MS = parseInt(process.env.DRINKS_CACHE_DURATION_MINUTES || '1', 10) * 60 * 1000;
 
 // ── Event / news limits ───────────────────────────────────────────────────────
 

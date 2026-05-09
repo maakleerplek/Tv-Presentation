@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useMemo } from 'react';
 import QRCode from 'react-qr-code';
+import { Calendar, Clock3, Tag } from 'lucide-react';
 import { useScreenData } from '@/hooks/useScreenData';
 import { priorityOf } from '@/lib/utils';
 import type { ScreenData } from '@/lib/types';
@@ -220,7 +221,7 @@ export function Status({ initialData }: { initialData?: ScreenData }) {
         `}} />
         <div
           key={effectiveShowWorkshop ? 'workshop' : 'status'}
-          className="absolute inset-0 p-4 flex flex-col justify-start min-h-0 gap-3 animate-status-fade-in"
+          className="absolute inset-0 p-4 flex flex-col justify-start min-h-0 gap-2.5 animate-status-fade-in"
         >
           <h2 className="text-[#2C1E16] uppercase tracking-widest text-[10px] font-black shrink-0">
             {effectiveShowWorkshop ? 'Volgende Workshop' : active.isNow ? 'Nu bezig' : 'Volgend evenement'}
@@ -228,9 +229,10 @@ export function Status({ initialData }: { initialData?: ScreenData }) {
 
           {/* When badge */}
           <div
-            className="inline-flex items-center gap-2 border-2 border-[#2C1E16] px-3 py-1 shrink-0 self-start"
+            className="inline-flex items-center gap-1.5 border-2 border-[#2C1E16] px-2.5 py-1 shrink-0 self-start"
             style={{ backgroundColor: badgeColor }}
           >
+            <Calendar className="w-3 h-3 shrink-0" />
             <span className="text-[#2C1E16] font-black text-xs uppercase tracking-widest">
               {whenLabel}
             </span>
@@ -241,32 +243,32 @@ export function Status({ initialData }: { initialData?: ScreenData }) {
             {active.title}
           </p>
 
-          {/* Extra: Price for workshops */}
-          {effectiveShowWorkshop && active.price && (
-            <p className="text-[#2C1E16] font-black text-xs uppercase tracking-widest opacity-60">
-              Prijs: {active.price}
-            </p>
-          )}
-
-          {/* Time and optional QR code */}
-          <div className="mt-auto flex items-end justify-between gap-4">
+          {/* Info row: time + price as icon chips */}
+          <div className="flex flex-col gap-1.5 mt-0.5 shrink-0">
             {timeDisplay && (
-              <div className="shrink-0">
-                <p className="text-[#2C1E16] text-[10px] uppercase tracking-widest font-black mb-1">
-                  {active.isNow ? 'Eindigt' : 'Tijd'}
-                </p>
-                <p className="text-[#2C1E16] font-black text-lg uppercase leading-tight">
+              <div className="flex items-center gap-2">
+                <Clock3 className="w-3.5 h-3.5 shrink-0 text-[#2C1E16] opacity-60" />
+                <span className="text-[#2C1E16] font-black text-base uppercase leading-none tracking-tight">
                   {timeDisplay}
-                </p>
+                </span>
               </div>
             )}
-
-            {effectiveShowWorkshop && active.link && (
-              <div className="border-2 border-[#2C1E16] p-1 bg-[#F5F2EB] shrink-0">
-                <QRCode value={active.link} size={40} bgColor="#F5F2EB" fgColor="#2C1E16" />
+            {effectiveShowWorkshop && active.price && (
+              <div className="flex items-center gap-2">
+                <Tag className="w-3.5 h-3.5 shrink-0 text-[#2C1E16] opacity-60" />
+                <span className="text-[#2C1E16] font-black text-sm uppercase leading-none tracking-widest">
+                  {active.price}
+                </span>
               </div>
             )}
           </div>
+
+          {/* QR code pushed to bottom-right */}
+          {effectiveShowWorkshop && active.link && (
+            <div className="mt-auto self-end border-2 border-[#2C1E16] p-1 bg-[#F5F2EB] shrink-0">
+              <QRCode value={active.link} size={48} bgColor="#F5F2EB" fgColor="#2C1E16" />
+            </div>
+          )}
         </div>
     </div>
   );
