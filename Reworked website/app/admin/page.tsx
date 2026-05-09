@@ -2,7 +2,7 @@ import { checkAuth, logoutAction } from './actions';
 import { getScreenData } from '@/lib/data';
 import Image from 'next/image';
 import Link from 'next/link';
-import { Calendar, Globe, Repeat, LogOut, LayoutDashboard } from 'lucide-react';
+import { Calendar, Globe, Repeat, LogOut, LayoutDashboard, Zap } from 'lucide-react';
 import type { CalendarEvent, NewsItem } from '@/lib/types';
 import { LoginForm } from './login-form';
 import { AddNewsForm } from './add-news-form';
@@ -38,6 +38,9 @@ export default async function AdminPage() {
           <h1 className="text-xl font-black uppercase tracking-widest">Maakleerplek Admin</h1>
         </div>
         <div className="flex items-center gap-6">
+          <Link href="/admin/animations" className="flex items-center gap-2 text-sm font-bold uppercase hover:underline">
+            <Zap className="w-4 h-4" /> Animations
+          </Link>
           <Link href="/" className="text-sm font-bold uppercase hover:underline">
             View Presentation
           </Link>
