@@ -58,7 +58,7 @@ export function resolveEvent(
     const [isoYear, isoMonth, isoDay] = parts;
 
     const startParsed = parseTime(event.time ?? '', /(\d{1,2})[:.](\d{2})/);
-    const endParsed   = parseTime(event.time ?? '', /[-–](\d{1,2})[:.](\d{2})/);
+    const endParsed   = parseTime(event.time ?? '', /[-–]\s*(\d{1,2})[:.](\d{2})/);
 
     const startHour = startParsed?.h ?? 0;
     const startMin  = startParsed?.m ?? 0;

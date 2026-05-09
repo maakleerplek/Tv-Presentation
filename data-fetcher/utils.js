@@ -71,7 +71,7 @@ export function scoreRecurringEvent(event, now) {
     const [y, mo, d] = parts;
 
     const startMatch = (event.time ?? '').match(/(\d{1,2})[:.](\d{2})/);
-    const endMatch   = (event.time ?? '').match(/[-–](\d{1,2})[:.](\d{2})/);
+    const endMatch   = (event.time ?? '').match(/[-–]\s*(\d{1,2})[:.](\d{2})/);
 
     let startTime, effectiveEnd;
 

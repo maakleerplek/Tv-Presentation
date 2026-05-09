@@ -43,14 +43,28 @@ function DrinkRow({ drink }: { drink: DrinkWithChange }) {
       <span className="text-sm text-[#2C1E16] font-bold uppercase truncate leading-none" title={drink.name}>
         {drink.name}
       </span>
-      <span
-        className={`text-sm font-black text-center w-10 leading-none transition-colors ${
-          drink._change === 'decreased' ? 'text-red-600' :
-          drink._change === 'increased' ? 'text-green-700' :
-          'text-[#2C1E16]'
-        }`}
-      >
-        {drink.stock}
+      <span className="relative w-10 flex justify-center">
+        <span
+          className={`text-sm font-black leading-none transition-colors ${
+            drink._change === 'decreased' ? 'text-red-600' :
+            drink._change === 'increased' ? 'text-green-700' :
+            'text-[#2C1E16]'
+          }`}
+        >
+          {drink.stock}
+        </span>
+        {drink._delta !== null && (
+          <span
+            key={drink._delta + '-' + drink.name}
+            className={`delta-badge pointer-events-none absolute -top-1 left-1/2 -translate-x-1/2 text-lg font-black px-2 py-0.5 border-2 whitespace-nowrap ${
+              drink._delta < 0
+                ? 'bg-red-500 text-white border-red-700'
+                : 'bg-green-500 text-white border-green-700'
+            }`}
+          >
+            {drink._delta > 0 ? '+' : ''}{drink._delta}
+          </span>
+        )}
       </span>
       <span className="text-sm font-black text-[#2C1E16] text-right w-12 leading-none">{drink.price}</span>
     </div>
@@ -108,11 +122,19 @@ export function DrinksList({ initialData }: { initialData?: ScreenData }) {
           20%  { background-color: #86EFAC; }
           100% { background-color: transparent; }
         }
+        @keyframes delta-float {
+          0%   { opacity: 1; transform: translateY(0) scale(1); }
+          20%  { opacity: 1; transform: translateY(-8px) scale(1.15); }
+          100% { opacity: 0; transform: translateY(-52px) scale(0.9); }
+        }
         .drink-sold {
           animation: sold-flash 1.2s ease-out forwards;
         }
         .drink-restocked {
           animation: stock-up-flash 1.2s ease-out forwards;
+        }
+        .delta-badge {
+          animation: delta-float 2s ease-out forwards;
         }
       `}} />
 

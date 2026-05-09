@@ -7,7 +7,7 @@ const POLL_INTERVAL_MS = 10_000;
 
 export type DrinkChange = 'decreased' | 'increased' | null;
 
-export type DrinkWithChange = DrinkItem & { _change: DrinkChange };
+export type DrinkWithChange = DrinkItem & { _change: DrinkChange; _delta: number | null };
 
 function drinkKey(d: DrinkItem) {
     return `${d.name}::${d.location ?? ''}`;
@@ -15,7 +15,7 @@ function drinkKey(d: DrinkItem) {
 
 export function useDrinksData(initialDrinks?: DrinkItem[]) {
     const [drinks, setDrinks] = useState<DrinkWithChange[]>(
-        () => (initialDrinks ?? []).map(d => ({ ...d, _change: null })),
+        () => (initialDrinks ?? []).map(d => ({ ...d, _change: null, _delta: null })),
     );
     const prevRef = useRef<Map<string, number>>(
         new Map((initialDrinks ?? []).map(d => [drinkKey(d), d.stock])),
@@ -38,11 +38,12 @@ export function useDrinksData(initialDrinks?: DrinkItem[]) {
                 setDrinks(fresh.map(d => {
                     const oldStock = prev.get(drinkKey(d));
                     let change: DrinkChange = null;
+                    let delta: number | null = null;
                     if (oldStock !== undefined) {
-                        if (d.stock < oldStock) change = 'decreased';
-                        else if (d.stock > oldStock) change = 'increased';
+                        if (d.stock < oldStock) { change = 'decreased'; delta = d.stock - oldStock; }
+                        else if (d.stock > oldStock) { change = 'increased'; delta = d.stock - oldStock; }
                     }
-                    return { ...d, _change: change };
+                    return { ...d, _change: change, _delta: delta };
                 }));
 
                 prevRef.current = next;
@@ -50,8 +51,8 @@ export function useDrinksData(initialDrinks?: DrinkItem[]) {
                 // Clear change flags after the animation completes
                 setTimeout(() => {
                     if (!mounted) return;
-                    setDrinks(prev => prev.map(d => ({ ...d, _change: null })));
-                }, 1500);
+                    setDrinks(prev => prev.map(d => ({ ...d, _change: null, _delta: null })));
+                }, 2000);
             } catch {
                 // silent — keep showing last known data
             }

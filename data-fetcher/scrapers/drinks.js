@@ -15,8 +15,6 @@ import { isCacheValid } from '../utils.js';
 
 let drinksCache = { data: null, timestamp: 0 };
 
-/** Persists across cache invalidations so category names aren't re-fetched. */
-const categoryNameCache = new Map();
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -58,27 +56,25 @@ async function fetchAllPages(baseUrl, headers) {
 }
 
 /**
- * Fetch and cache the name of a part category by its integer ID.
+ * Batch-fetch part records by ID and return a map of partId → category_name.
+ * InvenTree includes category_name directly on the /api/part/ response.
  */
-async function getCategoryName(categoryId, headers) {
-    if (!categoryId) return null;
-    if (categoryNameCache.has(categoryId)) return categoryNameCache.get(categoryId);
-
+async function fetchCategoryNames(partIds, headers) {
+    if (partIds.length === 0) return new Map();
+    const ids = [...new Set(partIds)].join(',');
     try {
         const res = await fetchWithTimeout(
-            `${INVENTREE_URL}/api/part/category/${categoryId}/`,
+            `${INVENTREE_URL}/api/part/?pk__in=${ids}&limit=${partIds.length + 10}`,
             { headers },
-            5000,
+            10_000,
         );
-        if (res.ok) {
-            const data = await res.json();
-            const name = data.name || null;
-            categoryNameCache.set(categoryId, name);
-            return name;
-        }
-    } catch {}
-    categoryNameCache.set(categoryId, null);
-    return null;
+        if (!res.ok) return new Map();
+        const data  = await res.json();
+        const parts = Array.isArray(data) ? data : (data.results || []);
+        return new Map(parts.map(p => [p.pk, p.category_name || null]));
+    } catch {
+        return new Map();
+    }
 }
 
 /**
@@ -153,28 +149,25 @@ export async function fetchDrinks() {
 
             if (!itemsByKey.has(key)) {
                 itemsByKey.set(key, {
-                    name:        partDetail.name,
-                    price:       extractPrice(partDetail),
-                    stock:       quantity,
-                    imageUrl:    buildProxiedImageUrl(partDetail),
-                    location:    locDetail.name || null,
-                    category:    null,
-                    _categoryId: partDetail.category || null,
+                    name:     partDetail.name,
+                    price:    extractPrice(partDetail),
+                    stock:    quantity,
+                    imageUrl: buildProxiedImageUrl(partDetail),
+                    location: locDetail.name || null,
+                    _partId:  partId,
                 });
             } else {
                 itemsByKey.get(key).stock += quantity;
             }
         }
 
-        // Resolve category names for all unique category IDs in parallel
-        const uniqueCategoryIds = [...new Set(
-            [...itemsByKey.values()].map(i => i._categoryId).filter(Boolean),
-        )];
-        await Promise.all(uniqueCategoryIds.map(id => getCategoryName(id, headers)));
+        // Batch-fetch part records to get category_name
+        const uniquePartIds  = [...new Set([...itemsByKey.values()].map(i => i._partId))];
+        const categoryByPart = await fetchCategoryNames(uniquePartIds, headers);
 
-        const drinks = [...itemsByKey.values()].map(({ _categoryId, ...rest }) => ({
+        const drinks = [...itemsByKey.values()].map(({ _partId, ...rest }) => ({
             ...rest,
-            category: categoryNameCache.get(_categoryId) ?? null,
+            category: categoryByPart.get(_partId) ?? null,
         }));
 
         // Sort by location → category → name
