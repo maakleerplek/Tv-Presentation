@@ -32,13 +32,7 @@ const ROW_STYLE = `
   .delta-badge    { animation: delta-float    2s   ease-out forwards; }
 `;
 
-function DrinkRow({
-  drink,
-  anim,
-}: {
-  drink: DrinkItem;
-  anim: AnimState;
-}) {
+function DrinkRow({ drink, anim }: { drink: DrinkItem; anim: AnimState }) {
   return (
     <div
       className={`grid grid-cols-[32px_1fr_auto_auto] gap-3 items-center border-b border-[#2C1E16]/30 pb-2 rounded-sm ${
@@ -98,14 +92,10 @@ export function AnimationTester() {
   useEffect(() => { load(); }, [load]);
 
   function trigger(name: string, delta: number) {
-    const key = name;
-    clearTimeout(timers.current[key]);
-    setAnims(prev => ({
-      ...prev,
-      [key]: { change: delta < 0 ? 'decreased' : 'increased', delta },
-    }));
-    timers.current[key] = setTimeout(() => {
-      setAnims(prev => ({ ...prev, [key]: { change: null, delta: null } }));
+    clearTimeout(timers.current[name]);
+    setAnims(prev => ({ ...prev, [name]: { change: delta < 0 ? 'decreased' : 'increased', delta } }));
+    timers.current[name] = setTimeout(() => {
+      setAnims(prev => ({ ...prev, [name]: { change: null, delta: null } }));
     }, ANIM_DURATION_MS);
   }
 
@@ -126,11 +116,13 @@ export function AnimationTester() {
     <div className="flex flex-col gap-6">
       <style dangerouslySetInnerHTML={{ __html: ROW_STYLE }} />
 
-      <div className="border-2 border-[#2C1E16] p-4 bg-[#C8A98B]/20 text-sm font-bold uppercase tracking-widest text-[#2C1E16]">
-        Click a delta button to fire the animation on that row. Data reloads live from the inventory API.
+      <div className="border-2 border-[#2C1E16] p-4 bg-[#C8A98B]/20 flex items-center gap-4">
+        <p className="text-sm font-bold uppercase tracking-widest text-[#2C1E16] flex-1">
+          Click a delta button to fire the animation on that row.
+        </p>
         <button
           onClick={load}
-          className="ml-4 border-2 border-[#2C1E16] px-3 py-1 text-xs font-black uppercase bg-[#F5F2EB] hover:bg-[#E5E0D8] shadow-[2px_2px_0_0_#2C1E16]"
+          className="border-2 border-[#2C1E16] px-3 py-1 text-xs font-black uppercase bg-[#F5F2EB] hover:bg-[#E5E0D8] shadow-[2px_2px_0_0_#2C1E16]"
         >
           Reload
         </button>
@@ -140,15 +132,10 @@ export function AnimationTester() {
         <div key={gi} className="flex flex-col gap-2">
           {(group.category || group.location) && (
             <div className="flex items-baseline gap-2 border-b-2 border-[#2C1E16] pb-1">
-              {group.category && (
-                <span className="text-xs font-black uppercase tracking-widest text-[#2C1E16]">{group.category}</span>
-              )}
-              {group.location && (
-                <span className="text-[10px] font-bold uppercase tracking-wider text-[#2C1E16]/60">{group.location}</span>
-              )}
+              {group.category && <span className="text-xs font-black uppercase tracking-widest text-[#2C1E16]">{group.category}</span>}
+              {group.location && <span className="text-[10px] font-bold uppercase tracking-wider text-[#2C1E16]/60">{group.location}</span>}
             </div>
           )}
-
           {group.items.map((drink) => {
             const anim: AnimState = anims[drink.name] ?? { change: null, delta: null };
             return (

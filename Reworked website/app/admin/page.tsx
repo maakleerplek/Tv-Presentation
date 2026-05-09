@@ -7,6 +7,7 @@ import type { CalendarEvent, NewsItem } from '@/lib/types';
 import { LoginForm } from './login-form';
 import { AddNewsForm } from './add-news-form';
 import { DeleteNewsButton } from './delete-news-button';
+import { AnimationTester } from './animations/animation-tester';
 
 export default async function AdminPage() {
   const isAuthenticated = await checkAuth();
@@ -38,9 +39,6 @@ export default async function AdminPage() {
           <h1 className="text-xl font-black uppercase tracking-widest">Maakleerplek Admin</h1>
         </div>
         <div className="flex items-center gap-6">
-          <Link href="/admin/animations" className="flex items-center gap-2 text-sm font-bold uppercase hover:underline">
-            <Zap className="w-4 h-4" /> Animations
-          </Link>
           <Link href="/" className="text-sm font-bold uppercase hover:underline">
             View Presentation
           </Link>
@@ -53,6 +51,16 @@ export default async function AdminPage() {
       </header>
 
       <main className="max-w-7xl mx-auto p-8 flex flex-col gap-12">
+        {/* Animation Tester */}
+        <section>
+          <div className="flex items-center justify-between border-b-4 border-[#2C1E16] pb-2 mb-6">
+            <h2 className="text-2xl font-black uppercase tracking-widest flex items-center gap-3">
+              <Zap className="w-6 h-6" /> Animation Tester
+            </h2>
+          </div>
+          <AnimationTester />
+        </section>
+
         {/* Custom News Integration Section */}
         <section>
            <AddNewsForm />
