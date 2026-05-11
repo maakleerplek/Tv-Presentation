@@ -171,7 +171,7 @@ export function DrinksList({ initialData }: { initialData?: ScreenData }) {
       </div>
 
       {/* Control Barcodes */}
-      <div className="p-4 border-t-2 border-[#2C1E16] bg-[#F5F2EB] flex flex-row items-center justify-start gap-6 shrink-0">
+      <div className="p-4 border-t-2 border-[#2C1E16] bg-[#F5F2EB] flex flex-row items-center justify-end gap-6 shrink-0">
         {[
           { label: 'Confirm', data: 'CONFIRM', icon: CheckCircle2, color: '#22C55E' },
           { label: 'Cancel', data: 'CANCEL', icon: XCircle, color: '#EF4444' },
