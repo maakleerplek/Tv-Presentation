@@ -1,6 +1,6 @@
 'use client';
 
-import { Coffee, QrCode } from 'lucide-react';
+import { Coffee, QrCode, Tag, MapPin } from 'lucide-react';
 import Image from 'next/image';
 import QRCode from 'react-qr-code';
 import { useScreenData } from '@/hooks/useScreenData';
@@ -149,14 +149,16 @@ export function DrinksList({ initialData }: { initialData?: ScreenData }) {
         {groups.map((group, gi) => (
           <div key={gi} className="flex flex-col gap-1">
             {/* Group header */}
-            <div className="flex items-baseline gap-2 mb-1">
+            <div className="flex items-center gap-3 mb-1">
               {group.category && (
-                <span className="text-xs font-black uppercase tracking-widest text-[#2C1E16]">
+                <span className="flex items-center gap-1 text-xs font-black uppercase tracking-widest text-[#2C1E16]">
+                  <Tag className="w-3 h-3 shrink-0" />
                   {group.category}
                 </span>
               )}
               {group.location && (
-                <span className="text-[10px] font-bold uppercase tracking-wider text-[#2C1E16]/60">
+                <span className="flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider text-[#2C1E16]/60">
+                  <MapPin className="w-3 h-3 shrink-0" />
                   {group.location}
                 </span>
               )}
