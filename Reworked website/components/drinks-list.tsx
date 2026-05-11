@@ -171,18 +171,18 @@ export function DrinksList({ initialData }: { initialData?: ScreenData }) {
       </div>
 
       {/* Control Barcodes */}
-      <div className="p-6 border-t-2 border-[#2C1E16] bg-[#F5F2EB] flex flex-row items-center justify-around gap-4 shrink-0">
+      <div className="p-4 border-t-2 border-[#2C1E16] bg-[#F5F2EB] flex flex-row items-center justify-start gap-6 shrink-0">
         {[
           { label: 'Confirm', data: 'CONFIRM', icon: CheckCircle2, color: '#22C55E' },
           { label: 'Cancel', data: 'CANCEL', icon: XCircle, color: '#EF4444' },
           { label: 'Undo (Remove)', data: 'REMOVE', icon: Undo2, color: '#F59E0B' },
         ].map((ctrl) => (
-          <div key={ctrl.label} className="flex flex-col items-center gap-2">
-            <div className="border-4 border-[#2C1E16] p-2 bg-white shadow-[4px_4px_0_0_#2C1E16]">
-              <QRCode value={ctrl.data} size={80} bgColor="#FFFFFF" fgColor="#2C1E16" />
+          <div key={ctrl.label} className="flex flex-col items-center gap-1">
+            <div className="border-2 border-[#2C1E16] p-1.5 bg-white shadow-[2px_2px_0_0_#2C1E16]">
+              <QRCode value={ctrl.data} size={60} bgColor="#FFFFFF" fgColor="#2C1E16" />
             </div>
-            <span className="text-[10px] font-black uppercase tracking-widest flex items-center gap-1 mt-1">
-              <ctrl.icon className="w-3 h-3" style={{ color: ctrl.color }} /> {ctrl.label}
+            <span className="text-[9px] font-black uppercase tracking-tight flex items-center gap-1">
+              <ctrl.icon className="w-2.5 h-2.5" style={{ color: ctrl.color }} /> {ctrl.label}
             </span>
           </div>
         ))}
