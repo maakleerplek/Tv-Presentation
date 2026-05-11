@@ -11,6 +11,7 @@ const nextConfig: NextConfig = {
   },
   // Allow access to remote image placeholders and real servers.
   images: {
+    minimumCacheTTL: 86400, // 24h — avoids re-running sharp on every image every minute on the Pi
     remotePatterns: [
       {
         protocol: 'https',
