@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef, useMemo } from 'react';
 import Image from 'next/image';
 import QRCode from 'react-qr-code';
-import { Calendar, Clock as ClockIcon, Globe, MapPin, Newspaper, Repeat, Tag } from 'lucide-react';
+import { Calendar, Globe, MapPin, Newspaper, Repeat, Tag } from 'lucide-react';
 import { useScreenData } from '@/hooks/useScreenData';
 import { priorityOf, formatDutchDate } from '@/lib/utils';
 import type { CalendarEvent, NewsItem, ScreenData } from '@/lib/types';
@@ -210,50 +210,45 @@ export function EventCarousel({ initialData }: { initialData?: ScreenData }) {
                 {translatedTitle}
               </h3>
 
-              {/* Chips row: type, date, time, location/source */}
-              <div className="shrink-0 flex flex-row gap-2 flex-wrap items-center">
-                {/* Event type tag */}
+              {/* Chips row: type → price → date·time → location. One line, shrinks to fit. */}
+              <div className="shrink-0 flex flex-row gap-1.5 flex-nowrap overflow-hidden items-center">
+                {/* 1. Event type */}
                 <span
-                  className="inline-flex items-center gap-2 px-2.5 py-1 text-[10px] xl:text-xs font-black uppercase tracking-widest text-[#2C1E16] border-2 border-[#2C1E16]"
+                  className="inline-flex items-center gap-1.5 px-2 py-1 text-[10px] font-black uppercase tracking-widest text-[#2C1E16] border-2 border-[#2C1E16] shrink-0"
                   style={{ backgroundColor: currentItem._color }}
                 >
-                  <currentItem._icon className="w-3.5 h-3.5" />
-                  {currentItem.type === 'workshop'
-                    ? 'Workshop'
-                    : currentItem.type === 'recurring'
-                    ? 'Event'
-                    : 'Nieuws'}
+                  <currentItem._icon className="w-3 h-3 shrink-0" />
+                  {currentItem.type === 'workshop' ? 'Workshop' : currentItem.type === 'recurring' ? 'Event' : 'Nieuws'}
                 </span>
 
-                {dateLabel && (
-                  <div className="flex items-center gap-2 text-sm font-black text-[#2C1E16] border-2 border-[#2C1E16] px-3 py-1 bg-[#F5F2EB]">
-                    <Calendar className="w-4 h-4" />
-                    <span>{dateLabel}</span>
-                  </div>
-                )}
-                {time && (
-                  <div className="flex items-center gap-2 text-sm font-black text-[#2C1E16] border-2 border-[#2C1E16] px-3 py-1 bg-[#F5F2EB]">
-                    <ClockIcon className="w-4 h-4" />
-                    <span>{time}</span>
-                  </div>
-                )}
-                {/* Price chip — workshops only */}
+                {/* 2. Price — workshops only */}
                 {currentItem.type === 'workshop' && price && (
-                  <div className="flex items-center gap-2 text-sm font-black text-[#2C1E16] border-2 border-[#2C1E16] px-3 py-1 bg-[#FEF08A]">
-                    <Tag className="w-4 h-4" />
+                  <div className="flex items-center gap-1.5 text-[10px] font-black text-[#2C1E16] border-2 border-[#2C1E16] px-2 py-1 bg-[#FEF08A] shrink-0">
+                    <Tag className="w-3 h-3 shrink-0" />
                     <span>{price}</span>
                   </div>
                 )}
-                {/* Events: show MapPin for location; News: show Globe for source */}
+
+                {/* 3. Date + time combined */}
+                {(dateLabel || time) && (
+                  <div className="flex items-center gap-1.5 text-[10px] font-black text-[#2C1E16] border-2 border-[#2C1E16] px-2 py-1 bg-[#F5F2EB] shrink min-w-0 overflow-hidden">
+                    <Calendar className="w-3 h-3 shrink-0" />
+                    <span className="truncate">
+                      {dateLabel && time ? `${dateLabel} · ${time}` : dateLabel || time}
+                    </span>
+                  </div>
+                )}
+
+                {/* 4. Location / source */}
                 {'_isNews' in currentItem && currentItem._isNews ? (
-                  <div className="flex items-center gap-2 text-sm font-black text-[#2C1E16] border-2 border-[#2C1E16] px-3 py-1 bg-[#F5F2EB]">
-                    <Globe className="w-4 h-4" />
-                    <span>maakleerplek.be</span>
+                  <div className="flex items-center gap-1.5 text-[10px] font-black text-[#2C1E16] border-2 border-[#2C1E16] px-2 py-1 bg-[#F5F2EB] shrink min-w-0 overflow-hidden">
+                    <Globe className="w-3 h-3 shrink-0" />
+                    <span className="truncate">maakleerplek.be</span>
                   </div>
                 ) : location ? (
-                  <div className="flex items-center gap-2 text-sm font-black text-[#2C1E16] border-2 border-[#2C1E16] px-3 py-1 bg-[#F5F2EB]">
-                    <MapPin className="w-4 h-4" />
-                    <span>{location}</span>
+                  <div className="flex items-center gap-1.5 text-[10px] font-black text-[#2C1E16] border-2 border-[#2C1E16] px-2 py-1 bg-[#F5F2EB] shrink min-w-0 overflow-hidden">
+                    <MapPin className="w-3 h-3 shrink-0" />
+                    <span className="truncate">{location}</span>
                   </div>
                 ) : null}
               </div>
@@ -268,13 +263,16 @@ export function EventCarousel({ initialData }: { initialData?: ScreenData }) {
                   <div className="flex-1" />
                 )}
                 {currentItem.link && (
-                  <div className="shrink-0 border-2 border-[#2C1E16] p-1.5 bg-white self-end">
-                     <QRCode
-                      value={currentItem.link}
-                      size={80}
-                      bgColor="#ffffff"
-                      fgColor="#2C1E16"
-                    />
+                  <div className="shrink-0 flex flex-col items-center gap-1 self-end">
+                    <div className="border-2 border-[#2C1E16] p-1.5 bg-white">
+                      <QRCode
+                        value={currentItem.link}
+                        size={80}
+                        bgColor="#ffffff"
+                        fgColor="#2C1E16"
+                      />
+                    </div>
+                    <span className="text-[9px] font-black uppercase tracking-widest text-[#2C1E16]/50">maakleerplek.be</span>
                   </div>
                 )}
               </div>
