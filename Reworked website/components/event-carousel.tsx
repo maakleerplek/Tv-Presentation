@@ -211,28 +211,28 @@ export function EventCarousel({ initialData }: { initialData?: ScreenData }) {
               </h3>
 
               {/* Chips row: type → price → date·time → location. One line, shrinks to fit. */}
-              <div className="shrink-0 flex flex-row gap-1.5 flex-nowrap overflow-hidden items-center">
+              <div className="shrink-0 flex flex-row gap-2 flex-nowrap overflow-hidden items-center">
                 {/* 1. Event type */}
                 <span
-                  className="inline-flex items-center gap-1.5 px-2 py-1 text-[10px] font-black uppercase tracking-widest text-[#2C1E16] border-2 border-[#2C1E16] shrink-0"
+                  className="inline-flex items-center gap-2 px-3 py-1.5 text-xs font-black uppercase tracking-widest text-[#2C1E16] border-2 border-[#2C1E16] shrink-0"
                   style={{ backgroundColor: currentItem._color }}
                 >
-                  <currentItem._icon className="w-3 h-3 shrink-0" />
+                  <currentItem._icon className="w-3.5 h-3.5 shrink-0" />
                   {currentItem.type === 'workshop' ? 'Workshop' : currentItem.type === 'recurring' ? 'Event' : 'Nieuws'}
                 </span>
 
                 {/* 2. Price — workshops only */}
                 {currentItem.type === 'workshop' && price && (
-                  <div className="flex items-center gap-1.5 text-[10px] font-black text-[#2C1E16] border-2 border-[#2C1E16] px-2 py-1 bg-[#FEF08A] shrink-0">
-                    <Tag className="w-3 h-3 shrink-0" />
+                  <div className="flex items-center gap-2 text-xs font-black text-[#2C1E16] border-2 border-[#2C1E16] px-3 py-1.5 bg-[#FEF08A] shrink-0">
+                    <Tag className="w-3.5 h-3.5 shrink-0" />
                     <span>{price}</span>
                   </div>
                 )}
 
                 {/* 3. Date + time combined */}
                 {(dateLabel || time) && (
-                  <div className="flex items-center gap-1.5 text-[10px] font-black text-[#2C1E16] border-2 border-[#2C1E16] px-2 py-1 bg-[#F5F2EB] shrink min-w-0 overflow-hidden">
-                    <Calendar className="w-3 h-3 shrink-0" />
+                  <div className="flex items-center gap-2 text-xs font-black text-[#2C1E16] border-2 border-[#2C1E16] px-3 py-1.5 bg-[#F5F2EB] shrink min-w-0 overflow-hidden">
+                    <Calendar className="w-3.5 h-3.5 shrink-0" />
                     <span className="truncate">
                       {dateLabel && time ? `${dateLabel} · ${time}` : dateLabel || time}
                     </span>
@@ -241,13 +241,13 @@ export function EventCarousel({ initialData }: { initialData?: ScreenData }) {
 
                 {/* 4. Location / source */}
                 {'_isNews' in currentItem && currentItem._isNews ? (
-                  <div className="flex items-center gap-1.5 text-[10px] font-black text-[#2C1E16] border-2 border-[#2C1E16] px-2 py-1 bg-[#F5F2EB] shrink min-w-0 overflow-hidden">
-                    <Globe className="w-3 h-3 shrink-0" />
+                  <div className="flex items-center gap-2 text-xs font-black text-[#2C1E16] border-2 border-[#2C1E16] px-3 py-1.5 bg-[#F5F2EB] shrink min-w-0 overflow-hidden">
+                    <Globe className="w-3.5 h-3.5 shrink-0" />
                     <span className="truncate">maakleerplek.be</span>
                   </div>
                 ) : location ? (
-                  <div className="flex items-center gap-1.5 text-[10px] font-black text-[#2C1E16] border-2 border-[#2C1E16] px-2 py-1 bg-[#F5F2EB] shrink min-w-0 overflow-hidden">
-                    <MapPin className="w-3 h-3 shrink-0" />
+                  <div className="flex items-center gap-2 text-xs font-black text-[#2C1E16] border-2 border-[#2C1E16] px-3 py-1.5 bg-[#F5F2EB] shrink min-w-0 overflow-hidden">
+                    <MapPin className="w-3.5 h-3.5 shrink-0" />
                     <span className="truncate">{location}</span>
                   </div>
                 ) : null}
