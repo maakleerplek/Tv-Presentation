@@ -231,24 +231,22 @@ export function EventCarousel({ initialData }: { initialData?: ScreenData }) {
 
                 {/* 3. Date + time combined */}
                 {(dateLabel || time) && (
-                  <div className="flex items-center gap-2 text-xs font-black text-[#2C1E16] border-2 border-[#2C1E16] px-3 py-1.5 bg-[#F5F2EB] shrink min-w-0 overflow-hidden">
+                  <div className="flex items-center gap-2 text-xs font-black text-[#2C1E16] border-2 border-[#2C1E16] px-3 py-1.5 bg-[#F5F2EB] shrink-0">
                     <Calendar className="w-3.5 h-3.5 shrink-0" />
-                    <span className="truncate">
-                      {dateLabel && time ? `${dateLabel} · ${time}` : dateLabel || time}
-                    </span>
+                    <span>{dateLabel && time ? `${dateLabel} · ${time}` : dateLabel || time}</span>
                   </div>
                 )}
 
-                {/* 4. Location / source */}
+                {/* 4. Location — skip "maakleerplek" (always this venue); News: show Globe */}
                 {'_isNews' in currentItem && currentItem._isNews ? (
-                  <div className="flex items-center gap-2 text-xs font-black text-[#2C1E16] border-2 border-[#2C1E16] px-3 py-1.5 bg-[#F5F2EB] shrink min-w-0 overflow-hidden">
+                  <div className="flex items-center gap-2 text-xs font-black text-[#2C1E16] border-2 border-[#2C1E16] px-3 py-1.5 bg-[#F5F2EB] shrink-0">
                     <Globe className="w-3.5 h-3.5 shrink-0" />
-                    <span className="truncate">maakleerplek.be</span>
+                    <span>maakleerplek.be</span>
                   </div>
-                ) : location ? (
-                  <div className="flex items-center gap-2 text-xs font-black text-[#2C1E16] border-2 border-[#2C1E16] px-3 py-1.5 bg-[#F5F2EB] shrink min-w-0 overflow-hidden">
+                ) : location && location.toLowerCase() !== 'maakleerplek' ? (
+                  <div className="flex items-center gap-2 text-xs font-black text-[#2C1E16] border-2 border-[#2C1E16] px-3 py-1.5 bg-[#F5F2EB] shrink-0">
                     <MapPin className="w-3.5 h-3.5 shrink-0" />
-                    <span className="truncate">{location}</span>
+                    <span>{location}</span>
                   </div>
                 ) : null}
               </div>
