@@ -53,8 +53,8 @@ export const HOMEPAGE_URL  = resolveMaakleerplekUrl('');
 /** General scraper cache lifetime (ms). Default: 15 minutes. */
 export const CACHE_DURATION_MS = parseInt(process.env.CACHE_DURATION_MINUTES || '15', 10) * 60 * 1000;
 
-/** Drinks cache lifetime (ms). Hardcoded to 10 s for near-real-time stock updates. */
-export const DRINKS_CACHE_DURATION_MS = 10_000;
+/** Drinks cache lifetime (ms). Hardcoded to 3 s for near-real-time stock updates. */
+export const DRINKS_CACHE_DURATION_MS = 3_000;
 
 // ── Event / news limits ───────────────────────────────────────────────────────
 
