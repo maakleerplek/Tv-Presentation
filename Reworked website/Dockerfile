@@ -38,7 +38,9 @@ COPY --from=builder --chown=bun:bun /app/.next/standalone ./
 COPY --from=builder --chown=bun:bun /app/.next/static ./.next/static
 
 # Ensure bun user owns /app directory for SQLite database writes
-RUN chown -R bun:bun /app
+RUN chown -R bun:bun /app && \
+    mkdir -p /app/.next/cache/images /app/.next/cache/fetch-cache && \
+    chown -R bun:bun /app/.next/cache
 
 USER bun
 
