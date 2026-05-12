@@ -241,7 +241,7 @@ export function DrinksList({ initialData }: { initialData?: ScreenData }) {
       </div>
 
       {/* Scrollable item area */}
-      <div className="flex-1 flex flex-col p-4 min-h-0 overflow-y-auto gap-4">
+      <div className="flex-1 grid grid-cols-2 p-4 min-h-0 overflow-y-auto gap-4 content-start">
         {groups.map((group, gi) => (
           <div key={gi} className="flex flex-col gap-1">
             {/* Group header */}
