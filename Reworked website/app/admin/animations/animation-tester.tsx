@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback, useRef } from 'react';
 import Image from 'next/image';
+import { AlertTriangle } from 'lucide-react';
 import type { DrinkItem } from '@/lib/types';
 
 type AnimState = { change: 'decreased' | 'increased' | null; delta: number | null };
@@ -77,6 +78,46 @@ function DrinkRow({ drink, anim }: { drink: DrinkItem; anim: AnimState }) {
 
 const DELTAS = [-1, -2, -3, +1, +3];
 
+function ClosingFlashTester() {
+  const [showFlash, setShowFlash] = useState(false);
+
+  function trigger() {
+    setShowFlash(true);
+    setTimeout(() => setShowFlash(false), 4000);
+  }
+
+  return (
+    <div className="border-2 border-[#2C1E16] p-4 flex items-center gap-4 bg-red-50">
+      {showFlash && (
+        <div
+          className="fixed inset-0 z-[9999] flex flex-col items-center justify-center pointer-events-none"
+          style={{ animation: 'closing-flash 4s ease-in-out forwards' }}
+        >
+          <div style={{ animation: 'flash-text-in 4s ease-in-out forwards' }} className="text-center px-8">
+            <AlertTriangle className="w-24 h-24 text-white mx-auto mb-6 drop-shadow-lg" />
+            <p className="text-white font-black uppercase tracking-widest text-5xl leading-tight drop-shadow-lg">
+              Test Evenement
+            </p>
+            <p className="text-white font-black uppercase tracking-widest text-3xl mt-4 drop-shadow-lg opacity-90">
+              Eindigt over 5 min — 19:00
+            </p>
+          </div>
+        </div>
+      )}
+      <p className="text-sm font-bold uppercase tracking-widest text-[#2C1E16] flex-1">
+        Closing Flash — full-screen red warning overlay (4s)
+      </p>
+      <button
+        onClick={trigger}
+        disabled={showFlash}
+        className="border-2 border-[#2C1E16] px-4 py-2 text-xs font-black uppercase bg-red-200 hover:bg-red-300 shadow-[2px_2px_0_0_#2C1E16] disabled:opacity-40 disabled:cursor-not-allowed"
+      >
+        {showFlash ? 'Playing…' : 'Test Flash'}
+      </button>
+    </div>
+  );
+}
+
 export function AnimationTester() {
   const [drinks, setDrinks] = useState<DrinkItem[]>([]);
   const [anims, setAnims] = useState<Record<string, AnimState>>({});
@@ -115,6 +156,7 @@ export function AnimationTester() {
   return (
     <div className="flex flex-col gap-6">
       <style dangerouslySetInnerHTML={{ __html: ROW_STYLE }} />
+      <ClosingFlashTester />
 
       <div className="border-2 border-[#2C1E16] p-4 bg-[#C8A98B]/20 flex items-center gap-4">
         <p className="text-sm font-bold uppercase tracking-widest text-[#2C1E16] flex-1">
