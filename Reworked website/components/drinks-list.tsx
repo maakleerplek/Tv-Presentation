@@ -12,7 +12,7 @@ import { PricingTable } from './pricing-table';
 import type { DrinkWithChange } from '@/hooks/useDrinksData';
 
 const HeaderRow = () => (
-  <div className="grid grid-cols-[32px_1fr_auto_auto_96px] gap-3 items-end border-b-2 border-[#2C1E16] pb-2 mb-1">
+  <div className="grid grid-cols-[32px_1fr_auto_auto_68px] gap-3 items-end border-b-2 border-[#2C1E16] pb-2 mb-1">
     <span className="col-start-2 text-xs text-[#2C1E16] font-black uppercase">Item</span>
     <span className="text-xs text-[#2C1E16] font-black uppercase text-center w-10">Stock</span>
     <span className="text-xs text-[#2C1E16] font-black uppercase text-right w-12">Prijs</span>
@@ -24,7 +24,7 @@ function DrinkRow({ drink }: { drink: DrinkWithChange }) {
   const qrValue = drink.barcode || drink.IPN || null;
   return (
     <div
-      className={`grid grid-cols-[32px_1fr_auto_auto_96px] gap-3 items-center border-b border-[#2C1E16]/30 py-2 shrink-0 rounded-sm ${
+      className={`grid grid-cols-[32px_1fr_auto_auto_68px] gap-3 items-center border-b border-[#2C1E16]/30 py-2 shrink-0 rounded-sm ${
         drink._change === 'decreased' ? 'drink-sold' :
         drink._change === 'increased' ? 'drink-restocked' : ''
       }`}
@@ -62,7 +62,7 @@ function DrinkRow({ drink }: { drink: DrinkWithChange }) {
       <div className="flex items-center justify-center">
         {qrValue ? (
           <div className="border-2 border-[#2C1E16] p-1 bg-white">
-            <QRCode value={qrValue} size={84} bgColor="#ffffff" fgColor="#2C1E16" />
+            <QRCode value={qrValue} size={60} bgColor="#ffffff" fgColor="#2C1E16" />
           </div>
         ) : (
           <span className="text-[8px] font-black text-[#2C1E16]/20 uppercase">—</span>
