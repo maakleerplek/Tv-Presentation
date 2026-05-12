@@ -92,6 +92,8 @@ export type ChangelogEntry = {
     source: string;
     item_name: string;
     quantity: number;
+    /** Total price for the line (quantity × unit price), or null if not provided */
+    price: number | null;
     created_at: string;
 };
 

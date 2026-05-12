@@ -84,18 +84,16 @@ function groupDrinks(drinks: DrinkWithChange[]) {
   return [...groups.values()];
 }
 
-const ACTION_ICONS: Record<string, React.ElementType> = {
-  checkout: ShoppingCart,
-  add: Plus,
-  remove: Minus,
-  set: RotateCcw,
+const SOURCE_LABELS: Record<string, string> = {
+  'interface-stock': 'Interface',
+  'stock-frontend': 'Frontend',
 };
 
-const ACTION_LABELS: Record<string, string> = {
-  checkout: 'Sold',
-  add: 'Added',
-  remove: 'Removed',
-  set: 'Set',
+const ACTION_VERBS: Record<string, string> = {
+  checkout: 'bought',
+  add: 'restocked',
+  remove: 'removed',
+  set: 'set',
 };
 
 const ACTION_COLORS: Record<string, string> = {
@@ -105,6 +103,13 @@ const ACTION_COLORS: Record<string, string> = {
   set: '#F59E0B',
 };
 
+const ACTION_ICONS: Record<string, React.ElementType> = {
+  checkout: ShoppingCart,
+  add: Plus,
+  remove: Minus,
+  set: RotateCcw,
+};
+
 function formatTime(isoString: string): string {
   try {
     const d = new Date(isoString);
@@ -112,6 +117,13 @@ function formatTime(isoString: string): string {
   } catch {
     return '';
   }
+}
+
+function formatEntryLine(entry: ChangelogEntry): string {
+  const source = SOURCE_LABELS[entry.source] ?? entry.source;
+  const verb = ACTION_VERBS[entry.action] ?? entry.action;
+  const price = entry.price != null ? ` €${entry.price.toFixed(2)}` : '';
+  return `From ${source}: ${verb} ${entry.quantity}× ${entry.item_name}${price}`;
 }
 
 function ChangelogPanel({ entries }: { entries: ChangelogEntry[] }) {
@@ -129,15 +141,11 @@ function ChangelogPanel({ entries }: { entries: ChangelogEntry[] }) {
       {entries.slice(0, 5).map((entry) => {
         const Icon = ACTION_ICONS[entry.action] ?? ShoppingCart;
         const color = ACTION_COLORS[entry.action] ?? '#2C1E16';
-        const label = ACTION_LABELS[entry.action] ?? entry.action;
         return (
           <div key={entry.id} className="flex items-center gap-1.5 min-w-0">
             <Icon className="w-2.5 h-2.5 shrink-0" style={{ color }} />
-            <span className="text-[9px] font-black uppercase tracking-tight shrink-0" style={{ color }}>
-              {label}
-            </span>
             <span className="text-[9px] font-bold text-[#2C1E16] truncate">
-              {entry.quantity}× {entry.item_name}
+              {formatEntryLine(entry)}
             </span>
             <span className="text-[8px] text-[#2C1E16]/40 shrink-0 ml-auto">
               {formatTime(entry.created_at)}

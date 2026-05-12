@@ -18,7 +18,7 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ error: 'Body must be an object' }, { status: 400 });
     }
 
-    const { action, source, item_name, quantity } = body as Record<string, unknown>;
+    const { action, source, item_name, quantity, price } = body as Record<string, unknown>;
 
     if (typeof action !== 'string' || !['checkout', 'add', 'remove', 'set'].includes(action)) {
         return NextResponse.json({ error: 'action must be one of: checkout, add, remove, set' }, { status: 400 });
@@ -32,7 +32,8 @@ export async function POST(req: NextRequest) {
     if (typeof quantity !== 'number' || quantity <= 0) {
         return NextResponse.json({ error: 'quantity must be a positive number' }, { status: 400 });
     }
+    const parsedPrice = typeof price === 'number' && price >= 0 ? price : null;
 
-    const id = addChangelogEntry(action, source, item_name.trim(), Math.round(quantity));
+    const id = addChangelogEntry(action, source, item_name.trim(), Math.round(quantity), parsedPrice);
     return NextResponse.json({ id }, { status: 201 });
 }

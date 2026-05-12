@@ -17,6 +17,7 @@ export type ChangelogRow = {
   source: string;
   item_name: string;
   quantity: number;
+  price: number | null;
   created_at: string;
 };
 
@@ -69,9 +70,17 @@ function getDb(): DbLike {
           source TEXT NOT NULL,
           item_name TEXT NOT NULL,
           quantity INTEGER NOT NULL DEFAULT 1,
+          price REAL,
           created_at DATETIME DEFAULT CURRENT_TIMESTAMP
         )
       `);
+
+      // Migrate: add price column if it doesn't exist yet
+      try {
+        db.exec(`ALTER TABLE changelog ADD COLUMN price REAL`);
+      } catch {
+        // Column already exists, safe to ignore
+      }
 
       // Create admin users table
       db.exec(`
@@ -155,13 +164,13 @@ export function getChangelog(limit = 20): ChangelogRow[] {
   }
 }
 
-export function addChangelogEntry(action: string, source: string, item_name: string, quantity: number): number {
+export function addChangelogEntry(action: string, source: string, item_name: string, quantity: number, price?: number | null): number {
   const db = getDb();
   const stmt = db.prepare(`
-    INSERT INTO changelog (action, source, item_name, quantity)
-    VALUES (?, ?, ?, ?)
+    INSERT INTO changelog (action, source, item_name, quantity, price)
+    VALUES (?, ?, ?, ?, ?)
   `);
-  const info = stmt.run(action, source, item_name, quantity);
+  const info = stmt.run(action, source, item_name, quantity, price ?? null);
   return info.lastInsertRowid;
 }
 
