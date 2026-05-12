@@ -241,7 +241,7 @@ export function DrinksList({ initialData }: { initialData?: ScreenData }) {
       </div>
 
       {/* Scrollable item area */}
-      <div className="flex-1 grid grid-cols-2 p-4 min-h-0 overflow-y-auto gap-4 content-start">
+      <div className="flex-1 flex flex-col p-4 min-h-0 overflow-y-auto gap-4">
         {groups.map((group, gi) => (
           <div key={gi} className="flex flex-col gap-1">
             {/* Group header */}
@@ -259,10 +259,23 @@ export function DrinksList({ initialData }: { initialData?: ScreenData }) {
                 </span>
               )}
             </div>
-            <HeaderRow />
-            {group.items.map((drink, idx) => (
-              <DrinkRow key={idx} drink={drink} />
-            ))}
+            {(() => {
+              const half = Math.ceil(group.items.length / 2);
+              const left = group.items.slice(0, half);
+              const right = group.items.slice(half);
+              return (
+                <div className="grid grid-cols-2 gap-x-4">
+                  <div className="flex flex-col gap-1">
+                    <HeaderRow />
+                    {left.map((drink, idx) => <DrinkRow key={idx} drink={drink} />)}
+                  </div>
+                  <div className="flex flex-col gap-1">
+                    {right.length > 0 && <HeaderRow />}
+                    {right.map((drink, idx) => <DrinkRow key={idx} drink={drink} />)}
+                  </div>
+                </div>
+              );
+            })()}
           </div>
         ))}
       </div>
