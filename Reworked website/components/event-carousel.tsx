@@ -143,11 +143,11 @@ export function EventCarousel({ initialData }: { initialData?: ScreenData }) {
           >
             <style dangerouslySetInnerHTML={{__html: `
               @keyframes slide-in {
-                from { transform: translateX(100%); }
-                to   { transform: translateX(0); }
+                from { transform: translateX(100%); opacity: 0; }
+                to   { transform: translateX(0);    opacity: 1; }
               }
               .animate-slide-in {
-                animation: slide-in 0.4s ease-out forwards;
+                animation: slide-in 0.55s cubic-bezier(0.16, 1, 0.3, 1) forwards;
               }
             `}} />
             {/* Top section: Image — 45% of card height.
