@@ -11,20 +11,36 @@ import type { ScreenData, DrinkItem, ChangelogEntry } from '@/lib/types';
 import { PricingTable } from './pricing-table';
 import type { DrinkWithChange } from '@/hooks/useDrinksData';
 
-const HeaderRow = () => (
-  <div className="grid grid-cols-[32px_1fr_auto_auto_68px] gap-3 items-end border-b-2 border-[#2C1E16] pb-2 mb-1">
-    <span className="col-start-2 text-xs text-[#2C1E16] font-black uppercase">Item</span>
-    <span className="text-xs text-[#2C1E16] font-black uppercase text-center w-10">Stock</span>
-    <span className="text-xs text-[#2C1E16] font-black uppercase text-right w-12">Prijs</span>
-    <span className="text-xs text-[#2C1E16] font-black uppercase text-center">Scan</span>
-  </div>
-);
+function HeaderRow({ category, location }: { category?: string | null; location?: string | null }) {
+  return (
+    <div className="grid grid-cols-[32px_1fr_auto_auto_68px] gap-2 items-end border-b-2 border-[#2C1E16] pb-1 mb-0.5">
+      <div className="col-start-2 flex items-baseline gap-2 min-w-0">
+        {category && (
+          <span className="flex items-center gap-1 text-[10px] font-black uppercase tracking-widest text-[#2C1E16] shrink-0">
+            <Tag className="w-2.5 h-2.5 shrink-0" />{category}
+          </span>
+        )}
+        {location && (
+          <span className="flex items-center gap-1 text-[9px] font-bold uppercase tracking-wider text-[#2C1E16]/50 shrink-0">
+            <MapPin className="w-2.5 h-2.5 shrink-0" />{location}
+          </span>
+        )}
+        {!category && !location && (
+          <span className="text-[10px] text-[#2C1E16] font-black uppercase">Item</span>
+        )}
+      </div>
+      <span className="text-[10px] text-[#2C1E16] font-black uppercase text-center w-10">Stock</span>
+      <span className="text-[10px] text-[#2C1E16] font-black uppercase text-right w-12">Prijs</span>
+      <span className="text-[10px] text-[#2C1E16] font-black uppercase text-center">Scan</span>
+    </div>
+  );
+}
 
 function DrinkRow({ drink }: { drink: DrinkWithChange }) {
   const qrValue = drink.barcode || drink.IPN || null;
   return (
     <div
-      className={`grid grid-cols-[32px_1fr_auto_auto_68px] gap-3 items-center border-b border-[#2C1E16]/30 py-2 shrink-0 rounded-sm ${
+      className={`grid grid-cols-[32px_1fr_auto_auto_68px] gap-2 items-center border-b border-[#2C1E16]/30 py-1 shrink-0 rounded-sm ${
         drink._change === 'decreased' ? 'drink-sold' :
         drink._change === 'increased' ? 'drink-restocked' : ''
       }`}
@@ -206,48 +222,32 @@ export function DrinksList({ initialData }: { initialData?: ScreenData }) {
 
       <div className="p-2 border-b-2 border-[#2C1E16] bg-[#C8A98B] shrink-0">
         <h2 className="text-[#2C1E16] uppercase tracking-widest text-xs font-black flex items-center justify-center gap-2">
-          < Coffee className="w-4 h-4" /> Inventory
+          <Coffee className="w-4 h-4" /> Inventory
         </h2>
+        <p className="text-[#2C1E16]/60 text-[9px] font-bold uppercase tracking-wider text-center mt-0.5">
+          Scan QR codes with scanner right of the TV
+        </p>
       </div>
 
       {/* Scrollable item area */}
       <div className="flex-1 flex flex-col p-4 min-h-0 overflow-y-auto gap-4">
-        {groups.map((group, gi) => (
-          <div key={gi} className="flex flex-col gap-1">
-            {/* Group header */}
-            <div className="flex items-center gap-3 mb-1">
-              {group.category && (
-                <span className="flex items-center gap-1 text-xs font-black uppercase tracking-widest text-[#2C1E16]">
-                  <Tag className="w-3 h-3 shrink-0" />
-                  {group.category}
-                </span>
-              )}
-              {group.location && (
-                <span className="flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider text-[#2C1E16]/60">
-                  <MapPin className="w-3 h-3 shrink-0" />
-                  {group.location}
-                </span>
-              )}
+        {groups.map((group, gi) => {
+          const half = Math.ceil(group.items.length / 2);
+          const left = group.items.slice(0, half);
+          const right = group.items.slice(half);
+          return (
+            <div key={gi} className="grid grid-cols-2 gap-x-4">
+              <div className="flex flex-col gap-0.5">
+                <HeaderRow category={group.category} location={group.location} />
+                {left.map((drink, idx) => <DrinkRow key={idx} drink={drink} />)}
+              </div>
+              <div className="flex flex-col gap-0.5">
+                {right.length > 0 && <HeaderRow />}
+                {right.map((drink, idx) => <DrinkRow key={idx} drink={drink} />)}
+              </div>
             </div>
-            {(() => {
-              const half = Math.ceil(group.items.length / 2);
-              const left = group.items.slice(0, half);
-              const right = group.items.slice(half);
-              return (
-                <div className="grid grid-cols-2 gap-x-4">
-                  <div className="flex flex-col gap-1">
-                    <HeaderRow />
-                    {left.map((drink, idx) => <DrinkRow key={idx} drink={drink} />)}
-                  </div>
-                  <div className="flex flex-col gap-1">
-                    {right.length > 0 && <HeaderRow />}
-                    {right.map((drink, idx) => <DrinkRow key={idx} drink={drink} />)}
-                  </div>
-                </div>
-              );
-            })()}
-          </div>
-        ))}
+          );
+        })}
       </div>
 
       {/* Control Barcodes + Changelog */}
