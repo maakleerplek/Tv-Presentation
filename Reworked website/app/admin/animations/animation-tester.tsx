@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback, useRef } from 'react';
 import Image from 'next/image';
+import QRCode from 'react-qr-code';
 import { AlertTriangle } from 'lucide-react';
 import type { DrinkItem } from '@/lib/types';
 
@@ -34,9 +35,11 @@ const ROW_STYLE = `
 `;
 
 function DrinkRow({ drink, anim }: { drink: DrinkItem; anim: AnimState }) {
+  const qrValue = drink.barcode || drink.IPN || null;
+
   return (
     <div
-      className={`grid grid-cols-[32px_1fr_auto_auto] gap-3 items-center border-b border-[#2C1E16]/30 pb-2 rounded-sm ${
+      className={`grid grid-cols-[32px_1fr_auto_auto_auto] gap-3 items-center border-b border-[#2C1E16]/30 pb-2 rounded-sm ${
         anim.change === 'decreased' ? 'drink-sold' :
         anim.change === 'increased' ? 'drink-restocked' : ''
       }`}
@@ -72,6 +75,18 @@ function DrinkRow({ drink, anim }: { drink: DrinkItem; anim: AnimState }) {
         )}
       </span>
       <span className="text-sm font-black text-right w-12 leading-none text-[#2C1E16]">{drink.price}</span>
+      <div className="flex flex-col items-center gap-0.5 shrink-0">
+        {qrValue ? (
+          <>
+            <div className="border-2 border-[#2C1E16] p-1 bg-white">
+              <QRCode value={qrValue} size={64} bgColor="#ffffff" fgColor="#2C1E16" />
+            </div>
+            <span className="text-[8px] font-black uppercase tracking-widest text-[#2C1E16]/50 max-w-[72px] truncate">{qrValue}</span>
+          </>
+        ) : (
+          <span className="text-[8px] font-black uppercase tracking-widest text-[#2C1E16]/30 w-[72px] text-center">no barcode</span>
+        )}
+      </div>
     </div>
   );
 }

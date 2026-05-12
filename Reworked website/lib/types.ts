@@ -63,6 +63,10 @@ export type DrinkItem = {
     location: string | null;
     /** InvenTree part category name, or null if unknown */
     category: string | null;
+    /** InvenTree part barcode value, or null if not set */
+    barcode: string | null;
+    /** InvenTree part IPN (internal part number), or null if not set */
+    IPN: string | null;
 };
 
 /** Pricing information scraped from the wiki. */

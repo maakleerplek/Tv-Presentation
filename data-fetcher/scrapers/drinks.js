@@ -158,6 +158,8 @@ export async function fetchDrinks() {
                     stock:    quantity,
                     imageUrl: buildProxiedImageUrl(partDetail),
                     location: locDetail.name || null,
+                    barcode:  partDetail.barcode || null,
+                    IPN:      partDetail.IPN || null,
                     _partId:  partId,
                 });
             } else {
