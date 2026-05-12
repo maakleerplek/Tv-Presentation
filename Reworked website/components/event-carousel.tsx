@@ -40,18 +40,21 @@ export function EventCarousel({ initialData }: { initialData?: ScreenData }) {
   const [imgFit, setImgFit] = useState<'cover' | 'contain'>('cover');
   const imgContainerRef = useRef<HTMLDivElement>(null);
 
-  // Compute carousel items immediately (works during SSR)
-  const carouselItems = useMemo(() => {
+  // Build the unshuffled list (safe for SSR — no randomness)
+  const baseItems = useMemo(() => {
     if (!data) return [];
-
     const workshops = data.workshops.map((w) => ({ ...w, _icon: Calendar,  _color: '#FEF08A' }));
     const recurring = data.recurringEvents.map((r) => ({ ...r, _icon: Repeat,    _color: '#BFDBFE' }));
     const news      = data.news.map((n) => ({ ...n, _icon: Newspaper, _color: '#BBF7D0', _isNews: true }));
-
-    // We combine them here. Shuffling during SSR can cause hydration mismatches,
-    // so we just return the combined array.
     return [...workshops, ...recurring, ...news];
   }, [data]);
+
+  // Shuffle once on the client after mount; re-shuffle whenever the data set changes
+  const [carouselItems, setCarouselItems] = useState<CarouselItem[]>([]);
+  useEffect(() => {
+    setCarouselItems(shuffleArray(baseItems));
+    setCurrentIndex(0);
+  }, [baseItems.length]);
 
   // Reset to cover optimistically whenever the carousel advances to a new item
   useEffect(() => { setImgFit('cover'); }, [currentIndex]);
