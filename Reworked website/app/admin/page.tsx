@@ -2,7 +2,7 @@ import { checkAuth, logoutAction } from './actions';
 import { getScreenData } from '@/lib/data';
 import Image from 'next/image';
 import Link from 'next/link';
-import { Calendar, Globe, Repeat, LogOut, LayoutDashboard, Zap, MonitorPlay } from 'lucide-react';
+import { Calendar, Globe, Repeat, LogOut, LayoutDashboard, Zap, MonitorPlay, QrCode } from 'lucide-react';
 import type { CalendarEvent, NewsItem } from '@/lib/types';
 import { LoginForm } from './login-form';
 import { AddNewsForm } from './add-news-form';
@@ -39,6 +39,9 @@ export default async function AdminPage() {
           <h1 className="text-xl font-black uppercase tracking-widest">Maakleerplek Admin</h1>
         </div>
         <div className="flex items-center gap-6">
+          <Link href="/admin/control-sheet" className="flex items-center gap-2 text-sm font-bold uppercase hover:underline">
+            <QrCode className="w-4 h-4" /> Control Sheet
+          </Link>
           <Link href="/admin/preview" className="flex items-center gap-2 text-sm font-bold uppercase hover:underline">
             <MonitorPlay className="w-4 h-4" /> Preview
           </Link>
