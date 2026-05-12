@@ -1,7 +1,7 @@
 'use client';
 
 import React from 'react';
-import { Coffee, Tag, MapPin, CheckCircle2, XCircle, Undo2, ShoppingCart, Plus, Minus, RotateCcw } from 'lucide-react';
+import { Coffee, Tag, MapPin, CheckCircle2, XCircle, Undo2, ShoppingCart, Plus, Minus, RotateCcw, Sparkles } from 'lucide-react';
 import Image from 'next/image';
 import QRCode from 'react-qr-code';
 import { useScreenData } from '@/hooks/useScreenData';
@@ -90,6 +90,7 @@ const SOURCE_LABELS: Record<string, string> = {
   'checkout': 'Self-checkout',
   'volunteer-scanner': 'Volunteer',
   'inventory-overview': 'Volunteer',
+  'inventree-sync': 'InvenTree',
 };
 
 const ACTION_VERBS: Record<string, string> = {
@@ -97,6 +98,7 @@ const ACTION_VERBS: Record<string, string> = {
   add: 'restocked',
   remove: 'removed',
   set: 'set',
+  create: 'added',
 };
 
 const ACTION_COLORS: Record<string, string> = {
@@ -104,6 +106,7 @@ const ACTION_COLORS: Record<string, string> = {
   add: '#3B82F6',
   remove: '#EF4444',
   set: '#F59E0B',
+  create: '#A855F7',
 };
 
 const ACTION_ICONS: Record<string, React.ElementType> = {
@@ -111,6 +114,7 @@ const ACTION_ICONS: Record<string, React.ElementType> = {
   add: Plus,
   remove: Minus,
   set: RotateCcw,
+  create: Sparkles,
 };
 
 function formatRelativeTime(isoString: string): string {

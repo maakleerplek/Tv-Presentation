@@ -121,3 +121,6 @@ export const TIPS = (() => {
 
 export const INVENTREE_URL   = process.env.INVENTREE_URL   || 'https://10.72.3.68:8443';
 export const INVENTREE_TOKEN = process.env.INVENTREE_TOKEN;
+
+/** Internal URL of the Next.js frontend — used to POST changelog events from within Docker. */
+export const FRONTEND_INTERNAL_URL = process.env.FRONTEND_INTERNAL_URL || 'http://tv-frontend:3000';

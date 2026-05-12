@@ -10,10 +10,14 @@ import {
     DRINKS_CACHE_DURATION_MS,
 } from '../config.js';
 import { isCacheValid } from '../utils.js';
+import { reportStockChange } from '../changelog-reporter.js';
 
 // ── In-memory cache ───────────────────────────────────────────────────────────
 
 let drinksCache = { data: null, timestamp: 0 };
+
+// Snapshot of the last known stock quantities: key → { stock, price }
+let previousSnapshot = null;
 
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -180,6 +184,25 @@ export async function fetchDrinks() {
         });
 
         console.log(`[Drinks] Fetched ${drinks.length} unique items across all locations`);
+
+        // Detect stock changes vs the previous snapshot and report to changelog
+        if (previousSnapshot !== null) {
+            const nextSnapshot = new Map(drinks.map(d => [d.name, { stock: d.stock, price: d.price }]));
+
+            for (const [name, next] of nextSnapshot) {
+                const prev = previousSnapshot.get(name);
+                if (prev === undefined) continue; // newly appeared item — skip (handled by create events)
+                const delta = next.stock - prev.stock;
+                if (delta !== 0) {
+                    // Parse numeric price from the formatted string (e.g. "€1.50" → 1.50)
+                    const numericPrice = parseFloat(String(next.price).replace(/[^0-9.]/g, '')) || null;
+                    const linePrice = numericPrice != null ? Math.round(Math.abs(delta) * numericPrice * 100) / 100 : null;
+                    reportStockChange(name, delta, linePrice).catch(() => {});
+                }
+            }
+        }
+
+        previousSnapshot = new Map(drinks.map(d => [d.name, { stock: d.stock, price: d.price }]));
 
         drinksCache = { data: drinks, timestamp: Date.now() };
         return drinks;

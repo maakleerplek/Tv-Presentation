@@ -20,8 +20,8 @@ export async function POST(req: NextRequest) {
 
     const { action, source, item_name, quantity, price } = body as Record<string, unknown>;
 
-    if (typeof action !== 'string' || !['checkout', 'add', 'remove', 'set'].includes(action)) {
-        return NextResponse.json({ error: 'action must be one of: checkout, add, remove, set' }, { status: 400 });
+    if (typeof action !== 'string' || !['checkout', 'add', 'remove', 'set', 'create'].includes(action)) {
+        return NextResponse.json({ error: 'action must be one of: checkout, add, remove, set, create' }, { status: 400 });
     }
     if (typeof source !== 'string' || !source.trim()) {
         return NextResponse.json({ error: 'source is required' }, { status: 400 });
