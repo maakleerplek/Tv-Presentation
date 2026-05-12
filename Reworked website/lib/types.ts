@@ -83,6 +83,18 @@ export type ScreenData = {
     config: ScreenConfig;
 };
 
+/** A stock action event sent from an external project (stock-frontend, interface-stock). */
+export type ChangelogEntry = {
+    id: number;
+    /** Type of stock action: checkout (sold), add (restocked), remove, or set */
+    action: 'checkout' | 'add' | 'remove' | 'set';
+    /** Identifier of the source project, e.g. "stock-frontend" or "interface-stock" */
+    source: string;
+    item_name: string;
+    quantity: number;
+    created_at: string;
+};
+
 /** Config values delivered from the data-fetcher alongside the data. */
 export type ScreenConfig = {
     /** Seconds each carousel slide is shown before advancing */

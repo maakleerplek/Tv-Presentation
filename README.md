@@ -38,6 +38,34 @@ Pulls live stock levels and prices for drinks, snacks, and consumable materials 
 ### 📅 Calendar & News
 Scrapes the main maakleerplek.be website for the latest news and upcoming events, automatically prioritizing "high-profile" events like OpenLabs or Repair Cafés.
 
+### 📋 Changelog API
+External projects can report stock actions that are then shown as a live "Recent activity" feed at the bottom of the inventory panel (left of the control QR codes).
+
+**Endpoint:** `POST /api/changelog`
+
+**Body:**
+```json
+{
+  "action": "checkout",
+  "source": "my-project",
+  "item_name": "Club Mate",
+  "quantity": 2
+}
+```
+
+| Field | Type | Values |
+|---|---|---|
+| `action` | string | `checkout` (sold), `add` (restocked), `remove`, `set` |
+| `source` | string | Free-form identifier of the sending project |
+| `item_name` | string | Human-readable name of the item |
+| `quantity` | number | Positive integer |
+
+The endpoint is available at the tv-presentation URL (default port 8083). Configure the sending project with the TV URL and call the endpoint after any successful stock operation. Failures are silently ignored so they never block the main workflow.
+
+**Integrations already included:**
+- `stock-management-frontend` — set `VITE_TV_PRESENTATION_URL` in `.env`
+- `interface-stock` — set `TV_PRESENTATION_URL` in `.env`
+
 ## Quick Start
 
 ```bash

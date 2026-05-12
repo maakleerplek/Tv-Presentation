@@ -11,9 +11,18 @@ export type CustomNewsRow = {
   created_at: string;
 };
 
+export type ChangelogRow = {
+  id: number;
+  action: string;
+  source: string;
+  item_name: string;
+  quantity: number;
+  created_at: string;
+};
+
 // Lazily initialize the database connection
 type DbLike = {
-  prepare: (query: string) => { get: () => unknown; all: () => unknown[]; run: (...args: unknown[]) => { lastInsertRowid: number } };
+  prepare: (query: string) => { get: () => unknown; all: (...args: unknown[]) => unknown[]; run: (...args: unknown[]) => { lastInsertRowid: number } };
   exec: (sql: string) => void;
 };
 
@@ -51,6 +60,18 @@ function getDb(): DbLike {
       } catch (e) {
         // Column might already exist, safe to ignore
       }
+
+      // Create changelog table
+      db.exec(`
+        CREATE TABLE IF NOT EXISTS changelog (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          action TEXT NOT NULL,
+          source TEXT NOT NULL,
+          item_name TEXT NOT NULL,
+          quantity INTEGER NOT NULL DEFAULT 1,
+          created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        )
+      `);
 
       // Create admin users table
       db.exec(`
@@ -121,6 +142,27 @@ export function deleteCustomNews(id: number) {
   const db = getDb();
   const stmt = db.prepare('DELETE FROM custom_news WHERE id = ?');
   stmt.run(id);
+}
+
+export function getChangelog(limit = 20): ChangelogRow[] {
+  try {
+    const db = getDb();
+    const stmt = db.prepare('SELECT * FROM changelog ORDER BY created_at DESC LIMIT ?');
+    return stmt.all(limit) as ChangelogRow[];
+  } catch (error) {
+    console.error('[DB] Error fetching changelog:', error);
+    return [];
+  }
+}
+
+export function addChangelogEntry(action: string, source: string, item_name: string, quantity: number): number {
+  const db = getDb();
+  const stmt = db.prepare(`
+    INSERT INTO changelog (action, source, item_name, quantity)
+    VALUES (?, ?, ?, ?)
+  `);
+  const info = stmt.run(action, source, item_name, quantity);
+  return info.lastInsertRowid;
 }
 
 export function verifyAdmin(password: string): boolean {
