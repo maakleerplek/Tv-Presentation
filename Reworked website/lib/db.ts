@@ -166,6 +166,8 @@ export function getChangelog(limit = 20): ChangelogRow[] {
 
 export function addChangelogEntry(action: string, source: string, item_name: string, quantity: number, price?: number | null): number {
   const db = getDb();
+  // Prune entries older than 7 days to keep the table small
+  db.prepare(`DELETE FROM changelog WHERE created_at < datetime('now', '-7 days')`).run();
   const stmt = db.prepare(`
     INSERT INTO changelog (action, source, item_name, quantity, price)
     VALUES (?, ?, ?, ?, ?)

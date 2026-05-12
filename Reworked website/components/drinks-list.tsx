@@ -1,5 +1,6 @@
 'use client';
 
+import React from 'react';
 import { Coffee, Tag, MapPin, CheckCircle2, XCircle, Undo2, ShoppingCart, Plus, Minus, RotateCcw } from 'lucide-react';
 import Image from 'next/image';
 import QRCode from 'react-qr-code';
@@ -85,8 +86,10 @@ function groupDrinks(drinks: DrinkWithChange[]) {
 }
 
 const SOURCE_LABELS: Record<string, string> = {
-  'interface-stock': 'Interface',
-  'stock-frontend': 'Frontend',
+  'interface-stock': 'Barcode scanner',
+  'checkout': 'Self-checkout',
+  'volunteer-scanner': 'Volunteer',
+  'inventory-overview': 'Volunteer',
 };
 
 const ACTION_VERBS: Record<string, string> = {
@@ -110,10 +113,17 @@ const ACTION_ICONS: Record<string, React.ElementType> = {
   set: RotateCcw,
 };
 
-function formatTime(isoString: string): string {
+function formatRelativeTime(isoString: string): string {
   try {
-    const d = new Date(isoString);
-    return d.toLocaleTimeString('nl-BE', { hour: '2-digit', minute: '2-digit' });
+    const diffMs = Date.now() - new Date(isoString).getTime();
+    const diffMin = Math.floor(diffMs / 60_000);
+    if (diffMin < 1) return 'just now';
+    if (diffMin === 1) return '1 min ago';
+    if (diffMin < 60) return `${diffMin} min ago`;
+    const diffHr = Math.floor(diffMin / 60);
+    if (diffHr === 1) return '1 hr ago';
+    if (diffHr < 24) return `${diffHr} hr ago`;
+    return `${Math.floor(diffHr / 24)}d ago`;
   } catch {
     return '';
   }
@@ -127,6 +137,14 @@ function formatEntryLine(entry: ChangelogEntry): string {
 }
 
 function ChangelogPanel({ entries }: { entries: ChangelogEntry[] }) {
+  const [, setTick] = React.useState(0);
+
+  // Re-render every 30s so relative timestamps stay fresh
+  React.useEffect(() => {
+    const id = setInterval(() => setTick(t => t + 1), 30_000);
+    return () => clearInterval(id);
+  }, []);
+
   if (entries.length === 0) {
     return (
       <div className="flex flex-col justify-center min-w-0 flex-1 pr-4">
@@ -147,8 +165,8 @@ function ChangelogPanel({ entries }: { entries: ChangelogEntry[] }) {
             <span className="text-[9px] font-bold text-[#2C1E16] truncate">
               {formatEntryLine(entry)}
             </span>
-            <span className="text-[8px] text-[#2C1E16]/40 shrink-0 ml-auto">
-              {formatTime(entry.created_at)}
+            <span className="text-[8px] text-[#2C1E16]/40 shrink-0 ml-auto whitespace-nowrap">
+              {formatRelativeTime(entry.created_at)}
             </span>
           </div>
         );
