@@ -127,32 +127,16 @@ export function EventCarousel({ initialData }: { initialData?: ScreenData }) {
         <div
           key={progressKey}
           className="h-full bg-[#2C1E16] origin-left w-full"
-          style={{
-            animation: `progress-bar ${transitionTime}s linear forwards`
-          }}
+          style={{ animation: `progress-bar ${transitionTime}s linear forwards` }}
         />
-        <style dangerouslySetInnerHTML={{__html: `
-          @keyframes progress-bar {
-            from { transform: scaleX(0); }
-            to { transform: scaleX(1); }
-          }
-        `}} />
       </div>
 
       <div className="flex-1 relative h-full mt-1.5">
           <div
             key={currentIndex}
-            className="absolute top-0 right-0 bottom-0 left-0 flex flex-col animate-slide-in"
+            className="absolute top-0 right-0 bottom-0 left-0 flex flex-col"
+            style={{ animation: 'carousel-fade-in 0.4s ease-out forwards' }}
           >
-            <style dangerouslySetInnerHTML={{__html: `
-              @keyframes slide-in {
-                from { transform: translateX(100%); opacity: 0; }
-                to   { transform: translateX(0);    opacity: 1; }
-              }
-              .animate-slide-in {
-                animation: slide-in 0.55s cubic-bezier(0.16, 1, 0.3, 1) forwards;
-              }
-            `}} />
             {/* Top section: Image — 45% of card height.
                 Adaptive fit: default to object-cover (no bars), but onLoad we check if the image's
                 aspect ratio differs from the container's by more than 50%. If it does, we fall back

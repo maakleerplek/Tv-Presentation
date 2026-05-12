@@ -72,21 +72,6 @@ export function Clock({ initialData }: { initialData?: ScreenData }) {
           className="fixed inset-0 z-[9999] flex flex-col items-center justify-center pointer-events-none"
           style={{ animation: 'closing-flash 4s ease-in-out forwards' }}
         >
-          <style dangerouslySetInnerHTML={{__html: `
-            @keyframes closing-flash {
-              0%   { background: rgba(239,68,68,0); }
-              10%  { background: rgba(239,68,68,0.92); }
-              75%  { background: rgba(239,68,68,0.88); }
-              100% { background: rgba(239,68,68,0); }
-            }
-            @keyframes flash-text-in {
-              0%   { opacity: 0; transform: scale(0.85); }
-              15%  { opacity: 1; transform: scale(1.04); }
-              25%  { transform: scale(1); }
-              80%  { opacity: 1; }
-              100% { opacity: 0; }
-            }
-          `}} />
           <div style={{ animation: 'flash-text-in 4s ease-in-out forwards' }} className="text-center px-8">
             <AlertTriangle className="w-24 h-24 text-white mx-auto mb-6 drop-shadow-lg" />
             <p className="text-white font-black uppercase tracking-widest text-5xl leading-tight drop-shadow-lg">
