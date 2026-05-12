@@ -185,9 +185,23 @@ export async function fetchDrinks() {
 
         console.log(`[Drinks] Fetched ${drinks.length} unique items across all locations`);
 
-        // Detect stock changes vs the previous snapshot and report to changelog
+        // Detect stock changes vs the previous snapshot and report to changelog.
+        // Aggregate by name (same part at multiple locations sums to one entry),
+        // matching what the stock-frontend reports so dedup works correctly.
+        function buildSnapshot(items) {
+            const snap = new Map();
+            for (const d of items) {
+                if (snap.has(d.name)) {
+                    snap.get(d.name).stock += d.stock;
+                } else {
+                    snap.set(d.name, { stock: d.stock, price: d.price });
+                }
+            }
+            return snap;
+        }
+
         if (previousSnapshot !== null) {
-            const nextSnapshot = new Map(drinks.map(d => [d.name, { stock: d.stock, price: d.price }]));
+            const nextSnapshot = buildSnapshot(drinks);
 
             for (const [name, next] of nextSnapshot) {
                 const prev = previousSnapshot.get(name);
@@ -202,7 +216,7 @@ export async function fetchDrinks() {
             }
         }
 
-        previousSnapshot = new Map(drinks.map(d => [d.name, { stock: d.stock, price: d.price }]));
+        previousSnapshot = buildSnapshot(drinks);
 
         drinksCache = { data: drinks, timestamp: Date.now() };
         return drinks;
