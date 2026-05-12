@@ -37,10 +37,7 @@ export function TipsFooter({ initialData }: { initialData?: ScreenData }) {
         />
         <div className="flex flex-col items-center">
           <span className="text-[9px] font-black uppercase tracking-[0.2em] text-[#2C1E16] opacity-40 leading-none">
-            Beta 0.8
-          </span>
-          <span className="text-[7px] font-bold uppercase tracking-tight text-[#2C1E16] opacity-25 mt-1 leading-none">
-            In development - info may be inaccurate
+            v1.0
           </span>
         </div>
       </div>
