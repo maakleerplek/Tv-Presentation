@@ -2,7 +2,7 @@
 
 Full-screen TV display for [maakleerplek](https://maakleerplek.be/) — a public makerspace in Leuven. Shows the current time, weather, upcoming events, news, a drinks/materials inventory, and machine usage rates on a 4K TV.
 
-![Image of the website](Public/image.png)
+![Screenshot of the TV display](Public/image.png)
 
 ## Layout
 
@@ -12,8 +12,7 @@ The screen is optimized for a 4K display and divided into three main columns:
 ┌─────────────┬──────────────────────┬──────────────────────┐
 │ Clock       │                      │ Inventory (InvenTree)│
 │ Weather     │   Event/News Carousel│                      │
-│ Status      │                      ├──────────────────────┤
-│             │                      │ Machine Usage (Wiki) │
+│ Status      │                      │                      │
 ├─────────────┴──────────────────────┴──────────────────────┤
 │ Bezoek QR URL │      HTL Logo      │      Wiki QR URL     │
 └────────────────────────────────────────────────────────────┘
@@ -21,25 +20,25 @@ The screen is optimized for a 4K display and divided into three main columns:
 
 - **Left:** Time, date, local weather, and currently running or next upcoming event.
 - **Center:** A rotating carousel of upcoming workshops, recurring events, and recent news articles.
-- **Right:** Live inventory from InvenTree (Drinks, Snacks & Materialen) and dynamic machine usage pricing scraped from the Wiki.
-- **Footer:** Direct links to the website and the general Wiki page via QR codes.
+- **Right:** Live inventory from InvenTree (drinks, snacks & materials).
+- **Footer:** Direct links to the website and the Wiki via QR codes.
 
 ## Features
 
-### 🛠️ Dynamic Wiki Scraper
+### Dynamic Wiki Scraper
 The data-fetcher service includes a resilient scraper that pulls live pricing and equipment data from the [High Tech Lab Wiki](https://wiki.maakleerplek.be/en/hightechlab).
 - **Auto-detection:** Automatically identifies "Machine Gebruik" sections.
 - **Resilient Parsing:** Handles standard tables, nested lists, and grid-style pricing (like MDF dimensions).
 - **Caching:** Scraped data is cached along with calendar and news data to minimize load on the Wiki.
 
-### 📦 InvenTree Integration
+### InvenTree Integration
 Pulls live stock levels and prices for drinks, snacks, and consumable materials directly from an InvenTree instance.
 
-### 📅 Calendar & News
+### Calendar & News
 Scrapes the main maakleerplek.be website for the latest news and upcoming events, automatically prioritizing "high-profile" events like OpenLabs or Repair Cafés.
 
-### 📋 Changelog API
-External projects can report stock actions that are then shown as a live "Recent activity" feed at the bottom of the inventory panel (left of the control QR codes).
+### Changelog API
+External projects can report stock actions that are then shown as a live "Recent activity" feed in the inventory panel.
 
 **Endpoint:** `POST /api/changelog`
 
@@ -60,7 +59,7 @@ External projects can report stock actions that are then shown as a live "Recent
 | `item_name` | string | Human-readable name of the item |
 | `quantity` | number | Positive integer |
 
-The endpoint is available at the tv-presentation URL (default port 8083). Configure the sending project with the TV URL and call the endpoint after any successful stock operation. Failures are silently ignored so they never block the main workflow.
+The endpoint is available at the TV presentation URL (default port 8083). Failures are silently ignored so they never block the calling workflow.
 
 **Integrations already included:**
 - `stock-management-frontend` — set `VITE_TV_PRESENTATION_URL` in `.env`
@@ -98,10 +97,18 @@ docker compose up --build
 ## Development
 
 ```bash
-# Run docker compose
-docker compose up --build 
-# Frontend: http://localhost:8083
-# Data-fetcher API: http://localhost:8085
+# Full stack
+docker compose up --build
+
+# Frontend only
+cd "Reworked website"
+bun install
+bun run dev
+
+# Data-fetcher only
+cd data-fetcher
+node --no-warnings --watch server.js
+```
 
 ## Tests
 
@@ -115,20 +122,14 @@ cd data-fetcher
 bun test
 ```
 
-## Styling — Tailwind CSS v4
-
-The project uses Tailwind CSS v4, which leverages native CSS features like `@theme` blocks and cascade layers (`@layer`) for maximum performance. Styling is driven by `@tailwindcss/postcss`.
-
-- **Configuration:** No `tailwind.config.js`. CSS variables (originating from `next/font/google`) are mapped to utility classes inside `app/globals.css` via an `@theme` block.
-- **TV Display Context:** The frontend is displayed on a Raspberry Pi running a modern Chromium browser capable of supporting v4 features like `oklch()` and `@property`.
-
 ## Tech Stack
 
-- **Next.js 15** (App Router, TypeScript, Tailwind CSS v4)
-- **Node.js + Express + Cheerio** — Modular data-fetcher service (with dedicated scrapers for calendar, news, pricing, and drinks)
-- **InvenTree** — source for the drinks menu
-- **Docker Compose** — runs both services together
+- **Next.js 15** (App Router, TypeScript, Tailwind CSS v4, Bun runtime)
+- **Node.js + Express + Cheerio** — Modular data-fetcher service
+- **SQLite** (`bun:sqlite`) — Stores custom news items and admin credentials
+- **InvenTree** — Source for the drinks/materials inventory
+- **Docker Compose** — Orchestrates frontend, data-fetcher, and nginx reverse proxy
 
 ## CI / CD
 
-A GitHub Actions workflow is set up to automatically create and update a **Prerelease** whenever code is pushed to a PR targeting `master` or directly to `master`. The prerelease is tagged dynamically (e.g. `pr-42-abc1234` or `master-abc1234`) and automatically includes test verification.
+A GitHub Actions workflow automatically creates a **Prerelease** on every push to `master` or a PR targeting it, tagged as `master-<sha>` or `pr-<n>-<sha>`. Tests run as part of the workflow.
