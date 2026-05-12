@@ -151,16 +151,16 @@ function ChangelogPanel({ entries }: { entries: ChangelogEntry[] }) {
 
   if (entries.length === 0) {
     return (
-      <div className="flex flex-col justify-center min-w-0 flex-1 pr-4">
+      <div className="flex flex-col min-w-0 flex-1 pr-4">
         <span className="text-xs font-black uppercase tracking-widest text-[#2C1E16]/40">Recent activity</span>
       </div>
     );
   }
 
   return (
-    <div className="flex flex-col justify-center min-w-0 flex-1 pr-4 gap-1.5">
+    <div className="flex flex-col min-w-0 flex-1 pr-4 gap-1.5">
       <span className="text-xs font-black uppercase tracking-widest text-[#2C1E16]/50 mb-1">Recent activity</span>
-      {entries.slice(0, 5).map((entry) => {
+      {entries.slice(0, 8).map((entry) => {
         const Icon = ACTION_ICONS[entry.action] ?? ShoppingCart;
         const color = ACTION_COLORS[entry.action] ?? '#2C1E16';
         return (
@@ -281,7 +281,7 @@ export function DrinksList({ initialData }: { initialData?: ScreenData }) {
       </div>
 
       {/* Control Barcodes + Changelog */}
-      <div className="p-4 border-t-2 border-[#2C1E16] bg-[#F5F2EB] flex flex-row items-center gap-6 shrink-0">
+      <div className="p-4 border-t-2 border-[#2C1E16] bg-[#F5F2EB] flex flex-row items-start gap-6 shrink-0 min-h-[180px]">
         <ChangelogPanel entries={changelog} />
         <div className="flex flex-row items-center gap-6 shrink-0">
           {[
