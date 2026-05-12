@@ -158,17 +158,6 @@ export function EventCarousel({ initialData }: { initialData?: ScreenData }) {
             <div ref={imgContainerRef} className="basis-[45%] shrink-0 border-b-2 border-[#2C1E16] min-h-0 overflow-hidden relative flex items-center justify-center">
               {hasImage ? (
                 <>
-                  {/* Blurred backdrop — only visible when imgFit is 'contain' and bars appear */}
-                  <Image
-                    key={`bg-${displayImage}`}
-                    src={displayImage}
-                    alt=""
-                    fill
-                    aria-hidden="true"
-                    sizes="(min-width: 1280px) 720px, 50vw"
-                    quality={40}
-                    className="absolute inset-0 w-full h-full object-cover scale-110 blur-xl opacity-60"
-                  />
                   <Image
                     key={displayImage}
                     src={displayImage}
