@@ -152,24 +152,24 @@ function ChangelogPanel({ entries }: { entries: ChangelogEntry[] }) {
   if (entries.length === 0) {
     return (
       <div className="flex flex-col justify-center min-w-0 flex-1 pr-4">
-        <span className="text-[9px] font-black uppercase tracking-widest text-[#2C1E16]/40">Recent activity</span>
+        <span className="text-xs font-black uppercase tracking-widest text-[#2C1E16]/40">Recent activity</span>
       </div>
     );
   }
 
   return (
-    <div className="flex flex-col justify-center min-w-0 flex-1 pr-4 gap-0.5">
-      <span className="text-[9px] font-black uppercase tracking-widest text-[#2C1E16]/50 mb-0.5">Recent activity</span>
+    <div className="flex flex-col justify-center min-w-0 flex-1 pr-4 gap-1.5">
+      <span className="text-xs font-black uppercase tracking-widest text-[#2C1E16]/50 mb-1">Recent activity</span>
       {entries.slice(0, 5).map((entry) => {
         const Icon = ACTION_ICONS[entry.action] ?? ShoppingCart;
         const color = ACTION_COLORS[entry.action] ?? '#2C1E16';
         return (
-          <div key={entry.id} className="flex items-center gap-1.5 min-w-0">
-            <Icon className="w-2.5 h-2.5 shrink-0" style={{ color }} />
-            <span className="text-[9px] font-bold text-[#2C1E16] truncate">
+          <div key={entry.id} className="flex items-center gap-2 min-w-0">
+            <Icon className="w-3.5 h-3.5 shrink-0" style={{ color }} />
+            <span className="text-xs font-bold text-[#2C1E16] truncate">
               {formatEntryLine(entry)}
             </span>
-            <span className="text-[8px] text-[#2C1E16]/40 shrink-0 ml-auto whitespace-nowrap">
+            <span className="text-[10px] text-[#2C1E16]/40 shrink-0 ml-auto whitespace-nowrap">
               {formatRelativeTime(entry.created_at)}
             </span>
           </div>
