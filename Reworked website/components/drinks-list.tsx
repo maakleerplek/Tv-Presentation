@@ -12,17 +12,19 @@ import { PricingTable } from './pricing-table';
 import type { DrinkWithChange } from '@/hooks/useDrinksData';
 
 const HeaderRow = () => (
-  <div className="grid grid-cols-[32px_1fr_auto_auto] gap-3 items-end border-b-2 border-[#2C1E16] pb-2 mb-1">
+  <div className="grid grid-cols-[32px_1fr_auto_auto_52px] gap-3 items-end border-b-2 border-[#2C1E16] pb-2 mb-1">
     <span className="col-start-2 text-xs text-[#2C1E16] font-black uppercase">Item</span>
     <span className="text-xs text-[#2C1E16] font-black uppercase text-center w-10">Stock</span>
     <span className="text-xs text-[#2C1E16] font-black uppercase text-right w-12">Prijs</span>
+    <span className="text-xs text-[#2C1E16] font-black uppercase text-center">QR</span>
   </div>
 );
 
 function DrinkRow({ drink }: { drink: DrinkWithChange }) {
+  const qrValue = drink.barcode || drink.IPN || null;
   return (
     <div
-      className={`grid grid-cols-[32px_1fr_auto_auto] gap-3 items-center border-b border-[#2C1E16]/30 pb-2 shrink-0 rounded-sm ${
+      className={`grid grid-cols-[32px_1fr_auto_auto_52px] gap-3 items-center border-b border-[#2C1E16]/30 pb-2 shrink-0 rounded-sm ${
         drink._change === 'decreased' ? 'drink-sold' :
         drink._change === 'increased' ? 'drink-restocked' : ''
       }`}
@@ -57,6 +59,15 @@ function DrinkRow({ drink }: { drink: DrinkWithChange }) {
         </span>
       </span>
       <span className="text-sm font-black text-[#2C1E16] text-right w-12 leading-none">{drink.price}</span>
+      <div className="flex items-center justify-center">
+        {qrValue ? (
+          <div className="border border-[#2C1E16] p-0.5 bg-white">
+            <QRCode value={qrValue} size={44} bgColor="#ffffff" fgColor="#2C1E16" />
+          </div>
+        ) : (
+          <span className="text-[8px] font-black text-[#2C1E16]/20 uppercase">—</span>
+        )}
+      </div>
     </div>
   );
 }
@@ -192,20 +203,6 @@ export function DrinksList({ initialData }: { initialData?: ScreenData }) {
 
   return (
     <div className="flex-1 bg-[#F5F2EB] flex flex-col h-full overflow-hidden">
-      <style dangerouslySetInnerHTML={{__html: `
-        @keyframes sold-flash {
-          0%   { background-color: transparent; }
-          20%  { background-color: #86EFAC; }
-          100% { background-color: transparent; }
-        }
-        @keyframes stock-up-flash {
-          0%   { background-color: transparent; }
-          20%  { background-color: #BFDBFE; }
-          100% { background-color: transparent; }
-        }
-        .drink-sold      { animation: sold-flash     1.2s ease-out forwards; }
-        .drink-restocked { animation: stock-up-flash 1.2s ease-out forwards; }
-      `}} />
 
       <div className="p-2 border-b-2 border-[#2C1E16] bg-[#C8A98B] shrink-0">
         <h2 className="text-[#2C1E16] uppercase tracking-widest text-xs font-black flex items-center justify-center gap-2">

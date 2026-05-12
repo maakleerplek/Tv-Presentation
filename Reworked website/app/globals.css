@@ -10,6 +10,20 @@
   --font-family-mono: var(--font-mono), monospace;
 }
 
+/* Drink row stock change flashes */
+@keyframes sold-flash {
+  0%   { background-color: transparent; }
+  20%  { background-color: #86EFAC; }
+  100% { background-color: transparent; }
+}
+@keyframes stock-up-flash {
+  0%   { background-color: transparent; }
+  20%  { background-color: #BFDBFE; }
+  100% { background-color: transparent; }
+}
+.drink-sold      { animation: sold-flash     1.2s ease-out forwards; }
+.drink-restocked { animation: stock-up-flash 1.2s ease-out forwards; }
+
 /* Carousel fade — opacity only, compositor-layer, lightweight on Pi */
 @keyframes carousel-fade-in {
   from { opacity: 0; }
