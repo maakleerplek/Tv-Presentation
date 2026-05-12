@@ -134,6 +134,8 @@ app.get('/api/proxy-image', async (req, res) => {
 
     const cached = imageCache.get(targetUrl);
     if (cached && (Date.now() - cached.cachedAt) < IMAGE_CACHE_TTL_MS) {
+        const age = Math.round((Date.now() - cached.cachedAt) / 1000);
+        console.log(`[Image Cache] HIT  ${targetUrl.split('/').pop()} (age ${age}s, ${imageCache.size} entries)`);
         res.setHeader('Content-Type', cached.contentType);
         res.setHeader('Cache-Control', 'public, max-age=3600');
         res.setHeader('X-Cache', 'HIT');
@@ -154,6 +156,7 @@ app.get('/api/proxy-image', async (req, res) => {
             imageCache.delete(imageCache.keys().next().value);
         }
         imageCache.set(targetUrl, { buf, contentType, cachedAt: Date.now() });
+        console.log(`[Image Cache] MISS ${targetUrl.split('/').pop()} (${Math.round(buf.length / 1024)}kb, ${imageCache.size} entries)`);
 
         res.setHeader('Content-Type', contentType);
         res.setHeader('Cache-Control', 'public, max-age=3600');
