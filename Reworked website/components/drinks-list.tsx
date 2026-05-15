@@ -2,7 +2,7 @@
 
 import React from 'react';
 import { Coffee, Tag, MapPin, CheckCircle2, XCircle, Undo2, ShoppingCart, Plus, Minus, RotateCcw, Sparkles } from 'lucide-react';
-import Image from 'next/image';
+
 import QRCode from 'react-qr-code';
 import { useScreenData } from '@/hooks/useScreenData';
 import { useDrinksData } from '@/hooks/useDrinksData';
@@ -53,12 +53,11 @@ function DrinkRow({ drink }: { drink: DrinkWithChange }) {
     >
       <div className="w-7 h-7 relative border border-[#2C1E16] shrink-0 bg-[#E6D5B8] overflow-hidden">
         {drink.imageUrl ? (
-          <Image
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
             src={drink.imageUrl}
             alt={drink.name}
-            fill
-            sizes="28px"
-            className="w-full h-full object-cover"
+            className="absolute inset-0 w-full h-full object-cover"
           />
         ) : (
           <span className="absolute inset-0 flex items-center justify-center text-[8px] font-black text-[#2C1E16] uppercase leading-none text-center px-0.5">
@@ -238,10 +237,11 @@ export function DrinksList({ initialData }: { initialData?: ScreenData }) {
       {/* Scrollable item area */}
       <div className="flex-1 flex flex-col p-4 min-h-0 overflow-y-auto gap-4">
         {groups.map((group, gi) => {
-          const third = Math.ceil(group.items.length / 3);
-          const col1 = group.items.slice(0, third);
-          const col2 = group.items.slice(third, third * 2);
-          const col3 = group.items.slice(third * 2);
+          const c1 = Math.ceil(group.items.length / 3);
+          const c2 = Math.ceil((group.items.length - c1) / 2);
+          const col1 = group.items.slice(0, c1);
+          const col2 = group.items.slice(c1, c1 + c2);
+          const col3 = group.items.slice(c1 + c2);
           return (
             <div key={gi} className="grid grid-cols-3 gap-x-3">
               <div className="flex flex-col gap-0">

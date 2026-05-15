@@ -32,7 +32,7 @@ export async function GET(request: NextRequest) {
     let dataFetcherRes: Response | null = null;
     try {
         dataFetcherRes = await fetch(`${INTERNAL_URL}${targetPath}`, {
-            cache: 'no-store',
+            next: { revalidate: 3600 },
         });
     } catch {
         // data-fetcher container not reachable — fall through to external URL
@@ -41,7 +41,7 @@ export async function GET(request: NextRequest) {
     if (!dataFetcherRes || !dataFetcherRes.ok) {
         try {
             dataFetcherRes = await fetch(`${EXTERNAL_URL}${targetPath}`, {
-                cache: 'no-store',
+                next: { revalidate: 3600 },
             });
         } catch {
             return new NextResponse('Failed to fetch image from data-fetcher', { status: 502 });
