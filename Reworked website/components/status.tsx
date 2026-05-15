@@ -221,7 +221,7 @@ export function Status({ initialData }: { initialData?: ScreenData }) {
         `}} />
         <div
           key={effectiveShowWorkshop ? 'workshop' : 'status'}
-          className="absolute inset-0 p-4 flex flex-col justify-center items-center min-h-0 gap-3 animate-status-fade-in text-center"
+          className="absolute inset-0 p-4 flex flex-col justify-center items-center min-h-0 gap-2 animate-status-fade-in text-center overflow-hidden"
         >
           <h2 className="text-[#2C1E16] uppercase tracking-widest text-xs font-black shrink-0 opacity-60">
             {effectiveShowWorkshop ? 'Volgende Workshop' : active.isNow ? 'Nu bezig' : 'Volgend evenement'}
@@ -239,7 +239,7 @@ export function Status({ initialData }: { initialData?: ScreenData }) {
           </div>
 
           {/* Title */}
-          <p className="text-[#2C1E16] font-black text-xl uppercase leading-tight shrink-0">
+          <p className="text-[#2C1E16] font-black text-xl uppercase leading-tight line-clamp-3">
             {active.title}
           </p>
 
@@ -265,8 +265,8 @@ export function Status({ initialData }: { initialData?: ScreenData }) {
 
           {/* QR code */}
           {effectiveShowWorkshop && active.link && (
-            <div className="mt-2 border-2 border-[#2C1E16] p-1.5 bg-[#F5F2EB] shrink-0">
-              <QRCode value={active.link} size={56} bgColor="#F5F2EB" fgColor="#2C1E16" />
+            <div className="border-2 border-[#2C1E16] p-1 bg-[#F5F2EB] shrink-0">
+              <QRCode value={active.link} size={44} bgColor="#F5F2EB" fgColor="#2C1E16" />
             </div>
           )}
         </div>
