@@ -16,7 +16,7 @@ export default async function Page() {
       <AdminHoverBar />
       <main className="flex-1 grid grid-cols-12 min-h-0">
         {/* Left Section - 2/12 (~16%) */}
-        <aside className="col-span-3 border-r-2 border-[#2C1E16] flex flex-col h-full">
+        <aside className="col-span-2 border-r-2 border-[#2C1E16] flex flex-col h-full">
           <Clock initialData={screenData || undefined} />
           <Weather initialData={weatherData || undefined} />
           <Status initialData={screenData || undefined} />
@@ -28,7 +28,7 @@ export default async function Page() {
         </section>
 
         {/* Right Section - 6/12 (~50%) */}
-        <aside className="col-span-5 flex flex-col h-full bg-[#F5F2EB]">
+        <aside className="col-span-6 flex flex-col h-full bg-[#F5F2EB]">
           <DrinksList initialData={screenData || undefined} />
         </aside>
       </main>

@@ -178,7 +178,7 @@ export function Status({ initialData }: { initialData?: ScreenData }) {
 
   if (!active) {
     return (
-      <div className="p-4 bg-[#F5F2EB] flex-1 flex flex-col justify-center items-start min-h-0 gap-2">
+      <div className="p-4 bg-[#F5F2EB] flex-1 flex flex-col justify-center items-center min-h-0 gap-2 text-center">
         <h2 className="text-[#2C1E16] uppercase tracking-widest text-xs font-black">
           Volgend evenement
         </h2>
@@ -221,7 +221,7 @@ export function Status({ initialData }: { initialData?: ScreenData }) {
         `}} />
         <div
           key={effectiveShowWorkshop ? 'workshop' : 'status'}
-          className="absolute inset-0 p-4 flex flex-col justify-center items-start min-h-0 gap-2 animate-status-fade-in overflow-hidden"
+          className="absolute inset-0 p-4 flex flex-col justify-center items-center min-h-0 gap-2 animate-status-fade-in text-center overflow-hidden"
         >
           <h2 className="text-[#2C1E16] uppercase tracking-widest text-xs font-black shrink-0 opacity-60">
             {effectiveShowWorkshop ? 'Volgende Workshop' : active.isNow ? 'Nu bezig' : 'Volgend evenement'}
@@ -239,12 +239,12 @@ export function Status({ initialData }: { initialData?: ScreenData }) {
           </div>
 
           {/* Title */}
-          <p className="text-[#2C1E16] font-black text-xl uppercase leading-tight">
+          <p className="text-[#2C1E16] font-black text-xl uppercase leading-tight line-clamp-3">
             {active.title}
           </p>
 
           {/* Info row: time + price */}
-          <div className="flex flex-col items-start gap-2 shrink-0">
+          <div className="flex flex-col items-center gap-2 shrink-0">
             {timeDisplay && (
               <div className="flex items-center gap-2">
                 <Clock3 className="w-4 h-4 shrink-0 text-[#2C1E16] opacity-60" />
