@@ -178,8 +178,8 @@ export function Status({ initialData }: { initialData?: ScreenData }) {
 
   if (!active) {
     return (
-      <div className="p-4 bg-[#F5F2EB] flex-1 flex flex-col justify-start min-h-0 gap-2">
-        <h2 className="text-[#2C1E16] uppercase tracking-widest text-[10px] font-black">
+      <div className="p-4 bg-[#F5F2EB] flex-1 flex flex-col justify-center items-center min-h-0 gap-2 text-center">
+        <h2 className="text-[#2C1E16] uppercase tracking-widest text-xs font-black">
           Volgend evenement
         </h2>
         <p className="text-[#2C1E16] opacity-40 text-xs font-black uppercase tracking-widest">
@@ -221,52 +221,52 @@ export function Status({ initialData }: { initialData?: ScreenData }) {
         `}} />
         <div
           key={effectiveShowWorkshop ? 'workshop' : 'status'}
-          className="absolute inset-0 p-4 flex flex-col justify-start min-h-0 gap-2.5 animate-status-fade-in"
+          className="absolute inset-0 p-4 flex flex-col justify-center items-center min-h-0 gap-3 animate-status-fade-in text-center"
         >
-          <h2 className="text-[#2C1E16] uppercase tracking-widest text-[10px] font-black shrink-0">
+          <h2 className="text-[#2C1E16] uppercase tracking-widest text-xs font-black shrink-0 opacity-60">
             {effectiveShowWorkshop ? 'Volgende Workshop' : active.isNow ? 'Nu bezig' : 'Volgend evenement'}
           </h2>
 
           {/* When badge */}
           <div
-            className="inline-flex items-center gap-1.5 border-2 border-[#2C1E16] px-2.5 py-1 shrink-0 self-start"
+            className="inline-flex items-center gap-1.5 border-2 border-[#2C1E16] px-3 py-1.5 shrink-0"
             style={{ backgroundColor: badgeColor }}
           >
-            <Calendar className="w-3 h-3 shrink-0" />
-            <span className="text-[#2C1E16] font-black text-xs uppercase tracking-widest">
+            <Calendar className="w-3.5 h-3.5 shrink-0" />
+            <span className="text-[#2C1E16] font-black text-sm uppercase tracking-widest">
               {whenLabel}
             </span>
           </div>
 
           {/* Title */}
-          <p className="text-[#2C1E16] font-black text-sm uppercase leading-snug shrink-0">
+          <p className="text-[#2C1E16] font-black text-xl uppercase leading-tight shrink-0">
             {active.title}
           </p>
 
-          {/* Info row: time + price as icon chips */}
-          <div className="flex flex-col gap-1.5 mt-0.5 shrink-0">
+          {/* Info row: time + price */}
+          <div className="flex flex-col items-center gap-2 shrink-0">
             {timeDisplay && (
               <div className="flex items-center gap-2">
-                <Clock3 className="w-3.5 h-3.5 shrink-0 text-[#2C1E16] opacity-60" />
-                <span className="text-[#2C1E16] font-black text-base uppercase leading-none tracking-tight">
+                <Clock3 className="w-4 h-4 shrink-0 text-[#2C1E16] opacity-60" />
+                <span className="text-[#2C1E16] font-black text-lg uppercase leading-none tracking-tight">
                   {timeDisplay}
                 </span>
               </div>
             )}
             {effectiveShowWorkshop && active.price && (
               <div className="flex items-center gap-2">
-                <Tag className="w-3.5 h-3.5 shrink-0 text-[#2C1E16] opacity-60" />
-                <span className="text-[#2C1E16] font-black text-sm uppercase leading-none tracking-widest">
+                <Tag className="w-4 h-4 shrink-0 text-[#2C1E16] opacity-60" />
+                <span className="text-[#2C1E16] font-black text-base uppercase leading-none tracking-widest">
                   {active.price}
                 </span>
               </div>
             )}
           </div>
 
-          {/* QR code pushed to bottom-right */}
+          {/* QR code */}
           {effectiveShowWorkshop && active.link && (
-            <div className="mt-auto self-end border-2 border-[#2C1E16] p-1 bg-[#F5F2EB] shrink-0">
-              <QRCode value={active.link} size={48} bgColor="#F5F2EB" fgColor="#2C1E16" />
+            <div className="mt-2 border-2 border-[#2C1E16] p-1.5 bg-[#F5F2EB] shrink-0">
+              <QRCode value={active.link} size={56} bgColor="#F5F2EB" fgColor="#2C1E16" />
             </div>
           )}
         </div>

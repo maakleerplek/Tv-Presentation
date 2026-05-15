@@ -13,7 +13,7 @@ import type { DrinkWithChange } from '@/hooks/useDrinksData';
 
 function HeaderRow({ category, location }: { category?: string | null; location?: string | null }) {
   return (
-    <div className="grid grid-cols-[32px_1fr_auto_auto_68px] gap-2 items-end border-b-2 border-[#2C1E16] pb-1 mb-0.5">
+    <div className="grid grid-cols-[28px_1fr_auto_auto_52px] gap-1.5 items-end border-b-2 border-[#2C1E16] pb-0.5 mb-0">
       <div className="col-start-2 flex items-baseline gap-2 min-w-0">
         {category && (
           <span className="flex items-center gap-1 text-[10px] font-black uppercase tracking-widest text-[#2C1E16] shrink-0">
@@ -29,8 +29,8 @@ function HeaderRow({ category, location }: { category?: string | null; location?
           <span className="text-[10px] text-[#2C1E16] font-black uppercase">Item</span>
         )}
       </div>
-      <span className="text-[10px] text-[#2C1E16] font-black uppercase text-center w-10">Stock</span>
-      <span className="text-[10px] text-[#2C1E16] font-black uppercase text-right w-12">Prijs</span>
+      <span className="text-[10px] text-[#2C1E16] font-black uppercase text-center w-8">Stock</span>
+      <span className="text-[10px] text-[#2C1E16] font-black uppercase text-right w-10">Prijs</span>
       <span className="text-[10px] text-[#2C1E16] font-black uppercase text-center">Scan</span>
     </div>
   );
@@ -40,18 +40,18 @@ function DrinkRow({ drink }: { drink: DrinkWithChange }) {
   const qrValue = drink.barcode || drink.IPN || null;
   return (
     <div
-      className={`grid grid-cols-[32px_1fr_auto_auto_68px] gap-2 items-center border-b border-[#2C1E16]/30 py-1 shrink-0 rounded-sm ${
+      className={`grid grid-cols-[28px_1fr_auto_auto_52px] gap-1.5 items-center border-b border-[#2C1E16]/30 py-0.5 shrink-0 rounded-sm ${
         drink._change === 'decreased' ? 'drink-sold' :
         drink._change === 'increased' ? 'drink-restocked' : ''
       }`}
     >
-      <div className="w-8 h-8 relative border border-[#2C1E16] shrink-0 bg-[#E6D5B8] overflow-hidden">
+      <div className="w-7 h-7 relative border border-[#2C1E16] shrink-0 bg-[#E6D5B8] overflow-hidden">
         {drink.imageUrl ? (
           <Image
             src={drink.imageUrl}
             alt={drink.name}
             fill
-            sizes="32px"
+            sizes="28px"
             className="w-full h-full object-cover"
           />
         ) : (
@@ -60,12 +60,12 @@ function DrinkRow({ drink }: { drink: DrinkWithChange }) {
           </span>
         )}
       </div>
-      <span className="text-sm text-[#2C1E16] font-bold uppercase truncate leading-none" title={drink.name}>
+      <span className="text-xs text-[#2C1E16] font-bold uppercase truncate leading-none" title={drink.name}>
         {drink.name}
       </span>
-      <span className="w-10 flex justify-center">
+      <span className="w-8 flex justify-center">
         <span
-          className={`text-sm font-black leading-none ${
+          className={`text-xs font-black leading-none ${
             drink._change === 'decreased' ? 'text-green-700' :
             drink._change === 'increased' ? 'text-blue-600' :
             'text-[#2C1E16]'
@@ -74,11 +74,11 @@ function DrinkRow({ drink }: { drink: DrinkWithChange }) {
           {drink.stock}
         </span>
       </span>
-      <span className="text-sm font-black text-[#2C1E16] text-right w-12 leading-none">{drink.price}</span>
+      <span className="text-xs font-black text-[#2C1E16] text-right w-10 leading-none">{drink.price}</span>
       <div className="flex items-center justify-center">
         {qrValue ? (
-          <div className="border-2 border-[#2C1E16] p-1 bg-white">
-            <QRCode value={qrValue} size={60} bgColor="#ffffff" fgColor="#2C1E16" />
+          <div className="border-2 border-[#2C1E16] p-0.5 bg-white">
+            <QRCode value={qrValue} size={44} bgColor="#ffffff" fgColor="#2C1E16" />
           </div>
         ) : (
           <span className="text-[8px] font-black text-[#2C1E16]/20 uppercase">—</span>
@@ -173,18 +173,18 @@ function ChangelogPanel({ entries }: { entries: ChangelogEntry[] }) {
   }
 
   return (
-    <div className="flex flex-col min-w-0 flex-1 pr-4 gap-1.5">
-      <span className="text-xs font-black uppercase tracking-widest text-[#2C1E16]/50 mb-1">Recent activity</span>
-      {entries.slice(0, 8).map((entry) => {
+    <div className="flex flex-col min-w-0 flex-1 pr-4 gap-0.5">
+      <span className="text-[9px] font-black uppercase tracking-widest text-[#2C1E16]/50 mb-0.5">Recent activity</span>
+      {entries.slice(0, 12).map((entry) => {
         const Icon = ACTION_ICONS[entry.action] ?? ShoppingCart;
         const color = ACTION_COLORS[entry.action] ?? '#2C1E16';
         return (
-          <div key={entry.id} className="flex items-center gap-2 min-w-0">
-            <Icon className="w-3.5 h-3.5 shrink-0" style={{ color }} />
-            <span className="text-xs font-bold text-[#2C1E16] truncate">
+          <div key={entry.id} className="flex items-center gap-1.5 min-w-0">
+            <Icon className="w-2.5 h-2.5 shrink-0" style={{ color }} />
+            <span className="text-[10px] font-bold text-[#2C1E16] truncate">
               {formatEntryLine(entry)}
             </span>
-            <span className="text-[10px] text-[#2C1E16]/40 shrink-0 ml-auto whitespace-nowrap">
+            <span className="text-[9px] text-[#2C1E16]/40 shrink-0 ml-auto whitespace-nowrap">
               {formatRelativeTime(entry.created_at)}
             </span>
           </div>
@@ -232,18 +232,23 @@ export function DrinksList({ initialData }: { initialData?: ScreenData }) {
       {/* Scrollable item area */}
       <div className="flex-1 flex flex-col p-4 min-h-0 overflow-y-auto gap-4">
         {groups.map((group, gi) => {
-          const half = Math.ceil(group.items.length / 2);
-          const left = group.items.slice(0, half);
-          const right = group.items.slice(half);
+          const third = Math.ceil(group.items.length / 3);
+          const col1 = group.items.slice(0, third);
+          const col2 = group.items.slice(third, third * 2);
+          const col3 = group.items.slice(third * 2);
           return (
-            <div key={gi} className="grid grid-cols-2 gap-x-4">
-              <div className="flex flex-col gap-0.5">
+            <div key={gi} className="grid grid-cols-3 gap-x-3">
+              <div className="flex flex-col gap-0">
                 <HeaderRow category={group.category} location={group.location} />
-                {left.map((drink, idx) => <DrinkRow key={idx} drink={drink} />)}
+                {col1.map((drink, idx) => <DrinkRow key={idx} drink={drink} />)}
               </div>
-              <div className="flex flex-col gap-0.5">
-                {right.length > 0 && <HeaderRow />}
-                {right.map((drink, idx) => <DrinkRow key={idx} drink={drink} />)}
+              <div className="flex flex-col gap-0">
+                {col2.length > 0 && <HeaderRow />}
+                {col2.map((drink, idx) => <DrinkRow key={idx} drink={drink} />)}
+              </div>
+              <div className="flex flex-col gap-0">
+                {col3.length > 0 && <HeaderRow />}
+                {col3.map((drink, idx) => <DrinkRow key={idx} drink={drink} />)}
               </div>
             </div>
           );
@@ -251,7 +256,7 @@ export function DrinksList({ initialData }: { initialData?: ScreenData }) {
       </div>
 
       {/* Control Barcodes + Changelog */}
-      <div className="p-4 border-t-2 border-[#2C1E16] bg-[#F5F2EB] flex flex-row items-start gap-6 shrink-0 min-h-[180px]">
+      <div className="p-3 border-t-2 border-[#2C1E16] bg-[#F5F2EB] flex flex-row items-start gap-4 shrink-0">
         <ChangelogPanel entries={changelog} />
         <div className="flex flex-row items-center gap-6 shrink-0">
           {[
