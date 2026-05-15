@@ -85,8 +85,8 @@ async function fetchCategoryNames(partIds, headers) {
  * Derive a price string from a part_detail object.
  */
 function extractPrice(partDetail) {
-    if (partDetail.pricing_min)        return '€' + parseFloat(partDetail.pricing_min).toFixed(2);
-    if (partDetail.pricing_min_string) return partDetail.pricing_min_string;
+    if (partDetail.pricing_max)        return '€' + parseFloat(partDetail.pricing_max).toFixed(2);
+    if (partDetail.pricing_max_string) return partDetail.pricing_max_string;
     if (partDetail.sell_price)         return '€' + parseFloat(partDetail.sell_price).toFixed(2);
     if (partDetail.description &&
         partDetail.description.toLowerCase() !== partDetail.name.toLowerCase()) {
