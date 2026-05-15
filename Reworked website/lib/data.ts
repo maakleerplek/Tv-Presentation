@@ -6,6 +6,26 @@ const INTERNAL_URL = process.env.DATA_FETCHER_INTERNAL_URL || 'http://data-fetch
 const EXTERNAL_URL = process.env.DATA_FETCHER_EXTERNAL_URL || 'http://localhost:8085';
 
 const CACHE_REVALIDATE = 5 * 60; // 5 minutes
+
+function decodeHTMLEntities(text: string): string {
+  return text
+    .replace(/&#(\d+);/g, (_, code) => String.fromCharCode(parseInt(code, 10)))
+    .replace(/&#x([0-9a-fA-F]+);/g, (_, code) => String.fromCharCode(parseInt(code, 16)))
+    .replace(/&amp;/g, '&')
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&quot;/g, '"')
+    .replace(/&apos;/g, "'")
+    .replace(/&nbsp;/g, ' ')
+    .replace(/&hellip;/g, '…')
+    .replace(/&mdash;/g, '—')
+    .replace(/&ndash;/g, '–')
+    .replace(/&rsquo;/g, '’')
+    .replace(/&lsquo;/g, '‘')
+    .replace(/&rdquo;/g, '”')
+    .replace(/&ldquo;/g, '“');
+}
+
 const TRANSLATION_ENABLED = process.env.TRANSLATION_ENABLED !== 'false';
 const TRANSLATION_TARGET_LANG = (process.env.TRANSLATION_TARGET_LANG || 'en').toLowerCase();
 const TRANSLATION_SOURCE_LANG = (process.env.TRANSLATION_SOURCE_LANG || 'nl').toLowerCase();
@@ -63,7 +83,7 @@ async function translateWithMyMemory(
 
 async function translateText(text: string | null | undefined): Promise<string> {
     if (!text) return '';
-    const source = String(text).trim();
+    const source = decodeHTMLEntities(String(text).trim());
     if (!TRANSLATION_ENABLED || !source) return source;
     if (TRANSLATION_SOURCE_LANG === TRANSLATION_TARGET_LANG) return source;
 
