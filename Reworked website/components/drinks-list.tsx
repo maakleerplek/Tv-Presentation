@@ -16,12 +16,12 @@ function HeaderRow({ category, location }: { category?: string | null; location?
     <div className="grid grid-cols-[28px_1fr_auto_auto_52px] gap-1.5 items-end border-b-2 border-[#2C1E16] pb-0.5 mb-0">
       <div className="col-start-2 flex items-baseline gap-1.5 min-w-0 overflow-hidden">
         {category && (
-          <span className="flex items-center gap-1 text-[10px] font-black uppercase tracking-widest text-[#2C1E16] shrink-0 truncate">
+          <span className="flex items-center gap-1 text-[10px] font-black uppercase tracking-widest text-[#2C1E16] min-w-0 truncate">
             <Tag className="w-2.5 h-2.5 shrink-0" />{category}
           </span>
         )}
         {location && (
-          <span className="flex items-center gap-1 text-[9px] font-bold uppercase tracking-wider text-[#2C1E16]/50 truncate min-w-0">
+          <span className="flex items-center gap-1 text-[9px] font-bold uppercase tracking-wider text-[#2C1E16]/50 min-w-0 truncate">
             <MapPin className="w-2.5 h-2.5 shrink-0" />{location}
           </span>
         )}

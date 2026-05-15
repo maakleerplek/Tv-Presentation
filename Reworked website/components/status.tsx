@@ -233,13 +233,13 @@ export function Status({ initialData }: { initialData?: ScreenData }) {
             style={{ backgroundColor: badgeColor }}
           >
             <Calendar className="w-3.5 h-3.5 shrink-0" />
-            <span className="text-[#2C1E16] font-black text-sm uppercase tracking-widest">
+            <span className="text-[#2C1E16] font-black text-xs uppercase tracking-widest">
               {whenLabel}
             </span>
           </div>
 
           {/* Title */}
-          <p className="text-[#2C1E16] font-black text-xl uppercase leading-tight line-clamp-3">
+          <p className="text-[#2C1E16] font-black text-sm uppercase leading-tight">
             {active.title}
           </p>
 
@@ -248,7 +248,7 @@ export function Status({ initialData }: { initialData?: ScreenData }) {
             {timeDisplay && (
               <div className="flex items-center gap-2">
                 <Clock3 className="w-4 h-4 shrink-0 text-[#2C1E16] opacity-60" />
-                <span className="text-[#2C1E16] font-black text-lg uppercase leading-none tracking-tight">
+                <span className="text-[#2C1E16] font-black text-sm uppercase leading-none tracking-tight">
                   {timeDisplay}
                 </span>
               </div>
