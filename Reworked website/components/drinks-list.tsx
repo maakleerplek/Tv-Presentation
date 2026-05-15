@@ -51,7 +51,7 @@ function DrinkRow({ drink }: { drink: DrinkWithChange }) {
         drink._change === 'increased' ? 'drink-restocked' : ''
       }`}
     >
-      <div className="w-7 h-7 relative border border-[#2C1E16] shrink-0 bg-[#E6D5B8] overflow-hidden">
+      <div className="w-7 h-7 relative border border-[#2C1E16] shrink-0 bg-white overflow-hidden">
         {drink.imageUrl ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img
