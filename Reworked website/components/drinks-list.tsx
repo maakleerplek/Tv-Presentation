@@ -13,15 +13,16 @@ import type { DrinkWithChange } from '@/hooks/useDrinksData';
 
 function HeaderRow({ category, location }: { category?: string | null; location?: string | null }) {
   return (
-    <div className="grid grid-cols-[28px_1fr_auto_auto_52px] gap-1.5 items-end border-b-2 border-[#2C1E16] pb-0.5 mb-0">
-      <div className="col-start-2 flex items-baseline gap-1.5 min-w-0 overflow-hidden">
+    <div className="border-b-2 border-[#2C1E16] pb-0.5 mb-0">
+      {/* Row 1: category + location tags */}
+      <div className="flex items-center gap-1.5 mb-0.5">
         {category && (
-          <span className="flex items-center gap-1 text-[10px] font-black uppercase tracking-widest text-[#2C1E16] min-w-0 truncate">
+          <span className="flex items-center gap-1 text-[10px] font-black uppercase tracking-widest text-[#2C1E16]">
             <Tag className="w-2.5 h-2.5 shrink-0" />{category}
           </span>
         )}
         {location && (
-          <span className="flex items-center gap-1 text-[9px] font-bold uppercase tracking-wider text-[#2C1E16]/50 min-w-0 truncate">
+          <span className="flex items-center gap-1 text-[9px] font-bold uppercase tracking-wider text-[#2C1E16]/50">
             <MapPin className="w-2.5 h-2.5 shrink-0" />{location}
           </span>
         )}
@@ -29,9 +30,14 @@ function HeaderRow({ category, location }: { category?: string | null; location?
           <span className="text-[10px] text-[#2C1E16] font-black uppercase">Item</span>
         )}
       </div>
-      <span className="text-[10px] text-[#2C1E16] font-black uppercase text-center w-8">Stock</span>
-      <span className="text-[10px] text-[#2C1E16] font-black uppercase text-right w-10">Prijs</span>
-      <span className="text-[10px] text-[#2C1E16] font-black uppercase text-center">Scan</span>
+      {/* Row 2: column headers */}
+      <div className="grid grid-cols-[28px_1fr_auto_auto_52px] gap-1.5 items-end">
+        <div />
+        <div />
+        <span className="text-[10px] text-[#2C1E16] font-black uppercase text-center w-8">Stock</span>
+        <span className="text-[10px] text-[#2C1E16] font-black uppercase text-right w-10">Prijs</span>
+        <span className="text-[10px] text-[#2C1E16] font-black uppercase text-center">Scan</span>
+      </div>
     </div>
   );
 }
