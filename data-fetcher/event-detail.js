@@ -178,7 +178,7 @@ export function parseEventDetailHtml(html, url = 'unknown') {
     }
 
     return {
-        description: truncate(stripHtml(description), 400),
+        description: truncate(stripHtml(description), 1500),
         imageUrl,
         time,
         location,

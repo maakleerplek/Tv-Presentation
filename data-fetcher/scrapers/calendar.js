@@ -20,7 +20,7 @@ const USER_AGENT = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36
 
 const BASE = MAAKLEERPLEK_URL ? MAAKLEERPLEK_URL.origin : 'https://maakleerplek.be';
 const API_BASE = `${BASE}/wp-json/wp/v2/kalender`;
-const FIELDS = '_fields=id,title,link,excerpt,acf,featured_media';
+const FIELDS = '_fields=id,title,link,excerpt,content,acf,featured_media';
 const MEDIA_API = `${BASE}/wp-json/wp/v2/media`;
 
 const DUTCH_DAYS   = ['zo', 'ma', 'di', 'wo', 'do', 'vr', 'za'];
@@ -124,11 +124,13 @@ function mapItem(item, mediaMap) {
     // Featured image from the pre-fetched media map
     const imageUrl = (item.featured_media && mediaMap.get(item.featured_media)) || '';
 
-    // Description from excerpt (strip HTML)
-    const description = (item.excerpt?.rendered || '')
+    // Prefer full content over truncated excerpt; strip HTML from whichever we use
+    const rawDesc = item.content?.rendered || item.excerpt?.rendered || '';
+    const description = rawDesc
         .replace(/<[^>]*>/g, ' ')
         .replace(/\s{2,}/g, ' ')
-        .trim();
+        .trim()
+        .slice(0, 1500);
 
     return {
         title:       (item.title?.rendered || '').trim(),

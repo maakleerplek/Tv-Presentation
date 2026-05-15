@@ -144,7 +144,7 @@ async function doFetch() {
 
             enrichedItems.push({
                 ...stub,
-                description: truncate(stripHtml(description), 200),
+                description: truncate(stripHtml(description), 1500),
                 imageUrl:    extractImageUrl($a),
                 date:        stub.dateStr ||
                     (stub.modifiedTime ? new Date(stub.modifiedTime).toLocaleDateString('nl-BE') : ''),

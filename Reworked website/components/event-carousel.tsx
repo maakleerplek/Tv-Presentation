@@ -230,9 +230,12 @@ export function EventCarousel({ initialData }: { initialData?: ScreenData }) {
               {/* Description + QR side-by-side */}
               <div className="flex-1 min-h-0 flex flex-row items-start gap-4">
                 {currentItem.description ? (
-                  <p className="text-sm xl:text-base text-[#2C1E16] font-medium leading-normal flex-1 overflow-y-auto max-h-full pr-2">
-                    {translatedDescription}
-                  </p>
+                  <div className="flex-1 min-h-0 relative overflow-hidden">
+                    <p className="text-sm xl:text-base text-[#2C1E16] font-medium leading-normal">
+                      {translatedDescription}
+                    </p>
+                    <div className="absolute bottom-0 left-0 right-0 h-10 bg-gradient-to-t from-[#F5F2EB] to-transparent pointer-events-none" />
+                  </div>
                 ) : (
                   <div className="flex-1" />
                 )}
