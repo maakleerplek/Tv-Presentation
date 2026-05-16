@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useLayoutEffect, useRef, useMemo, useCallback } from 'react'; // useLayoutEffect for post-DOM measurement
+import { useState, useEffect, useLayoutEffect, useRef, useMemo, useCallback } from 'react';
 import Image from 'next/image';
 import QRCode from 'react-qr-code';
 import { Calendar, Globe, MapPin, Newspaper, Repeat, Tag } from 'lucide-react';
@@ -40,7 +40,7 @@ export function EventCarousel({ initialData }: { initialData?: ScreenData }) {
   const [imgFit, setImgFit] = useState<'cover' | 'contain'>('cover');
   const imgContainerRef = useRef<HTMLDivElement>(null);
   const descViewportRef = useRef<HTMLDivElement>(null);
-  const descTextRef = useRef<HTMLParagraphElement>(null);
+  const qrSpacerRef = useRef<HTMLDivElement>(null);
 
   // Build the unshuffled list (safe for SSR — no randomness)
   const baseItems = useMemo(() => {
@@ -61,31 +61,27 @@ export function EventCarousel({ initialData }: { initialData?: ScreenData }) {
   // Reset to cover optimistically whenever the carousel advances to a new item
   useEffect(() => { setImgFit('cover'); }, [currentIndex]);
 
-  const [lineClamp, setLineClamp] = useState<number | undefined>(undefined);
-
-  const updateClamp = useCallback(() => {
+  // Set the zero-width float spacer height so the QR floats to the bottom-right.
+  // The spacer occupies (containerH - QR_HEIGHT) so the QR float ends up at the bottom.
+  const QR_HEIGHT = 120;
+  const updateSpacer = useCallback(() => {
     const viewport = descViewportRef.current;
-    const text = descTextRef.current;
-    if (!viewport || !text) return;
-    const lineH = parseFloat(getComputedStyle(text).lineHeight);
-    if (!lineH) return;
-    const totalLines = Math.floor(viewport.clientHeight / lineH);
-    // Reserve lines for the QR area (≈120px tall) so the ellipsis appears above it
-    const qrLines = text.closest('[data-has-qr]') ? Math.ceil(120 / lineH) : 0;
-    setLineClamp(Math.max(1, totalLines - qrLines));
+    const spacer = qrSpacerRef.current;
+    if (!viewport || !spacer) return;
+    spacer.style.height = `${Math.max(0, viewport.clientHeight - QR_HEIGHT)}px`;
   }, []);
 
   useLayoutEffect(() => {
-    let raf1: number, raf2: number;
-    raf1 = requestAnimationFrame(() => { raf2 = requestAnimationFrame(updateClamp); });
-    return () => { cancelAnimationFrame(raf1); cancelAnimationFrame(raf2); };
-  }, [updateClamp, currentIndex]);
+    let r1: number, r2: number;
+    r1 = requestAnimationFrame(() => { r2 = requestAnimationFrame(updateSpacer); });
+    return () => { cancelAnimationFrame(r1); cancelAnimationFrame(r2); };
+  }, [updateSpacer, currentIndex]);
 
   useEffect(() => {
-    const ro = new ResizeObserver(updateClamp);
+    const ro = new ResizeObserver(updateSpacer);
     if (descViewportRef.current) ro.observe(descViewportRef.current);
     return () => ro.disconnect();
-  }, [updateClamp]);
+  }, [updateSpacer]);
 
   // Preload the next slide's image into the browser cache while the current one is showing
   useEffect(() => {
@@ -255,31 +251,30 @@ export function EventCarousel({ initialData }: { initialData?: ScreenData }) {
                 ) : null}
               </div>
 
-              {/* Description + QR */}
-              <div className="flex-1 min-h-0 relative" data-has-qr={currentItem.link ? 'true' : undefined}>
-                {/* Viewport: absolute inset so clientHeight is the true bounded height */}
-                <div ref={descViewportRef} className="absolute inset-0">
+              {/* Description + QR — float trick: zero-width spacer pushes QR to bottom-right,
+                  text flows full-width above it and beside it; overflow-hidden clips the rest */}
+              <div className="flex-1 min-h-0 relative">
+                <div ref={descViewportRef} className="absolute inset-0 overflow-hidden">
+                  {currentItem.link && (
+                    <>
+                      {/* Zero-width spacer: takes no horizontal space so text stays full-width above QR */}
+                      <div ref={qrSpacerRef} style={{ float: 'right', width: 0 }} />
+                      <div style={{ float: 'right', clear: 'right', marginLeft: '16px' }} className="flex flex-col items-center gap-1">
+                        <div className="border-2 border-[#2C1E16] p-1.5 bg-[#F5F2EB]">
+                          <QRCode value={currentItem.link} size={80} bgColor="#F5F2EB" fgColor="#2C1E16" />
+                        </div>
+                        <span className="text-[9px] font-black uppercase tracking-widest text-[#2C1E16]/50">
+                          {currentItem._type === 'workshop' ? 'Schrijf je in' : currentItem._type === 'news' ? 'Lees meer' : 'Meer info'}
+                        </span>
+                      </div>
+                    </>
+                  )}
                   {currentItem.description && (
-                    <p
-                      ref={descTextRef}
-                      className="text-sm xl:text-base text-[#2C1E16] font-medium leading-normal overflow-hidden"
-                      style={lineClamp ? { display: '-webkit-box', WebkitLineClamp: lineClamp, WebkitBoxOrient: 'vertical' } : undefined}
-                    >
+                    <p className="text-sm xl:text-base text-[#2C1E16] font-medium leading-normal">
                       {translatedDescription}
                     </p>
                   )}
                 </div>
-                {/* QR — absolute bottom-right; line clamp is reduced to leave this area clear */}
-                {currentItem.link && (
-                  <div className="absolute bottom-0 right-0 flex flex-col items-center gap-1">
-                    <div className="border-2 border-[#2C1E16] p-1.5 bg-[#F5F2EB]">
-                      <QRCode value={currentItem.link} size={80} bgColor="#F5F2EB" fgColor="#2C1E16" />
-                    </div>
-                    <span className="text-[9px] font-black uppercase tracking-widest text-[#2C1E16]/50">
-                      {currentItem._type === 'workshop' ? 'Schrijf je in' : currentItem._type === 'news' ? 'Lees meer' : 'Meer info'}
-                    </span>
-                  </div>
-                )}
               </div>
             </div>
           </div>
