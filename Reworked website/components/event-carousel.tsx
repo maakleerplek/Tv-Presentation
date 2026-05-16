@@ -41,7 +41,6 @@ export function EventCarousel({ initialData }: { initialData?: ScreenData }) {
   const imgContainerRef = useRef<HTMLDivElement>(null);
   const descViewportRef = useRef<HTMLDivElement>(null);
   const descTextRef = useRef<HTMLParagraphElement>(null);
-  const [scrollAmount, setScrollAmount] = useState(0);
 
   // Build the unshuffled list (safe for SSR — no randomness)
   const baseItems = useMemo(() => {
@@ -62,31 +61,58 @@ export function EventCarousel({ initialData }: { initialData?: ScreenData }) {
   // Reset to cover optimistically whenever the carousel advances to a new item
   useEffect(() => { setImgFit('cover'); }, [currentIndex]);
 
-  // Measure how much the description overflows so we can animate a scroll
-  const updateScroll = useCallback(() => {
-    const viewport = descViewportRef.current;
-    const text = descTextRef.current;
-    if (!viewport || !text) return;
-    const overflow = text.scrollHeight - viewport.clientHeight;
-    setScrollAmount(overflow > 4 ? overflow : 0);
+  // Drive scroll via Web Animations API — concrete pixel values, no CSS var() in keyframes
+  // (CSS custom properties are non-interpolatable by default, so var() in @keyframes won't smooth-scroll)
+  const scrollAnimRef = useRef<Animation | null>(null);
+  const hasLinkRef = useRef(false);
+
+  useLayoutEffect(() => {
+    hasLinkRef.current = !!currentItem?.link;
+  });
+
+  const startScrollAnim = useCallback((amount: number) => {
+    scrollAnimRef.current?.cancel();
+    const el = descTextRef.current;
+    if (!el || amount <= 0) return;
+    scrollAnimRef.current = el.animate([
+      { transform: 'translateY(0px)',          offset: 0    },
+      { transform: 'translateY(0px)',          offset: 0.18 },
+      { transform: `translateY(-${amount}px)`, offset: 0.55 },
+      { transform: `translateY(-${amount}px)`, offset: 0.73 },
+      { transform: 'translateY(0px)',          offset: 1    },
+    ], { duration: 14000, easing: 'ease-in-out', iterations: Infinity });
   }, []);
 
-  // useLayoutEffect + double-rAF: fires after DOM mutations, before paint, then waits
-  // two animation frames so the browser has committed final flex heights
   useLayoutEffect(() => {
-    setScrollAmount(0);
+    scrollAnimRef.current?.cancel();
     let raf1: number, raf2: number;
     raf1 = requestAnimationFrame(() => {
-      raf2 = requestAnimationFrame(updateScroll);
+      raf2 = requestAnimationFrame(() => {
+        const viewport = descViewportRef.current;
+        const text = descTextRef.current;
+        if (!viewport || !text) return;
+        // Extra bottom padding (when QR present) is already in scrollHeight; subtract it so
+        // we stop scrolling with the last text line just above the fade zone, not past it.
+        const padding = hasLinkRef.current ? 130 : 0;
+        const overflow = text.scrollHeight - padding - viewport.clientHeight;
+        startScrollAnim(overflow > 4 ? overflow : 0);
+      });
     });
-    return () => { cancelAnimationFrame(raf1); cancelAnimationFrame(raf2); };
-  }, [updateScroll, currentIndex]);
+    return () => { cancelAnimationFrame(raf1); cancelAnimationFrame(raf2); scrollAnimRef.current?.cancel(); };
+  }, [startScrollAnim, currentIndex]);
 
   useEffect(() => {
-    const ro = new ResizeObserver(updateScroll);
+    const ro = new ResizeObserver(() => {
+      const viewport = descViewportRef.current;
+      const text = descTextRef.current;
+      if (!viewport || !text) return;
+      const padding = hasLinkRef.current ? 130 : 0;
+      const overflow = text.scrollHeight - padding - viewport.clientHeight;
+      startScrollAnim(overflow > 4 ? overflow : 0);
+    });
     if (descViewportRef.current) ro.observe(descViewportRef.current);
     return () => ro.disconnect();
-  }, [updateScroll]);
+  }, [startScrollAnim]);
 
   // Preload the next slide's image into the browser cache while the current one is showing
   useEffect(() => {
@@ -261,16 +287,16 @@ export function EventCarousel({ initialData }: { initialData?: ScreenData }) {
                 <div
                   ref={descViewportRef}
                   className="absolute inset-0 overflow-hidden"
-                  style={{ maskImage: 'linear-gradient(to bottom, black 78%, transparent 100%)', WebkitMaskImage: 'linear-gradient(to bottom, black 78%, transparent 100%)' }}
+                  style={currentItem.link
+                    ? { maskImage: 'linear-gradient(to bottom, black calc(100% - 130px), transparent calc(100% - 5px))', WebkitMaskImage: 'linear-gradient(to bottom, black calc(100% - 130px), transparent calc(100% - 5px))' }
+                    : { maskImage: 'linear-gradient(to bottom, black 84%, transparent 100%)', WebkitMaskImage: 'linear-gradient(to bottom, black 84%, transparent 100%)' }
+                  }
                 >
                   {currentItem.description && (
                     <p
                       ref={descTextRef}
                       className="text-sm xl:text-base text-[#2C1E16] font-medium leading-normal"
-                      style={scrollAmount > 0 ? {
-                        animation: 'desc-scroll 14s ease-in-out infinite',
-                        ['--desc-scroll-amount' as string]: `-${scrollAmount}px`,
-                      } : undefined}
+                      style={currentItem.link ? { paddingBottom: '150px' } : undefined}
                     >
                       {translatedDescription}
                     </p>
