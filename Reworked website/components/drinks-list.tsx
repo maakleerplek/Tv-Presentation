@@ -46,12 +46,12 @@ function DrinkRow({ drink }: { drink: DrinkWithChange }) {
   const qrValue = drink.barcode || drink.IPN || null;
   return (
     <div
-      className={`grid grid-cols-[28px_1fr_auto_auto_52px] gap-1.5 items-center border-b border-[#2C1E16]/30 py-0.5 shrink-0 rounded-sm ${
+      className={`grid grid-cols-[48px_1fr_auto_auto_52px] gap-1.5 items-center border-b border-[#2C1E16]/30 py-0.5 shrink-0 rounded-sm ${
         drink._change === 'decreased' ? 'drink-sold' :
         drink._change === 'increased' ? 'drink-restocked' : ''
       }`}
     >
-      <div className="w-7 h-7 relative border border-[#2C1E16] shrink-0 bg-white overflow-hidden">
+      <div className="w-12 h-12 relative border border-[#2C1E16] shrink-0 bg-white overflow-hidden">
         {drink.imageUrl ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img
