@@ -65,7 +65,7 @@ function DrinkRow({ drink }: { drink: DrinkWithChange }) {
           </span>
         )}
       </div>
-      <span className="text-xs text-[#2C1E16] font-bold uppercase truncate leading-none" title={drink.name}>
+      <span className="text-xs text-[#2C1E16] font-bold uppercase leading-tight text-center break-words min-w-0">
         {drink.name}
       </span>
       <span className="w-8 flex justify-center">
