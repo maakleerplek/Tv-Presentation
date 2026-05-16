@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef, useMemo } from 'react';
+import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import Image from 'next/image';
 import QRCode from 'react-qr-code';
 import { Calendar, Globe, MapPin, Newspaper, Repeat, Tag } from 'lucide-react';
@@ -39,6 +39,9 @@ export function EventCarousel({ initialData }: { initialData?: ScreenData }) {
   // 'cover' = fill cleanly, 'contain' = show full image (bars visible but needed)
   const [imgFit, setImgFit] = useState<'cover' | 'contain'>('cover');
   const imgContainerRef = useRef<HTMLDivElement>(null);
+  const descContainerRef = useRef<HTMLDivElement>(null);
+  const descTextRef = useRef<HTMLParagraphElement>(null);
+  const [descLineClamp, setDescLineClamp] = useState<number | undefined>(undefined);
 
   // Build the unshuffled list (safe for SSR — no randomness)
   const baseItems = useMemo(() => {
@@ -58,6 +61,25 @@ export function EventCarousel({ initialData }: { initialData?: ScreenData }) {
 
   // Reset to cover optimistically whenever the carousel advances to a new item
   useEffect(() => { setImgFit('cover'); }, [currentIndex]);
+
+  // Dynamically compute how many lines fit in the description container
+  const updateLineClamp = useCallback(() => {
+    if (!descContainerRef.current || !descTextRef.current) return;
+    const containerH = descContainerRef.current.clientHeight;
+    const lineH = parseFloat(getComputedStyle(descTextRef.current).lineHeight);
+    if (containerH > 0 && lineH > 0) {
+      setDescLineClamp(Math.max(1, Math.floor(containerH / lineH)));
+    }
+  }, []);
+
+  useEffect(() => {
+    updateLineClamp();
+    const el = descContainerRef.current;
+    if (!el) return;
+    const ro = new ResizeObserver(updateLineClamp);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [updateLineClamp, currentIndex]);
 
   // Preload the next slide's image into the browser cache while the current one is showing
   useEffect(() => {
@@ -230,8 +252,12 @@ export function EventCarousel({ initialData }: { initialData?: ScreenData }) {
               {/* Description + QR side-by-side */}
               <div className="flex-1 min-h-0 flex flex-row items-stretch gap-4">
                 {currentItem.description ? (
-                  <div className="flex-1 min-h-0 overflow-hidden">
-                    <p className="text-sm xl:text-base text-[#2C1E16] font-medium leading-normal">
+                  <div ref={descContainerRef} className="flex-1 min-h-0 overflow-hidden">
+                    <p
+                      ref={descTextRef}
+                      className="text-sm xl:text-base text-[#2C1E16] font-medium leading-normal overflow-hidden"
+                      style={descLineClamp ? { display: '-webkit-box', WebkitLineClamp: descLineClamp, WebkitBoxOrient: 'vertical' } : undefined}
+                    >
                       {translatedDescription}
                     </p>
                   </div>
