@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
+import { useState, useEffect, useLayoutEffect, useRef, useMemo, useCallback } from 'react';
 import Image from 'next/image';
 import QRCode from 'react-qr-code';
 import { Calendar, Globe, MapPin, Newspaper, Repeat, Tag } from 'lucide-react';
@@ -27,7 +27,7 @@ export { formatDutchDate };
 type CarouselDecoration = {
   _icon: React.ElementType;
   _color: string;
-  _isNews?: boolean;
+  _type: 'workshop' | 'recurring' | 'news';
 };
 
 type CarouselItem = (CalendarEvent | NewsItem) & CarouselDecoration;
@@ -46,9 +46,9 @@ export function EventCarousel({ initialData }: { initialData?: ScreenData }) {
   // Build the unshuffled list (safe for SSR — no randomness)
   const baseItems = useMemo(() => {
     if (!data) return [];
-    const workshops = data.workshops.map((w) => ({ ...w, _icon: Calendar,  _color: '#FEF08A' }));
-    const recurring = data.recurringEvents.map((r) => ({ ...r, _icon: Repeat,    _color: '#BFDBFE' }));
-    const news      = data.news.map((n) => ({ ...n, _icon: Newspaper, _color: '#BBF7D0', _isNews: true }));
+    const workshops = data.workshops.map((w) => ({ ...w, _icon: Calendar,  _color: '#FEF08A', _type: 'workshop'  as const }));
+    const recurring = data.recurringEvents.map((r) => ({ ...r, _icon: Repeat,    _color: '#BFDBFE', _type: 'recurring' as const }));
+    const news      = data.news.map((n) => ({ ...n, _icon: Newspaper, _color: '#BBF7D0', _type: 'news'      as const }));
     return [...workshops, ...recurring, ...news];
   }, [data]);
 
@@ -71,13 +71,22 @@ export function EventCarousel({ initialData }: { initialData?: ScreenData }) {
     setScrollAmount(overflow > 4 ? overflow : 0);
   }, []);
 
+  // useLayoutEffect + double-rAF: fires after DOM mutations, before paint, then waits
+  // two animation frames so the browser has committed final flex heights
+  useLayoutEffect(() => {
+    setScrollAmount(0);
+    let raf1: number, raf2: number;
+    raf1 = requestAnimationFrame(() => {
+      raf2 = requestAnimationFrame(updateScroll);
+    });
+    return () => { cancelAnimationFrame(raf1); cancelAnimationFrame(raf2); };
+  }, [updateScroll, currentIndex]);
+
   useEffect(() => {
-    setScrollAmount(0); // reset on slide change
-    const id = setTimeout(updateScroll, 50); // wait for layout
     const ro = new ResizeObserver(updateScroll);
     if (descViewportRef.current) ro.observe(descViewportRef.current);
-    return () => { clearTimeout(id); ro.disconnect(); };
-  }, [updateScroll, currentIndex]);
+    return () => ro.disconnect();
+  }, [updateScroll]);
 
   // Preload the next slide's image into the browser cache while the current one is showing
   useEffect(() => {
@@ -248,34 +257,36 @@ export function EventCarousel({ initialData }: { initialData?: ScreenData }) {
               </div>
 
               {/* Description + QR */}
-              <div className="flex-1 min-h-0 relative flex flex-row gap-4">
-                {/* Text viewport — clips and fades; QR not inside so it won't fade */}
-                <div
-                  ref={descViewportRef}
-                  className="flex-1 min-h-0 overflow-hidden"
-                  style={{ maskImage: 'linear-gradient(to bottom, black 78%, transparent 100%)', WebkitMaskImage: 'linear-gradient(to bottom, black 78%, transparent 100%)' }}
-                >
-                  {currentItem.description && (
-                    <p
-                      ref={descTextRef}
-                      className="text-sm xl:text-base text-[#2C1E16] font-medium leading-normal"
-                      style={scrollAmount > 0 ? {
-                        animation: 'desc-scroll 14s ease-in-out infinite',
-                        ['--desc-scroll-amount' as string]: `-${scrollAmount}px`,
-                      } : undefined}
-                    >
-                      {translatedDescription}
-                    </p>
-                  )}
+              <div className="flex-1 min-h-0 flex flex-row gap-4">
+                {/* Outer div provides the flex-allocated height; inner absolute div is the true bounded viewport */}
+                <div className="flex-1 min-h-0 relative">
+                  <div
+                    ref={descViewportRef}
+                    className="absolute inset-0 overflow-hidden"
+                    style={{ maskImage: 'linear-gradient(to bottom, black 78%, transparent 100%)', WebkitMaskImage: 'linear-gradient(to bottom, black 78%, transparent 100%)' }}
+                  >
+                    {currentItem.description && (
+                      <p
+                        ref={descTextRef}
+                        className="text-sm xl:text-base text-[#2C1E16] font-medium leading-normal"
+                        style={scrollAmount > 0 ? {
+                          animation: 'desc-scroll 14s ease-in-out infinite',
+                          ['--desc-scroll-amount' as string]: `-${scrollAmount}px`,
+                        } : undefined}
+                      >
+                        {translatedDescription}
+                      </p>
+                    )}
+                  </div>
                 </div>
-                {/* QR — outside fade, anchored to bottom */}
+                {/* QR — outside the clip/fade, anchored to bottom */}
                 {currentItem.link && (
                   <div className="shrink-0 flex flex-col items-center gap-1 self-end">
                     <div className="border-2 border-[#2C1E16] p-1.5 bg-white">
                       <QRCode value={currentItem.link} size={80} bgColor="#ffffff" fgColor="#2C1E16" />
                     </div>
                     <span className="text-[9px] font-black uppercase tracking-widest text-[#2C1E16]/50">
-                      {currentItem._isNews ? 'Lees meer' : 'Schrijf je in'}
+                      {currentItem._type === 'workshop' ? 'Schrijf je in' : currentItem._type === 'news' ? 'Lees meer' : 'Meer info'}
                     </span>
                   </div>
                 )}
