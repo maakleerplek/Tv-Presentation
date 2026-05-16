@@ -36,6 +36,12 @@
   to   { transform: scaleX(1); }
 }
 
+@keyframes desc-scroll {
+  0%, 18%  { transform: translateY(0); }
+  55%, 73% { transform: translateY(var(--desc-scroll-amount, 0px)); }
+  100%     { transform: translateY(0); }
+}
+
 /* Closing flash */
 @keyframes closing-flash {
   0%   { background: rgba(239,68,68,0); }

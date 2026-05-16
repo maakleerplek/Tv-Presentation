@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef, useMemo } from 'react';
+import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import Image from 'next/image';
 import QRCode from 'react-qr-code';
 import { Calendar, Globe, MapPin, Newspaper, Repeat, Tag } from 'lucide-react';
@@ -39,6 +39,9 @@ export function EventCarousel({ initialData }: { initialData?: ScreenData }) {
   // 'cover' = fill cleanly, 'contain' = show full image (bars visible but needed)
   const [imgFit, setImgFit] = useState<'cover' | 'contain'>('cover');
   const imgContainerRef = useRef<HTMLDivElement>(null);
+  const descViewportRef = useRef<HTMLDivElement>(null);
+  const descTextRef = useRef<HTMLParagraphElement>(null);
+  const [scrollAmount, setScrollAmount] = useState(0);
 
   // Build the unshuffled list (safe for SSR — no randomness)
   const baseItems = useMemo(() => {
@@ -58,6 +61,23 @@ export function EventCarousel({ initialData }: { initialData?: ScreenData }) {
 
   // Reset to cover optimistically whenever the carousel advances to a new item
   useEffect(() => { setImgFit('cover'); }, [currentIndex]);
+
+  // Measure how much the description overflows so we can animate a scroll
+  const updateScroll = useCallback(() => {
+    const viewport = descViewportRef.current;
+    const text = descTextRef.current;
+    if (!viewport || !text) return;
+    const overflow = text.scrollHeight - viewport.clientHeight;
+    setScrollAmount(overflow > 4 ? overflow : 0);
+  }, []);
+
+  useEffect(() => {
+    setScrollAmount(0); // reset on slide change
+    const id = setTimeout(updateScroll, 50); // wait for layout
+    const ro = new ResizeObserver(updateScroll);
+    if (descViewportRef.current) ro.observe(descViewportRef.current);
+    return () => { clearTimeout(id); ro.disconnect(); };
+  }, [updateScroll, currentIndex]);
 
   // Preload the next slide's image into the browser cache while the current one is showing
   useEffect(() => {
@@ -227,32 +247,38 @@ export function EventCarousel({ initialData }: { initialData?: ScreenData }) {
                 ) : null}
               </div>
 
-              {/* Description + QR — absolute container bounds height, float pushes QR to bottom-right */}
-              <div className="flex-1 min-h-0 relative">
+              {/* Description + QR */}
+              <div className="flex-1 min-h-0 relative flex flex-row gap-4">
+                {/* Text viewport — clips and fades; QR not inside so it won't fade */}
                 <div
-                  className="absolute inset-0 overflow-hidden"
+                  ref={descViewportRef}
+                  className="flex-1 min-h-0 overflow-hidden"
                   style={{ maskImage: 'linear-gradient(to bottom, black 78%, transparent 100%)', WebkitMaskImage: 'linear-gradient(to bottom, black 78%, transparent 100%)' }}
                 >
-                  {currentItem.link && (
-                    <>
-                      {/* Zero-width spacer — pushes QR float to the bottom */}
-                      <div style={{ float: 'right', width: 0, height: 'calc(100% - 120px)' }} />
-                      <div style={{ float: 'right', clear: 'right', marginLeft: '16px' }} className="flex flex-col items-center gap-1">
-                        <div className="border-2 border-[#2C1E16] p-1.5 bg-white">
-                          <QRCode value={currentItem.link} size={80} bgColor="#ffffff" fgColor="#2C1E16" />
-                        </div>
-                        <span className="text-[9px] font-black uppercase tracking-widest text-[#2C1E16]/50">
-                          {currentItem._isNews ? 'Lees meer' : 'Schrijf je in'}
-                        </span>
-                      </div>
-                    </>
-                  )}
                   {currentItem.description && (
-                    <p className="text-sm xl:text-base text-[#2C1E16] font-medium leading-normal">
+                    <p
+                      ref={descTextRef}
+                      className="text-sm xl:text-base text-[#2C1E16] font-medium leading-normal"
+                      style={scrollAmount > 0 ? {
+                        animation: 'desc-scroll 14s ease-in-out infinite',
+                        ['--desc-scroll-amount' as string]: `-${scrollAmount}px`,
+                      } : undefined}
+                    >
                       {translatedDescription}
                     </p>
                   )}
                 </div>
+                {/* QR — outside fade, anchored to bottom */}
+                {currentItem.link && (
+                  <div className="shrink-0 flex flex-col items-center gap-1 self-end">
+                    <div className="border-2 border-[#2C1E16] p-1.5 bg-white">
+                      <QRCode value={currentItem.link} size={80} bgColor="#ffffff" fgColor="#2C1E16" />
+                    </div>
+                    <span className="text-[9px] font-black uppercase tracking-widest text-[#2C1E16]/50">
+                      {currentItem._isNews ? 'Lees meer' : 'Schrijf je in'}
+                    </span>
+                  </div>
+                )}
               </div>
             </div>
           </div>
