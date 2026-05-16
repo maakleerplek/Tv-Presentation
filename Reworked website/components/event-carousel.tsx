@@ -256,34 +256,31 @@ export function EventCarousel({ initialData }: { initialData?: ScreenData }) {
                 ) : null}
               </div>
 
-              {/* Description + QR */}
-              <div className="flex-1 min-h-0 flex flex-row gap-4">
-                {/* Outer div provides the flex-allocated height; inner absolute div is the true bounded viewport */}
-                <div className="flex-1 min-h-0 relative">
-                  <div
-                    ref={descViewportRef}
-                    className="absolute inset-0 overflow-hidden"
-                    style={{ maskImage: 'linear-gradient(to bottom, black 78%, transparent 100%)', WebkitMaskImage: 'linear-gradient(to bottom, black 78%, transparent 100%)' }}
-                  >
-                    {currentItem.description && (
-                      <p
-                        ref={descTextRef}
-                        className="text-sm xl:text-base text-[#2C1E16] font-medium leading-normal"
-                        style={scrollAmount > 0 ? {
-                          animation: 'desc-scroll 14s ease-in-out infinite',
-                          ['--desc-scroll-amount' as string]: `-${scrollAmount}px`,
-                        } : undefined}
-                      >
-                        {translatedDescription}
-                      </p>
-                    )}
-                  </div>
+              {/* Description + QR — text fills full width; QR sits absolute bottom-right */}
+              <div className="flex-1 min-h-0 relative">
+                <div
+                  ref={descViewportRef}
+                  className="absolute inset-0 overflow-hidden"
+                  style={{ maskImage: 'linear-gradient(to bottom, black 78%, transparent 100%)', WebkitMaskImage: 'linear-gradient(to bottom, black 78%, transparent 100%)' }}
+                >
+                  {currentItem.description && (
+                    <p
+                      ref={descTextRef}
+                      className="text-sm xl:text-base text-[#2C1E16] font-medium leading-normal"
+                      style={scrollAmount > 0 ? {
+                        animation: 'desc-scroll 14s ease-in-out infinite',
+                        ['--desc-scroll-amount' as string]: `-${scrollAmount}px`,
+                      } : undefined}
+                    >
+                      {translatedDescription}
+                    </p>
+                  )}
                 </div>
-                {/* QR — outside the clip/fade, anchored to bottom */}
+                {/* QR — absolute bottom-right, on top of faded text area */}
                 {currentItem.link && (
-                  <div className="shrink-0 flex flex-col items-center gap-1 self-end">
-                    <div className="border-2 border-[#2C1E16] p-1.5 bg-white">
-                      <QRCode value={currentItem.link} size={80} bgColor="#ffffff" fgColor="#2C1E16" />
+                  <div className="absolute bottom-0 right-0 flex flex-col items-center gap-1">
+                    <div className="border-2 border-[#2C1E16] p-1.5 bg-[#F5F2EB]">
+                      <QRCode value={currentItem.link} size={80} bgColor="#F5F2EB" fgColor="#2C1E16" />
                     </div>
                     <span className="text-[9px] font-black uppercase tracking-widest text-[#2C1E16]/50">
                       {currentItem._type === 'workshop' ? 'Schrijf je in' : currentItem._type === 'news' ? 'Lees meer' : 'Meer info'}
