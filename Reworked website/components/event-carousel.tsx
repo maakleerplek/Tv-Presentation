@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useLayoutEffect, useRef, useMemo, useCallback } from 'react';
+import { useState, useEffect, useLayoutEffect, useRef, useMemo, useCallback } from 'react'; // useLayoutEffect for post-DOM measurement
 import Image from 'next/image';
 import QRCode from 'react-qr-code';
 import { Calendar, Globe, MapPin, Newspaper, Repeat, Tag } from 'lucide-react';
@@ -61,58 +61,31 @@ export function EventCarousel({ initialData }: { initialData?: ScreenData }) {
   // Reset to cover optimistically whenever the carousel advances to a new item
   useEffect(() => { setImgFit('cover'); }, [currentIndex]);
 
-  // Drive scroll via Web Animations API — concrete pixel values, no CSS var() in keyframes
-  // (CSS custom properties are non-interpolatable by default, so var() in @keyframes won't smooth-scroll)
-  const scrollAnimRef = useRef<Animation | null>(null);
-  const hasLinkRef = useRef(false);
+  const [lineClamp, setLineClamp] = useState<number | undefined>(undefined);
 
-  useLayoutEffect(() => {
-    hasLinkRef.current = !!currentItem?.link;
-  });
-
-  const startScrollAnim = useCallback((amount: number) => {
-    scrollAnimRef.current?.cancel();
-    const el = descTextRef.current;
-    if (!el || amount <= 0) return;
-    scrollAnimRef.current = el.animate([
-      { transform: 'translateY(0px)',          offset: 0    },
-      { transform: 'translateY(0px)',          offset: 0.18 },
-      { transform: `translateY(-${amount}px)`, offset: 0.55 },
-      { transform: `translateY(-${amount}px)`, offset: 0.73 },
-      { transform: 'translateY(0px)',          offset: 1    },
-    ], { duration: 14000, easing: 'ease-in-out', iterations: Infinity });
+  const updateClamp = useCallback(() => {
+    const viewport = descViewportRef.current;
+    const text = descTextRef.current;
+    if (!viewport || !text) return;
+    const lineH = parseFloat(getComputedStyle(text).lineHeight);
+    if (!lineH) return;
+    const totalLines = Math.floor(viewport.clientHeight / lineH);
+    // Reserve lines for the QR area (≈120px tall) so the ellipsis appears above it
+    const qrLines = text.closest('[data-has-qr]') ? Math.ceil(120 / lineH) : 0;
+    setLineClamp(Math.max(1, totalLines - qrLines));
   }, []);
 
   useLayoutEffect(() => {
-    scrollAnimRef.current?.cancel();
     let raf1: number, raf2: number;
-    raf1 = requestAnimationFrame(() => {
-      raf2 = requestAnimationFrame(() => {
-        const viewport = descViewportRef.current;
-        const text = descTextRef.current;
-        if (!viewport || !text) return;
-        // Extra bottom padding (when QR present) is already in scrollHeight; subtract it so
-        // we stop scrolling with the last text line just above the fade zone, not past it.
-        const padding = hasLinkRef.current ? 130 : 0;
-        const overflow = text.scrollHeight - padding - viewport.clientHeight;
-        startScrollAnim(overflow > 4 ? overflow : 0);
-      });
-    });
-    return () => { cancelAnimationFrame(raf1); cancelAnimationFrame(raf2); scrollAnimRef.current?.cancel(); };
-  }, [startScrollAnim, currentIndex]);
+    raf1 = requestAnimationFrame(() => { raf2 = requestAnimationFrame(updateClamp); });
+    return () => { cancelAnimationFrame(raf1); cancelAnimationFrame(raf2); };
+  }, [updateClamp, currentIndex]);
 
   useEffect(() => {
-    const ro = new ResizeObserver(() => {
-      const viewport = descViewportRef.current;
-      const text = descTextRef.current;
-      if (!viewport || !text) return;
-      const padding = hasLinkRef.current ? 130 : 0;
-      const overflow = text.scrollHeight - padding - viewport.clientHeight;
-      startScrollAnim(overflow > 4 ? overflow : 0);
-    });
+    const ro = new ResizeObserver(updateClamp);
     if (descViewportRef.current) ro.observe(descViewportRef.current);
     return () => ro.disconnect();
-  }, [startScrollAnim]);
+  }, [updateClamp]);
 
   // Preload the next slide's image into the browser cache while the current one is showing
   useEffect(() => {
@@ -282,27 +255,21 @@ export function EventCarousel({ initialData }: { initialData?: ScreenData }) {
                 ) : null}
               </div>
 
-              {/* Description + QR — text fills full width; QR sits absolute bottom-right */}
-              <div className="flex-1 min-h-0 relative">
-                <div
-                  ref={descViewportRef}
-                  className="absolute inset-0 overflow-hidden"
-                  style={currentItem.link
-                    ? { maskImage: 'linear-gradient(to bottom, black calc(100% - 130px), transparent calc(100% - 5px))', WebkitMaskImage: 'linear-gradient(to bottom, black calc(100% - 130px), transparent calc(100% - 5px))' }
-                    : { maskImage: 'linear-gradient(to bottom, black 84%, transparent 100%)', WebkitMaskImage: 'linear-gradient(to bottom, black 84%, transparent 100%)' }
-                  }
-                >
+              {/* Description + QR */}
+              <div className="flex-1 min-h-0 relative" data-has-qr={currentItem.link ? 'true' : undefined}>
+                {/* Viewport: absolute inset so clientHeight is the true bounded height */}
+                <div ref={descViewportRef} className="absolute inset-0">
                   {currentItem.description && (
                     <p
                       ref={descTextRef}
-                      className="text-sm xl:text-base text-[#2C1E16] font-medium leading-normal"
-                      style={currentItem.link ? { paddingBottom: '150px' } : undefined}
+                      className="text-sm xl:text-base text-[#2C1E16] font-medium leading-normal overflow-hidden"
+                      style={lineClamp ? { display: '-webkit-box', WebkitLineClamp: lineClamp, WebkitBoxOrient: 'vertical' } : undefined}
                     >
                       {translatedDescription}
                     </p>
                   )}
                 </div>
-                {/* QR — absolute bottom-right, on top of faded text area */}
+                {/* QR — absolute bottom-right; line clamp is reduced to leave this area clear */}
                 {currentItem.link && (
                   <div className="absolute bottom-0 right-0 flex flex-col items-center gap-1">
                     <div className="border-2 border-[#2C1E16] p-1.5 bg-[#F5F2EB]">
