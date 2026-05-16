@@ -14,8 +14,8 @@ import type { DrinkWithChange } from '@/hooks/useDrinksData';
 function HeaderRow({ category, location }: { category?: string | null; location?: string | null }) {
   return (
     <div className="border-b-2 border-[#2C1E16] pb-0.5 mb-0">
-      {/* Row 1: category + location tags */}
-      <div className="flex items-center gap-1.5 mb-0.5">
+      {/* Row 1: category + location tags — always rendered so all columns stay vertically aligned */}
+      <div className="flex items-center gap-1.5 mb-0.5 min-h-[1rem]">
         {category && (
           <span className="flex items-center gap-1 text-[10px] font-black uppercase tracking-widest text-[#2C1E16]">
             <Tag className="w-2.5 h-2.5 shrink-0" />{category}
