@@ -26,14 +26,11 @@ function HeaderRow({ category, location }: { category?: string | null; location?
             <MapPin className="w-2.5 h-2.5 shrink-0" />{location}
           </span>
         )}
-        {!category && !location && (
-          <span className="text-[10px] text-[#2C1E16] font-black uppercase">Item</span>
-        )}
       </div>
-      {/* Row 2: column headers */}
-      <div className="grid grid-cols-[28px_1fr_auto_auto_52px] gap-1.5 items-end">
+      {/* Row 2: column headers — always show Item aligned with Stock/Prijs/Scan */}
+      <div className="grid grid-cols-[48px_1fr_auto_auto_52px] gap-1.5 items-end">
         <div />
-        <div />
+        <span className="text-[10px] text-[#2C1E16] font-black uppercase text-center">Item</span>
         <span className="text-[10px] text-[#2C1E16] font-black uppercase text-center w-8">Stock</span>
         <span className="text-[10px] text-[#2C1E16] font-black uppercase text-right w-10">Prijs</span>
         <span className="text-[10px] text-[#2C1E16] font-black uppercase text-center">Scan</span>
