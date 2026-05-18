@@ -43,7 +43,7 @@ function DrinkRow({ drink }: { drink: DrinkWithChange }) {
   const qrValue = drink.barcode || drink.IPN || null;
   return (
     <div
-      className={`grid grid-cols-[48px_1fr_auto_auto_52px] gap-1.5 items-center border-b border-[#2C1E16]/30 py-0.5 shrink-0 rounded-sm ${
+      className={`grid grid-cols-[48px_1fr_auto_auto_52px] gap-1.5 items-center border-b-2 border-[#2C1E16]/60 py-0.5 shrink-0 rounded-sm ${
         drink._change === 'decreased' ? 'drink-sold' :
         drink._change === 'increased' ? 'drink-restocked' : ''
       }`}
