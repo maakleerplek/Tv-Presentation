@@ -43,12 +43,12 @@ function DrinkRow({ drink }: { drink: DrinkWithChange }) {
   const qrValue = drink.barcode || drink.IPN || null;
   return (
     <div
-      className={`grid grid-cols-[48px_1fr_auto_auto_52px] gap-1.5 items-center border-2 border-[#2C1E16] py-0.5 shrink-0 ${
+      className={`grid grid-cols-[48px_1fr_auto_auto_52px] gap-1.5 items-center py-0.5 shrink-0 ${
         drink._change === 'decreased' ? 'drink-sold' :
         drink._change === 'increased' ? 'drink-restocked' : ''
       }`}
     >
-      <div className="w-12 h-12 relative border border-[#2C1E16] shrink-0 bg-white overflow-hidden">
+      <div className="w-12 h-12 relative border-2 border-[#2C1E16] shrink-0 bg-white overflow-hidden">
         {drink.imageUrl ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img
@@ -241,15 +241,15 @@ export function DrinksList({ initialData }: { initialData?: ScreenData }) {
           const col3 = group.items.slice(c1 + c2);
           return (
             <div key={gi} className="grid grid-cols-3 gap-x-3">
-              <div className="flex flex-col gap-1">
+              <div className="flex flex-col gap-0">
                 <HeaderRow category={group.category} location={group.location} />
                 {col1.map((drink, idx) => <DrinkRow key={idx} drink={drink} />)}
               </div>
-              <div className="flex flex-col gap-1">
+              <div className="flex flex-col gap-0">
                 {col2.length > 0 && <HeaderRow />}
                 {col2.map((drink, idx) => <DrinkRow key={idx} drink={drink} />)}
               </div>
-              <div className="flex flex-col gap-1">
+              <div className="flex flex-col gap-0">
                 {col3.length > 0 && <HeaderRow />}
                 {col3.map((drink, idx) => <DrinkRow key={idx} drink={drink} />)}
               </div>
