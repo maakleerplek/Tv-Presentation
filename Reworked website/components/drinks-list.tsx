@@ -43,7 +43,7 @@ function DrinkRow({ drink }: { drink: DrinkWithChange }) {
   const qrValue = drink.barcode || drink.IPN || null;
   return (
     <div
-      className={`grid grid-cols-[48px_1fr_auto_auto_52px] gap-1.5 items-center border-b-2 border-[#2C1E16]/60 py-0.5 shrink-0 rounded-sm ${
+      className={`grid grid-cols-[48px_1fr_auto_auto_52px] gap-1.5 items-center border-2 border-[#2C1E16] py-0.5 shrink-0 ${
         drink._change === 'decreased' ? 'drink-sold' :
         drink._change === 'increased' ? 'drink-restocked' : ''
       }`}
@@ -241,15 +241,15 @@ export function DrinksList({ initialData }: { initialData?: ScreenData }) {
           const col3 = group.items.slice(c1 + c2);
           return (
             <div key={gi} className="grid grid-cols-3 gap-x-3">
-              <div className="flex flex-col gap-0">
+              <div className="flex flex-col gap-1">
                 <HeaderRow category={group.category} location={group.location} />
                 {col1.map((drink, idx) => <DrinkRow key={idx} drink={drink} />)}
               </div>
-              <div className="flex flex-col gap-0">
+              <div className="flex flex-col gap-1">
                 {col2.length > 0 && <HeaderRow />}
                 {col2.map((drink, idx) => <DrinkRow key={idx} drink={drink} />)}
               </div>
-              <div className="flex flex-col gap-0">
+              <div className="flex flex-col gap-1">
                 {col3.length > 0 && <HeaderRow />}
                 {col3.map((drink, idx) => <DrinkRow key={idx} drink={drink} />)}
               </div>
