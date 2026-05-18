@@ -1,7 +1,7 @@
 'use client';
 
 import React from 'react';
-import { Coffee, Tag, MapPin, CheckCircle2, XCircle, Undo2, ShoppingCart, Plus, Minus, RotateCcw, Sparkles } from 'lucide-react';
+import { Coffee, Tag, MapPin, CheckCircle2, XCircle, Undo2, ShoppingCart, Plus, Minus, RotateCcw, Sparkles, ArrowRight } from 'lucide-react';
 
 import QRCode from 'react-qr-code';
 import { useScreenData } from '@/hooks/useScreenData';
@@ -220,7 +220,7 @@ export function DrinksList({ initialData }: { initialData?: ScreenData }) {
   const groups = groupDrinks(drinks);
 
   return (
-    <div className="flex-1 bg-[#F5F2EB] flex flex-col h-full overflow-hidden">
+    <div className="flex-1 bg-[#F5F2EB] flex flex-col h-full overflow-hidden relative">
 
       <div className="p-2 border-b-2 border-[#2C1E16] bg-[#C8A98B] shrink-0">
         <h2 className="text-[#2C1E16] uppercase tracking-widest text-xs font-black flex items-center justify-center gap-2">
@@ -258,14 +258,14 @@ export function DrinksList({ initialData }: { initialData?: ScreenData }) {
         })}
       </div>
 
-      {/* Barcode scanner hint */}
-      <div className="px-4 py-2 border-t border-[#2C1E16]/20 flex items-center justify-end gap-4 shrink-0">
+      {/* Barcode scanner hint — pinned at 58% from top of the full panel */}
+      <div className="absolute right-3 top-[58%] -translate-y-1/2 flex items-center gap-2 pointer-events-none z-10">
         <div className="text-right leading-tight">
           <p className="text-[9px] font-black uppercase tracking-widest text-[#2C1E16]/35">Use barcode</p>
           <p className="text-[9px] font-black uppercase tracking-widest text-[#2C1E16]/35">scanner to</p>
           <p className="text-[9px] font-black uppercase tracking-widest text-[#2C1E16]/35">scan items</p>
         </div>
-        <span className="text-5xl font-black text-[#2C1E16]/25 leading-none select-none">→</span>
+        <ArrowRight className="w-10 h-10 shrink-0 text-[#2C1E16]/25" strokeWidth={1.5} />
       </div>
 
       {/* Control Barcodes + Changelog */}
