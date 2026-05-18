@@ -1,7 +1,7 @@
 'use client';
 
 import React from 'react';
-import { Coffee, Tag, MapPin, CheckCircle2, XCircle, Undo2, ShoppingCart, Plus, Minus, RotateCcw, Sparkles, ArrowRight } from 'lucide-react';
+import { Coffee, Tag, MapPin, CheckCircle2, XCircle, Undo2, ShoppingCart, Plus, Minus, RotateCcw, Sparkles } from 'lucide-react';
 
 import QRCode from 'react-qr-code';
 import { useScreenData } from '@/hooks/useScreenData';
@@ -256,13 +256,16 @@ export function DrinksList({ initialData }: { initialData?: ScreenData }) {
             </div>
           );
         })}
-        {/* Barcode scanner hint */}
-        <div className="flex items-center justify-end gap-2 pt-1 pb-0.5">
-          <span className="text-[10px] font-black uppercase tracking-widest text-[#2C1E16]/50">
-            Use barcode scanner to scan items
-          </span>
-          <ArrowRight className="w-4 h-4 shrink-0 text-[#2C1E16]/50" />
+      </div>
+
+      {/* Barcode scanner hint */}
+      <div className="px-4 py-2 border-t border-[#2C1E16]/20 flex items-center justify-end gap-4 shrink-0">
+        <div className="text-right leading-tight">
+          <p className="text-[9px] font-black uppercase tracking-widest text-[#2C1E16]/35">Use barcode</p>
+          <p className="text-[9px] font-black uppercase tracking-widest text-[#2C1E16]/35">scanner to</p>
+          <p className="text-[9px] font-black uppercase tracking-widest text-[#2C1E16]/35">scan items</p>
         </div>
+        <span className="text-5xl font-black text-[#2C1E16]/25 leading-none select-none">→</span>
       </div>
 
       {/* Control Barcodes + Changelog */}
