@@ -265,7 +265,7 @@ export function DrinksList({ initialData }: { initialData?: ScreenData }) {
           <p className="text-[9px] font-black uppercase tracking-widest text-[#2C1E16]/35">scanner to</p>
           <p className="text-[9px] font-black uppercase tracking-widest text-[#2C1E16]/35">scan items</p>
         </div>
-        <ArrowBigRight className="w-10 h-10 shrink-0 text-[#2C1E16]/25" strokeWidth={1.5} />
+        <ArrowBigRight className="w-10 h-10 shrink-0 text-[#2C1E16]/70" strokeWidth={1.5} />
       </div>
 
       {/* Control Barcodes + Changelog */}
