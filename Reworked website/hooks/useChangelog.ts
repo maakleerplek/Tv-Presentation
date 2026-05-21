@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import type { ChangelogEntry } from '@/lib/types';
 
-const POLL_INTERVAL_MS = 5_000;
+const POLL_INTERVAL_MS = 15_000;
 
 export function useChangelog() {
     const [entries, setEntries] = useState<ChangelogEntry[]>([]);
