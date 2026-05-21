@@ -73,7 +73,7 @@ function DrinkRow({ drink }: { drink: DrinkWithChange }) {
             'text-[#2C1E16]'
           }`}
         >
-          {drink.stock}
+          {drink.stock === Infinity ? '∞' : drink.stock}
         </span>
       </span>
       <span className="text-xs font-black text-[#2C1E16] text-right w-10 leading-none">{drink.price}</span>
@@ -217,7 +217,20 @@ export function DrinksList({ initialData }: { initialData?: ScreenData }) {
     );
   }
 
-  const groups = groupDrinks(drinks);
+  const WATER_ITEM: DrinkWithChange = {
+    name: 'Water',
+    price: 'Gratis',
+    stock: Infinity,
+    imageUrl: '/water.png',
+    location: null,
+    category: null,
+    barcode: null,
+    IPN: null,
+    _change: null,
+    _delta: null,
+  };
+
+  const groups = groupDrinks([WATER_ITEM, ...drinks]);
 
   return (
     <div className="flex-1 bg-[#F5F2EB] flex flex-col h-full overflow-hidden relative">
