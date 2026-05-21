@@ -274,9 +274,9 @@ export function DrinksList({ initialData }: { initialData?: ScreenData }) {
       {/* Barcode scanner hint — pinned at 58% from top of the full panel */}
       <div className="absolute right-3 top-[58%] -translate-y-1/2 flex items-center gap-2 pointer-events-none z-10">
         <div className="text-right leading-tight">
-          <p className="text-[9px] font-black uppercase tracking-widest text-[#2C1E16]/35">Use barcode</p>
-          <p className="text-[9px] font-black uppercase tracking-widest text-[#2C1E16]/35">scanner to</p>
-          <p className="text-[9px] font-black uppercase tracking-widest text-[#2C1E16]/35">scan items</p>
+          <p className="text-[9px] font-black uppercase tracking-widest text-[#2C1E16]/70">Use barcode</p>
+          <p className="text-[9px] font-black uppercase tracking-widest text-[#2C1E16]/70">scanner to</p>
+          <p className="text-[9px] font-black uppercase tracking-widest text-[#2C1E16]/70">scan items</p>
         </div>
         <ArrowBigRight className="w-10 h-10 shrink-0 text-[#2C1E16]/70" strokeWidth={1.5} />
       </div>
