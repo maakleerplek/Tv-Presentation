@@ -59,6 +59,10 @@ export function parseEventDetailHtml(html, url = 'unknown') {
         console.warn(`[Scraper] Missing description for ${url}`);
     }
 
+    if (description.length > 400) {
+        description = description.slice(0, 400) + '…';
+    }
+
     // ── Image ──────────────────────────────────────────────────────
     // og:image is the most reliable; images on this site use http:// — normalise to https://
     const ogImage = $('meta[property="og:image"]').attr('content');

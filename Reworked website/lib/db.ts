@@ -1,4 +1,5 @@
 import path from 'path';
+import { createRequire } from 'module';
 
 // Define the shape of our custom news
 export type CustomNewsRow = {
@@ -37,9 +38,10 @@ function getDb(): DbLike {
   // Only import bun:sqlite if we are actually running inside Bun runtime
   if (typeof process !== 'undefined' && process.versions && Boolean((process.versions as NodeJS.ProcessVersions & { bun?: string }).bun)) {
     try {
-      // Use eval('require') to prevent Next.js from bundling bun:sqlite at build time
-      // and to avoid transpilation of import.meta.require into ({}.require).
-      const { Database } = eval('require')('bun:sqlite');
+      // Use createRequire so webpack can't statically analyze the 'bun:sqlite' argument
+      // and won't attempt to bundle it. eval('require') was the prior approach but
+      // 'require' is not in scope in Bun's ESM test runner on CI.
+      const { Database } = createRequire(import.meta.url)('bun:sqlite');
       const db = new Database(dbPath);
       db.exec('PRAGMA journal_mode = WAL;');
 
