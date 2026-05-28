@@ -217,20 +217,7 @@ export function DrinksList({ initialData }: { initialData?: ScreenData }) {
     );
   }
 
-  const WATER_ITEM: DrinkWithChange = {
-    name: 'Water',
-    price: 'Gratis',
-    stock: Infinity,
-    imageUrl: '/water.png',
-    location: 'HTL-Fridge',
-    category: 'Drinks',
-    barcode: null,
-    IPN: null,
-    _change: null,
-    _delta: null,
-  };
-
-  const groups = groupDrinks([WATER_ITEM, ...drinks]);
+  const groups = groupDrinks(drinks);
 
   return (
     <div className="flex-1 bg-[#F5F2EB] flex flex-col h-full overflow-hidden relative">
