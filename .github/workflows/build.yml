@@ -1,0 +1,32 @@
+name: Build CI
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
+jobs:
+  build-reworked-website:
+    name: Build Reworked Website
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Install Dependencies
+        run: bun install
+        working-directory: "Reworked website"
+
+      - name: Build
+        run: bun run build
+        working-directory: "Reworked website"
+        env:
+          NEXT_PUBLIC_SCREEN_DATA_POLL_MINUTES: "5"

@@ -175,18 +175,18 @@ function ChangelogPanel({ entries }: { entries: ChangelogEntry[] }) {
   }
 
   return (
-    <div className="flex flex-col min-w-0 flex-1 pr-4 gap-0.5">
-      <span className="text-[9px] font-black uppercase tracking-widest text-[#2C1E16]/50 mb-0.5">Recent activity</span>
+    <div className="flex flex-col min-w-0 flex-1 pr-4">
+      <span className="text-[10px] font-black uppercase tracking-widest text-[#2C1E16]/50 mb-0.5">Recent activity</span>
       {entries.slice(0, 12).map((entry) => {
         const Icon = ACTION_ICONS[entry.action] ?? ShoppingCart;
         const color = ACTION_COLORS[entry.action] ?? '#2C1E16';
         return (
           <div key={entry.id} className="flex items-center gap-1.5 min-w-0">
-            <Icon className="w-2.5 h-2.5 shrink-0" style={{ color }} />
-            <span className="text-[10px] font-bold text-[#2C1E16] truncate">
+            <Icon className="w-3 h-3 shrink-0" style={{ color }} />
+            <span className="text-xs font-bold text-[#2C1E16] truncate">
               {formatEntryLine(entry)}
             </span>
-            <span className="text-[9px] text-[#2C1E16]/40 shrink-0 ml-auto whitespace-nowrap">
+            <span className="text-[10px] text-[#2C1E16]/40 shrink-0 ml-auto whitespace-nowrap">
               {formatRelativeTime(entry.created_at)}
             </span>
           </div>
@@ -282,17 +282,17 @@ export function DrinksList({ initialData }: { initialData?: ScreenData }) {
       </div>
 
       {/* Control Barcodes + Changelog */}
-      <div className="p-3 border-t-2 border-[#2C1E16] bg-[#F5F2EB] flex flex-row items-start gap-4 shrink-0">
+      <div className="px-3 py-1.5 border-t-2 border-[#2C1E16] bg-[#F5F2EB] flex flex-row items-center gap-4 shrink-0">
         <ChangelogPanel entries={changelog} />
-        <div className="flex flex-row items-center gap-6 shrink-0">
+        <div className="flex flex-row items-center gap-5 shrink-0">
           {[
             { label: 'Confirm', data: 'CONFIRM', icon: CheckCircle2, color: '#22C55E' },
             { label: 'Cancel', data: 'CANCEL', icon: XCircle, color: '#EF4444' },
             { label: 'Undo (Remove)', data: 'REMOVE', icon: Undo2, color: '#F59E0B' },
           ].map((ctrl) => (
-            <div key={ctrl.label} className="flex flex-col items-center gap-1">
-              <div className="border-2 border-[#2C1E16] p-1.5 bg-white shadow-[2px_2px_0_0_#2C1E16]">
-                <QRCode value={ctrl.data} size={60} bgColor="#FFFFFF" fgColor="#2C1E16" />
+            <div key={ctrl.label} className="flex flex-col items-center gap-0.5">
+              <div className="border-2 border-[#2C1E16] p-1 bg-white shadow-[2px_2px_0_0_#2C1E16]">
+                <QRCode value={ctrl.data} size={52} bgColor="#FFFFFF" fgColor="#2C1E16" />
               </div>
               <span className="text-[9px] font-black uppercase tracking-tight flex items-center gap-1">
                 <ctrl.icon className="w-2.5 h-2.5" style={{ color: ctrl.color }} /> {ctrl.label}
