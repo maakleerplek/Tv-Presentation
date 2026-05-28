@@ -292,7 +292,7 @@ export function DrinksList({ initialData }: { initialData?: ScreenData }) {
           ].map((ctrl) => (
             <div key={ctrl.label} className="flex flex-col items-center gap-0.5">
               <div className="border-2 border-[#2C1E16] p-1 bg-white shadow-[2px_2px_0_0_#2C1E16]">
-                <QRCode value={ctrl.data} size={52} bgColor="#FFFFFF" fgColor="#2C1E16" />
+                <QRCode value={ctrl.data} size={60} bgColor="#FFFFFF" fgColor="#2C1E16" />
               </div>
               <span className="text-[9px] font-black uppercase tracking-tight flex items-center gap-1">
                 <ctrl.icon className="w-2.5 h-2.5" style={{ color: ctrl.color }} /> {ctrl.label}
