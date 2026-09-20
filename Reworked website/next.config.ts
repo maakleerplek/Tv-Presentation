@@ -25,6 +25,19 @@ const nextConfig: NextConfig = {
         protocol: 'http',
         hostname: 'maakleerplek.be',
       },
+      // Since the September 2026 rebuild the site serves its media from
+      // subdomains — event images come from odoo.maakleerplek.be — and any
+      // host missing here makes next/image answer 400, so the slide renders
+      // as a broken image.
+      {
+        protocol: 'https',
+        hostname: '**.maakleerplek.be',
+      },
+      // Sanity is the CMS behind the rebuilt site; story images live on its CDN.
+      {
+        protocol: 'https',
+        hostname: 'cdn.sanity.io',
+      },
       {
         protocol: 'http',
         hostname: 'localhost',
