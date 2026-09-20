@@ -1,14 +1,13 @@
 import { describe, it, expect, beforeAll, afterAll } from 'bun:test';
-import { getCustomNews, addCustomNews, deleteCustomNews, verifyAdmin } from '../lib/db';
+import { getCustomNews, addCustomNews, deleteCustomNews, verifyAdmin, resolveDbPath } from '../lib/db';
 import { Database } from 'bun:sqlite';
-import path from 'path';
 
 describe('Database Operations', () => {
     let testItemId: number;
 
     // Clean up any left over test artifacts
     beforeAll(() => {
-        const dbPath = path.join(process.cwd(), 'custom-news.db');
+        const dbPath = resolveDbPath();
         const db = new Database(dbPath);
         // Create the table just in case the db hasn't been initialized yet
         db.exec(`
@@ -27,7 +26,7 @@ describe('Database Operations', () => {
     });
 
     afterAll(() => {
-        const dbPath = path.join(process.cwd(), 'custom-news.db');
+        const dbPath = resolveDbPath();
         const db = new Database(dbPath);
         db.exec("DELETE FROM custom_news WHERE title = 'TEST_TITLE'");
         db.close();

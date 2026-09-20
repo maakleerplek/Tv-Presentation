@@ -29,6 +29,10 @@ services:
       - .env
     volumes:
       - next-image-cache:/app/.next/cache/images
+      # The SQLite database holds the changelog, the custom news items and the
+      # admin credentials. Without this volume it lives in the container's
+      # writable layer, and every `up --build` throws all of it away.
+      - tv-db:/app/data
     # No ports exposed to the host — only nginx can reach this on the internal Docker network
 
   # ===== Data Fetcher Backend (Node.js Scraper) =====
@@ -45,3 +49,4 @@ services:
 
 volumes:
   next-image-cache:
+  tv-db:

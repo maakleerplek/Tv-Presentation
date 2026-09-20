@@ -37,10 +37,13 @@ COPY --from=builder /app/public ./public
 COPY --from=builder --chown=bun:bun /app/.next/standalone ./
 COPY --from=builder --chown=bun:bun /app/.next/static ./.next/static
 
-# Ensure bun user owns /app directory for SQLite database writes
+# Ensure bun user owns /app directory for SQLite database writes.
+# /app/data must exist here and be owned by bun: Docker copies the image
+# path's ownership onto a named volume when it first creates it, and a
+# root-owned volume would leave the database unwritable.
 RUN chown -R bun:bun /app && \
-    mkdir -p /app/.next/cache/images /app/.next/cache/fetch-cache && \
-    chown -R bun:bun /app/.next/cache
+    mkdir -p /app/.next/cache/images /app/.next/cache/fetch-cache /app/data && \
+    chown -R bun:bun /app/.next/cache /app/data
 
 USER bun
 
@@ -48,5 +51,6 @@ EXPOSE 3000
 
 ENV PORT=3000
 ENV HOSTNAME="0.0.0.0"
+ENV DB_DIR=/app/data
 
 CMD ["bun", "server.js"]

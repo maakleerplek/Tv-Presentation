@@ -27,3 +27,6 @@ pnpm-debug.log*
 *.db
 *.db-shm
 *.db-wal
+
+# SQLite database (mounted as a Docker volume in production)
+Reworked website/data/

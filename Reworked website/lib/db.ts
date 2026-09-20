@@ -1,3 +1,4 @@
+import fs from 'fs';
 import path from 'path';
 import { createRequire } from 'module';
 
@@ -30,10 +31,49 @@ type DbLike = {
 
 let dbInstance: DbLike | null = null;
 
+/**
+ * Where the SQLite file lives.
+ *
+ * It sits in its own directory so a Docker volume can be mounted over it —
+ * a volume mounts a directory, not a file, and WAL mode puts `-wal` and
+ * `-shm` alongside the database anyway. Without that mount the database
+ * lives in the container's writable layer and every `docker compose build`
+ * silently discards the changelog, the custom news items and the admin
+ * credentials.
+ *
+ * Databases written before this moved are migrated once, so an existing
+ * deployment keeps its data.
+ */
+export function resolveDbPath(): string {
+  const dir = process.env.DB_DIR || path.join(process.cwd(), 'data');
+  fs.mkdirSync(dir, { recursive: true });
+
+  const dbPath = path.join(dir, 'custom-news.db');
+  const legacyPath = path.join(process.cwd(), 'custom-news.db');
+
+  if (!fs.existsSync(dbPath) && fs.existsSync(legacyPath)) {
+    try {
+      fs.renameSync(legacyPath, dbPath);
+      // WAL sidecars have to travel with the database or its last
+      // transactions are lost.
+      for (const suffix of ['-wal', '-shm']) {
+        if (fs.existsSync(legacyPath + suffix)) {
+          fs.renameSync(legacyPath + suffix, dbPath + suffix);
+        }
+      }
+      console.log(`[DB] Migrated database from ${legacyPath} to ${dbPath}`);
+    } catch (error) {
+      console.error('[DB] Could not migrate the existing database:', error);
+    }
+  }
+
+  return dbPath;
+}
+
 function getDb(): DbLike {
   if (dbInstance) return dbInstance;
   
-  const dbPath = path.join(process.cwd(), 'custom-news.db');
+  const dbPath = resolveDbPath();
   
   // Only import bun:sqlite if we are actually running inside Bun runtime
   if (typeof process !== 'undefined' && process.versions && Boolean((process.versions as NodeJS.ProcessVersions & { bun?: string }).bun)) {
