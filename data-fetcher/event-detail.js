@@ -1,6 +1,10 @@
 /**
- * fetchEventDetail — scrapes a single maakleerplek.be event page for
+ * fetchEventDetail — reads a single maakleerplek.be event page for
  * extra metadata: description, imageUrl, time, location, price.
+ *
+ * The site publishes a schema.org `Event` block as JSON-LD on every event
+ * page, which carries exactly the fields we need. We read that first and
+ * only fall back to the Open Graph tags when it is missing or malformed.
  *
  * Extracted into its own module so it can be unit-tested independently
  * of the Express server.
@@ -8,6 +12,9 @@
 import * as cheerio from 'cheerio';
 import { stripHtml, truncate } from './utils.js';
 import { resolveMaakleerplekUrl } from './config.js';
+
+/** Times on the site are local to the venue, JSON-LD publishes them in UTC. */
+const SITE_TIMEZONE = 'Europe/Brussels';
 
 /**
  * @param {string} url  Absolute URL of the event detail page.
@@ -32,6 +39,78 @@ export async function fetchEventDetail(url, fetchFn = fetch) {
 }
 
 /**
+ * Pull every JSON-LD block out of a page and return the first one whose
+ * `@type` matches. Handles `@graph` wrappers and top-level arrays, and
+ * silently skips blocks that fail to parse.
+ *
+ * @param {import('cheerio').CheerioAPI} $
+ * @param {string} type  e.g. 'Event' or 'Article'
+ * @returns {object|null}
+ */
+export function findJsonLd($, type) {
+    const nodes = [];
+
+    $('script[type="application/ld+json"]').each((_, el) => {
+        const raw = $(el).contents().text().trim();
+        if (!raw) return;
+        try {
+            const parsed = JSON.parse(raw);
+            const items = Array.isArray(parsed) ? parsed : [parsed];
+            for (const item of items) {
+                if (Array.isArray(item?.['@graph'])) nodes.push(...item['@graph']);
+                else nodes.push(item);
+            }
+        } catch {
+            // A malformed block is not worth failing the whole page over.
+        }
+    });
+
+    return nodes.find(n => n?.['@type'] === type) || null;
+}
+
+/**
+ * Format an ISO timestamp as "HH:MM" in the venue's timezone.
+ * Returns an empty string for anything unparseable.
+ */
+function toLocalTime(iso) {
+    if (!iso) return '';
+    const date = new Date(iso);
+    if (isNaN(date.getTime())) return '';
+    return new Intl.DateTimeFormat('nl-BE', {
+        hour: '2-digit', minute: '2-digit', hour12: false, timeZone: SITE_TIMEZONE,
+    }).format(date);
+}
+
+/** True when both timestamps fall on the same calendar day in the venue's timezone. */
+function sameLocalDay(startIso, endIso) {
+    const fmt = new Intl.DateTimeFormat('en-CA', { timeZone: SITE_TIMEZONE });
+    try {
+        return fmt.format(new Date(startIso)) === fmt.format(new Date(endIso));
+    } catch {
+        return false;
+    }
+}
+
+/**
+ * Render a schema.org `offers` block as the "€30" string the frontend expects.
+ * Free events return an empty string, matching how the old WordPress scraper
+ * left the price blank when no amount was set.
+ */
+function formatPrice(event) {
+    if (event.isAccessibleForFree === true) return '';
+
+    const offers = Array.isArray(event.offers) ? event.offers[0] : event.offers;
+    const amount = offers?.price;
+    if (amount === undefined || amount === null || amount === '') return '';
+
+    const numeric = Number(amount);
+    if (isNaN(numeric) || numeric <= 0) return '';
+
+    // Whole euros stay whole; anything else keeps two decimals.
+    return `€${Number.isInteger(numeric) ? numeric : numeric.toFixed(2)}`;
+}
+
+/**
  * Parse a raw event-detail HTML string.
  * Exported separately so tests can call it directly without needing fetch.
  *
@@ -41,12 +120,15 @@ export async function fetchEventDetail(url, fetchFn = fetch) {
  */
 export function parseEventDetailHtml(html, url = 'unknown') {
     const $ = cheerio.load(html);
+    const event = findJsonLd($, 'Event');
 
     // ── Description ────────────────────────────────────────────────
-    let description = $('meta[property="og:description"]').attr('content') || 
-                      $('meta[name="description"]').attr('content') || '';
-    
-    // Fallback: use first paragraph of content if no meta description
+    let description =
+        event?.description ||
+        $('meta[property="og:description"]').attr('content') ||
+        $('meta[name="description"]').attr('content') ||
+        '';
+
     if (!description) {
         const firstP = $('article p').first().text().trim();
         if (firstP) {
@@ -55,129 +137,56 @@ export function parseEventDetailHtml(html, url = 'unknown') {
         }
     }
 
-    if (!description) {
-        console.warn(`[Scraper] Missing description for ${url}`);
-    }
+    if (!description) console.warn(`[Scraper] Missing description for ${url}`);
 
-    if (description.length > 400) {
-        description = description.slice(0, 400) + '…';
-    }
+    if (description.length > 400) description = description.slice(0, 400) + '…';
 
     // ── Image ──────────────────────────────────────────────────────
-    // og:image is the most reliable; images on this site use http:// — normalise to https://
-    const ogImage = $('meta[property="og:image"]').attr('content');
-    
-    // Select candidates for body image
-    const bodyImages = [
-        '.wp-post-image',
-        '.post-thumbnail img',
-        '.elementor-post__thumbnail img',
-        'article img',
-        'main img',
-        '.entry-content img'
-    ];
-    
-    let imageUrl = ogImage || '';
-    
-    if (!imageUrl) {
-        for (const selector of bodyImages) {
-            const imgEl = $(selector).first();
-            if (imgEl.length > 0) {
-                // Check multiple sources (standard src, lazy-loading data-src, data-srcset, etc.)
-                imageUrl = imgEl.attr('data-src') || 
-                           imgEl.attr('data-lazy-src') || 
-                           imgEl.attr('data-srcset')?.split(',')[0].trim().split(' ')[0] ||
-                           imgEl.attr('data-orig-file') || 
-                           imgEl.attr('src') || '';
-                if (imageUrl) {
-                    console.log(`[Scraper] Found fallback image for ${url} via ${selector}`);
-                    break;
-                }
-            }
-        }
-    }
+    const jsonLdImage = Array.isArray(event?.image) ? event.image[0] : event?.image;
+    let imageUrl =
+        (typeof jsonLdImage === 'string' ? jsonLdImage : jsonLdImage?.url) ||
+        $('meta[property="og:image"]').attr('content') ||
+        '';
 
-    if (!imageUrl) {
-        console.warn(`[Scraper] Missing image for ${url}`);
-    }
+    if (!imageUrl) console.warn(`[Scraper] Missing image for ${url}`);
 
     // Normalise URL: http → https, relative → absolute
     if (imageUrl.startsWith('http://')) {
         imageUrl = imageUrl.replace('http://', 'https://');
-    } else if (imageUrl && !imageUrl.startsWith('https://') && imageUrl.startsWith('/')) {
-        imageUrl = resolveMaakleerplekUrl(imageUrl);
-    } else if (imageUrl && !imageUrl.startsWith('http')) {
+    } else if (imageUrl && !imageUrl.startsWith('https://')) {
         imageUrl = resolveMaakleerplekUrl(imageUrl);
     }
 
-    // ── Time extraction ────────────────────────────────────────────
-    let time = '';
-    const timeIcon = $('img[src*="icon-time.svg"], img[data-src*="icon-time.svg"]');
-    if (timeIcon.length > 0) {
-        const parentText = timeIcon.closest('p').text().trim();
-        // Match range: "10:00-13:00" or "10:00 - 13:00"
-        const timeMatch = parentText.match(/\d{1,2}[:.]\d{2}\s*[-–]\s*\d{1,2}[:.]\d{2}/);
-        if (timeMatch) {
-            time = timeMatch[0].replace(/\./g, ':');
-        } else {
-            // Match single time: "10:00" (avoid matching dates like 28/02/2026)
-            const token = parentText.match(/(?<!\d{2}\/\d{2}\/\d{4}\s)(\d{1,2}[:.]\d{2})/);
-            if (token) time = token[0].replace(/\./g, ':');
-        }
-    }
+    // ── Time ───────────────────────────────────────────────────────
+    // Recurring events publish the *series* end date, which would render as a
+    // nonsense range, so an end that lands on another day is dropped.
+    const start = toLocalTime(event?.startDate);
+    const end = event?.endDate && sameLocalDay(event.startDate, event.endDate)
+        ? toLocalTime(event.endDate)
+        : '';
 
-    // Fallback: search main body for time patterns
+    let time = start && end ? `${start} - ${end}` : start;
+
     if (!time) {
         const bodyText = $('main').text();
         const timeMatch = bodyText.match(/\d{1,2}[:.]\d{2}\s*[-–]\s*\d{1,2}[:.]\d{2}/);
-        if (timeMatch) time = timeMatch[0].replace(/\./g, ':');
+        if (timeMatch) time = timeMatch[0].replace(/\./g, ':').replace(/\s*[-–]\s*/, ' - ');
     }
 
-    if (!time) {
-        console.warn(`[Scraper] Missing time for ${url}`);
-    }
+    if (!time) console.warn(`[Scraper] Missing time for ${url}`);
 
-    // ── Location extraction ────────────────────────────────────────
-    const locationIcon = $('img[src*="icon-location.svg"], img[data-src*="icon-location.svg"]');
-    let location = '';
-    if (locationIcon.length > 0) {
-        const rawLoc = locationIcon.closest('p').text().trim();
-        location = stripHtml(rawLoc).replace(/^Locatie\s*/i, '').trim();
-    }
+    // ── Location ───────────────────────────────────────────────────
+    // "maakleerplek — High Tech Lab" → "High Tech Lab"
+    const placeName = event?.location?.name || '';
+    const location = placeName.split('—').pop().trim();
 
-    if (!location) {
-        // Fallback: look for common location-sounding strings or specific labs
-        const labs = ['High Tech Lab', 'TextielLab', 'Grafisch Lab', 'HoutLab', 'Maakbar', 'Elektro Herstel Hub'];
-        const bodyText = $('main').text();
-        for (const lab of labs) {
-            if (bodyText.includes(lab)) {
-                location = lab;
-                console.log(`[Scraper] Found fallback location for ${url}: ${lab}`);
-                break;
-            }
-        }
-    }
+    if (!location) console.warn(`[Scraper] Missing location for ${url}`);
 
-    if (!location) {
-        console.warn(`[Scraper] Missing location for ${url}`);
-    }
+    // ── Price ──────────────────────────────────────────────────────
+    let price = event ? formatPrice(event) : '';
 
-    // ── Price extraction ───────────────────────────────────────────
-    let price = '';
-    const priceIcon = $(
-        'img[src*="icon-price.svg"], img[data-src*="icon-price.svg"],' +
-        'img[src*="icon-ticket.svg"], img[data-src*="icon-ticket.svg"],' +
-        'img[src*="icon-euro.svg"], img[data-src*="icon-euro.svg"]'
-    );
-    if (priceIcon.length > 0) {
-        const rawPrice = priceIcon.closest('p').text().trim();
-        price = stripHtml(rawPrice).replace(/^(Prijs|Price)\s*/i, '').trim();
-    }
-
-    // Fallback: scan main for a € amount
-    if (!price) {
-        const metaText = $('main').text();
-        const euroMatch = metaText.match(/€\s*\d+([.,]\d{1,2})?/);
+    if (!price && !event) {
+        const euroMatch = $('main').text().match(/€\s*\d+([.,]\d{1,2})?/);
         if (euroMatch) price = euroMatch[0].replace(/\s+/g, '');
     }
 

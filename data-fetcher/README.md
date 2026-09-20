@@ -29,7 +29,7 @@ check-time.js      One-off script: logs which calendar events have no time
 
 scrapers/
   calendar.js      WP REST API → upcoming events with images
-  news.js          HTML scraper → recent news articles from /verhalen/
+  news.js          HTML scraper → recent news articles from /nl/verhalen
   drinks.js        Inventree REST API → current drinks/snacks inventory
   pricing.js       HTML scraper → machine & membership pricing from the wiki
 ```
@@ -85,17 +85,26 @@ Manual carousel-skip trigger for UI testing. POSTing to `/api/transition` sets a
 
 ### `scrapers/calendar.js` — `scrapeCalendar()`
 
-Fetches upcoming events from the WordPress REST API (`/wp-json/wp/v2/kalender`).  
-The calendar page was previously HTML-scraped but switched to JavaScript rendering, so the REST API is used instead.
+Fetches upcoming events from the public agenda (`/nl/agenda`).
+
+The site ran on WordPress until September 2026 and exposed a `kalender` custom post type over the WP REST API. The rebuild onto Next.js removed the whole `/wp-json` surface, and the new site publishes no JSON API, so the agenda is read directly.
 
 **How it works:**
-1. Fetches page 1 to get the total page count from the `X-WP-TotalPages` header.
-2. Fetches all remaining pages in **batches of 4** with a 300 ms delay between batches to avoid rate-limiting the WordPress site.
-3. Filters items to `datum >= today` (the `acf.datum` field is a `YYYYMMDD` string).
-4. Collects all unique `featured_media` IDs from the upcoming items.
-5. Batch-fetches image URLs via `/wp-json/wp/v2/media?include=<ids>` (up to 100 per request). `_embed` is not used because this WordPress site does not return embedded media.
-6. Maps each item to the `CalendarEvent` shape: `title`, `dateISO`, `date` (Dutch display string like "do 7 mei"), `time`, `price`, `imageUrl`, `description`, `link`.
-7. Sorts results ascending by `dateISO`.
+1. Requests the current month plus `CALENDAR_MONTHS_AHEAD` more, one per call: `?view=month&month=YYYY-MM`. All months are fetched concurrently, each retrying once on a 5xx.
+2. Parses every occurrence link. The agenda encodes an event in the anchor itself:
+   ```
+   href  = /nl/agenda/<slug>?date=YYYY-MM-DD
+   title = "13:00–17:00 · YOUNG MAKER LAB (woensdag) · Jongeren · High Tech Lab · Gewoon binnenlopen"
+            └─ time ──┘   └─ name ─────────────────┘   └─ cat ─┘  └─ lab (opt) ┘  └─ registration ─┘
+   ```
+   The lab segment is optional, so the title has four or five parts.
+   Reading the rendered agenda means the site's own expansion of recurring events — including its holiday cancellations — comes for free, instead of having to duplicate that logic here.
+3. Drops past dates and occurrences the agenda marks `Geannuleerd`, then deduplicates on `slug|date|time`: the responsive layout renders each occurrence twice, and consecutive months overlap at the edges.
+4. Enriches events with description, image and price from each event page's schema.org `Event` JSON-LD. The budget is spent per **distinct event**, not per occurrence, so a weekly open lab costs one fetch and the result is copied onto all of its dates. Fetched in batches of 4 with a 300 ms gap, capped at `MAX_EVENT_DETAILS` events, and cached per slug for 6 hours.
+5. Produces the `CalendarEvent` shape: `title`, `dateISO`, `date` (Dutch display string like "do 7 mei"), `time`, `price`, `imageUrl`, `description`, `link`, plus `slug`, `category`, `registration` and `location` from the agenda.
+6. Sorts results ascending by `dateISO`, then `time`.
+
+**Partial failure:** a month that fails is logged and skipped; the cache is only left untouched when *every* month fails.
 
 **Caching:** 15-minute in-memory cache (controlled by `CACHE_DURATION_MS`).  
 **Stale-while-revalidate:** after the first successful fetch, expired cache is returned immediately while a background refresh runs. This prevents slow responses after cache expiry.  
@@ -105,14 +114,16 @@ The calendar page was previously HTML-scraped but switched to JavaScript renderi
 
 ### `scrapers/news.js` — `scrapeNews()`
 
-Scrapes recent news articles from `maakleerplek.be/verhalen/`.
+Scrapes recent news articles from `maakleerplek.be/nl/verhalen`.
 
 **How it works:**
-1. Fetches the `/verhalen/` archive page.
-2. Parses `article.archive_item` elements to get title, link, and date.
-3. Skips articles older than `NEWS_MAX_AGE_DAYS` (default 14 days).
-4. Sequentially fetches each article's detail page to extract `og:description` and `og:image`. Falls back through multiple image selectors (`data-src`, `data-lazy-src`, lazy-loading variants) if `og:image` is absent.
-5. Capped at `MAX_NEWS_ITEMS` articles (default 6).
+1. Fetches the `/nl/verhalen` archive page. It is server-rendered, so no JavaScript execution is needed.
+2. Parses each story card: `<h3>` is the title, the first `<p>` is `"<date> · <author>"`, the second is the excerpt, and the `<img>` carries the image.
+3. Recovers the original CDN image URL from the Next.js optimiser `src` (`/_next/image?url=<encoded>`).
+4. Parses the long Dutch date ("18 september 2026") into a sortable timestamp, then skips articles older than `NEWS_MAX_AGE_DAYS`.
+5. Sorts newest first and caps at `MAX_NEWS_ITEMS` articles (default 6).
+
+Unlike the old scraper this never visits the individual article pages: the archive card already carries every field the screen displays.
 
 **Caching / stale-while-revalidate:** same pattern as the calendar scraper.
 
@@ -197,16 +208,20 @@ Single source of truth for all environment variables. Nothing here makes network
 | Export | Env var | Default | Purpose |
 |---|---|---|---|
 | `MAAKLEERPLEK_URL` | `MAAKLEERPLEK_URL` | `https://maakleerplek.be` | Base URL (parsed as `URL` object) |
-| `CALENDAR_URL` | — | `{base}/kalender/` | Calendar page (legacy, now unused) |
-| `VERHALEN_URL` | — | `{base}/verhalen/` | News archive page |
+| `SITE_LOCALE` | `SITE_LOCALE` | `nl` | Locale prefix the site redirects to |
+| `CALENDAR_URL` | — | `{base}/{locale}/agenda` | Agenda page |
+| `VERHALEN_URL` | — | `{base}/{locale}/verhalen` | News archive page |
+| `CALENDAR_MONTHS_AHEAD` | `CALENDAR_MONTHS_AHEAD` | 3 | Extra agenda months to pull (1 request each) |
 | `CACHE_DURATION_MS` | `CACHE_DURATION_MINUTES` | 15 min | General scraper cache lifetime |
 | `DRINKS_CACHE_DURATION_MS` | `DRINKS_CACHE_DURATION_MINUTES` | 5 min | Drinks cache lifetime |
 | `NEWS_MAX_AGE_DAYS` | `NEWS_MAX_AGE_DAYS` | 14 | Max age for news articles |
 | `MAX_NEWS_ITEMS` | `MAX_NEWS_ITEMS` | 6 | Max news articles returned |
-| `MAX_EVENT_DETAILS` | `MAX_EVENT_DETAILS` | 30 | Legacy: max detail-page fetches |
+| `MAX_EVENT_DETAILS` | `MAX_EVENT_DETAILS` | 30 | Max distinct events given detail-page enrichment |
 | `EVENT_PRIORITY` | `EVENT_PRIORITY` | `""` | Comma-separated priority keywords |
 | `WORKSHOP_KEYWORDS` | — | `['workshop', 'initiatie', …]` | Keywords that flag an event as a workshop |
 | `RECURRING_SERVICE_KEYWORDS` | — | `['open lab', 'repair', …]` | Keywords that flag a free community event |
+| `WORKSHOP_CATEGORIES` | — | `['workshop']` | Agenda categories that mean "workshop" |
+| `RECURRING_SERVICE_CATEGORIES` | — | `['open lab', 'jongeren', …]` | Agenda categories that mean "community service" |
 | `CAROUSEL_TRANSITION_TIME` | `CAROUSEL_TRANSITION_TIME` | 15 s | Seconds per carousel slide |
 | `TIPS_TRANSITION_TIME` | `TIPS_TRANSITION_TIME` | 10 s | Seconds per footer tip |
 | `STATUS_ROTATION_TIME` | `STATUS_ROTATION_TIME` | 10 s | Status panel rotation speed |

@@ -61,7 +61,7 @@ The root page (`app/page.tsx`) is a Server Component that fetches all data at re
 
 ### Data-fetcher Key Files
 - `server.js` — Express entry point. `/api/screen-data` aggregates all scrapers concurrently and returns the full payload. Pre-warms caches on startup.
-- `scrapers/calendar.js`, `scrapers/news.js`, `scrapers/pricing.js`, `scrapers/drinks.js` — Purpose-built scrapers using Cheerio.
+- `scrapers/calendar.js`, `scrapers/news.js`, `scrapers/pricing.js`, `scrapers/drinks.js` — Purpose-built scrapers using Cheerio. Calendar and news read the Next.js site at `/nl/agenda` and `/nl/verhalen`; the WordPress `/wp-json` API they used before September 2026 no longer exists.
 - `categorise.js` — Classifies calendar events as `workshops` vs `recurringEvents`.
 - `config.js` — All env vars. `scraper-config.js` — Target URLs.
 - `utils.js` — Cache validity helpers.
@@ -82,6 +82,7 @@ Copy `.env.example` to `.env`. Key variables:
 - `INVENTREE_DRINKS_LOCATIONS` — Comma-separated location names to show in the drinks panel.
 - `TRANSLATION_ENABLED` / `TRANSLATION_SOURCE_LANG` / `TRANSLATION_TARGET_LANG` / `LIBRETRANSLATE_URL` — Translation pipeline; MyMemory is the free fallback.
 - `EVENT_PRIORITY` — Comma-separated keywords controlling which event appears in the "Nu bezig / Volgend" status panel.
+- `CALENDAR_MONTHS_AHEAD` — How many agenda months past the current one to pull (one HTTP request each).
 - `TIP_1`, `TIP_2`, … — Footer tips, numbered sequentially.
 
 ## CI/CD

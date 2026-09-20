@@ -1,48 +1,84 @@
 import { describe, test, expect } from 'bun:test';
-import { parseEventDetailHtml } from '../event-detail.js';
+import { parseEventDetailHtml, findJsonLd } from '../event-detail.js';
+import * as cheerio from 'cheerio';
 
-// ── Helper: build minimal event detail HTML ───────────────────────
-function makeHtml({ ogImage = '', ogDescription = '', timeText = '', locationText = '', priceText = '', mainExtra = '', bodyExtra = '' } = {}) {
+// ── Helpers: build minimal event detail HTML ──────────────────────
+
+/** Wrap a schema.org Event object in a page, the way the site publishes it. */
+function makeJsonLdHtml(event, { ogImage = '', ogDescription = '', mainExtra = '' } = {}) {
     return `<!DOCTYPE html>
 <html>
 <head>
   ${ogImage       ? `<meta property="og:image" content="${ogImage}">` : ''}
   ${ogDescription ? `<meta property="og:description" content="${ogDescription}">` : ''}
+  <script type="application/ld+json">{"@context":"https://schema.org","@type":"Organization","name":"maakleerplek vzw"}</script>
+  ${event ? `<script type="application/ld+json">${JSON.stringify({ '@context': 'https://schema.org', '@type': 'Event', ...event })}</script>` : ''}
 </head>
-<body>
-${bodyExtra}
-<main>
-  ${timeText     ? `<p><img data-src="/icons/icon-time.svg" class="lazyload"> ${timeText}</p>` : ''}
-  ${locationText ? `<p><img data-src="/icons/icon-location.svg" class="lazyload"> ${locationText}</p>` : ''}
-  ${priceText    ? `<p><img data-src="/icons/icon-price.svg" class="lazyload"> ${priceText}</p>` : ''}
-  ${mainExtra}
-</main>
-</body>
+<body><main>${mainExtra}</main></body>
 </html>`;
 }
 
-// ── description ───────────────────────────────────────────────────
-describe('parseEventDetailHtml — description', () => {
-    test('extracts og:description and strips HTML', () => {
-        const html = makeHtml({ ogDescription: 'Leer <b>3D</b> ontwerpen.' });
-        const result = parseEventDetailHtml(html);
-        expect(result.description).toBe('Leer 3D ontwerpen.');
+/** A fully populated, realistic event. */
+const LASERCUTTER = {
+    name: 'De lasercutter leren gebruiken',
+    description: 'Leer werken met de grootste lasercutter van Leuven.',
+    startDate: '2026-09-22T17:00:00Z', // 19:00 Brussels
+    endDate:   '2026-09-22T20:00:00Z', // 22:00 Brussels
+    location: { '@type': 'Place', name: 'maakleerplek — High Tech Lab' },
+    image: 'https://odoo.maakleerplek.be/web/image/event.event/38/mlp_image',
+    isAccessibleForFree: false,
+    offers: { '@type': 'Offer', price: 30, priceCurrency: 'EUR' },
+};
+
+// ── findJsonLd ────────────────────────────────────────────────────
+describe('findJsonLd', () => {
+    test('picks the Event block, skipping the Organization one', () => {
+        const $ = cheerio.load(makeJsonLdHtml(LASERCUTTER));
+        expect(findJsonLd($, 'Event').name).toBe('De lasercutter leren gebruiken');
     });
 
-    test('falls back to first paragraph when og:description is absent', () => {
-        const html = makeHtml({ bodyExtra: '<article><p>Dit is de eerste paragraaf.</p></article>' });
-        const result = parseEventDetailHtml(html);
-        expect(result.description).toBe('Dit is de eerste paragraaf.');
+    test('returns null when the type is absent', () => {
+        const $ = cheerio.load(makeJsonLdHtml(null));
+        expect(findJsonLd($, 'Event')).toBeNull();
+    });
+
+    test('ignores a malformed block instead of throwing', () => {
+        const html = `<html><head>
+          <script type="application/ld+json">{ this is not json </script>
+          <script type="application/ld+json">{"@type":"Event","name":"Still found"}</script>
+        </head><body></body></html>`;
+        const $ = cheerio.load(html);
+        expect(findJsonLd($, 'Event').name).toBe('Still found');
+    });
+
+    test('unwraps an @graph array', () => {
+        const html = `<html><head><script type="application/ld+json">
+          {"@graph":[{"@type":"WebSite"},{"@type":"Event","name":"In graph"}]}
+        </script></head><body></body></html>`;
+        const $ = cheerio.load(html);
+        expect(findJsonLd($, 'Event').name).toBe('In graph');
+    });
+});
+
+// ── description ───────────────────────────────────────────────────
+describe('parseEventDetailHtml — description', () => {
+    test('uses the JSON-LD description', () => {
+        const result = parseEventDetailHtml(makeJsonLdHtml(LASERCUTTER));
+        expect(result.description).toBe('Leer werken met de grootste lasercutter van Leuven.');
+    });
+
+    test('falls back to og:description when JSON-LD is absent', () => {
+        const html = makeJsonLdHtml(null, { ogDescription: 'Leer 3D ontwerpen.' });
+        expect(parseEventDetailHtml(html).description).toBe('Leer 3D ontwerpen.');
     });
 
     test('returns empty string when no description is found', () => {
-        const result = parseEventDetailHtml(makeHtml());
-        expect(result.description).toBe('');
+        expect(parseEventDetailHtml(makeJsonLdHtml(null)).description).toBe('');
     });
 
     test('truncates long descriptions to 400 chars with ellipsis', () => {
-        const long = 'a'.repeat(500);
-        const result = parseEventDetailHtml(makeHtml({ ogDescription: long }));
+        const html = makeJsonLdHtml({ ...LASERCUTTER, description: 'a'.repeat(500) });
+        const result = parseEventDetailHtml(html);
         expect(result.description.length).toBeLessThanOrEqual(401); // 400 chars + '…'
         expect(result.description.endsWith('…')).toBe(true);
     });
@@ -50,127 +86,97 @@ describe('parseEventDetailHtml — description', () => {
 
 // ── imageUrl ──────────────────────────────────────────────────────
 describe('parseEventDetailHtml — imageUrl', () => {
-    test('returns og:image when present', () => {
-        const result = parseEventDetailHtml(makeHtml({ ogImage: 'https://example.com/img.jpg' }));
-        expect(result.imageUrl).toBe('https://example.com/img.jpg');
+    test('returns the JSON-LD image', () => {
+        expect(parseEventDetailHtml(makeJsonLdHtml(LASERCUTTER)).imageUrl)
+            .toBe('https://odoo.maakleerplek.be/web/image/event.event/38/mlp_image');
     });
 
-    test('falls back to body image with data-src if og:image is absent', () => {
-        const html = makeHtml({ bodyExtra: '<article><img class="wp-post-image" data-src="https://example.com/lazy.jpg"></article>' });
-        const result = parseEventDetailHtml(html);
-        expect(result.imageUrl).toBe('https://example.com/lazy.jpg');
+    test('accepts an ImageObject instead of a bare string', () => {
+        const html = makeJsonLdHtml({ ...LASERCUTTER, image: { '@type': 'ImageObject', url: 'https://example.com/o.jpg' } });
+        expect(parseEventDetailHtml(html).imageUrl).toBe('https://example.com/o.jpg');
     });
 
-    test('picks first image from data-srcset if og:image and data-src are absent', () => {
-        const html = makeHtml({ bodyExtra: '<article><img class="wp-post-image" data-srcset="https://example.com/thumb.jpg 300w, https://example.com/large.jpg 1024w"></article>' });
-        const result = parseEventDetailHtml(html);
-        expect(result.imageUrl).toBe('https://example.com/thumb.jpg');
+    test('falls back to og:image when JSON-LD has none', () => {
+        const html = makeJsonLdHtml(null, { ogImage: 'https://example.com/og.jpg' });
+        expect(parseEventDetailHtml(html).imageUrl).toBe('https://example.com/og.jpg');
     });
 
-    test('normalises http:// to https://', () => {
-        const result = parseEventDetailHtml(makeHtml({ ogImage: 'http://example.com/img.jpg' }));
-        expect(result.imageUrl).toBe('https://example.com/img.jpg');
+    test('upgrades http to https', () => {
+        const html = makeJsonLdHtml({ ...LASERCUTTER, image: 'http://example.com/i.jpg' });
+        expect(parseEventDetailHtml(html).imageUrl).toBe('https://example.com/i.jpg');
     });
 
-    test('resolves a root-relative path to an absolute URL', () => {
-        const result = parseEventDetailHtml(makeHtml({ ogImage: '/wp-content/uploads/img.jpg' }));
-        expect(result.imageUrl).toMatch(/^https:\/\//);
-        expect(result.imageUrl).toContain('/wp-content/uploads/img.jpg');
-    });
-
-    test('returns empty string when no image is present', () => {
-        const result = parseEventDetailHtml(makeHtml());
-        expect(result.imageUrl).toBe('');
+    test('makes a relative image absolute', () => {
+        const html = makeJsonLdHtml({ ...LASERCUTTER, image: '/images/event.jpg' });
+        expect(parseEventDetailHtml(html).imageUrl).toBe('https://maakleerplek.be/images/event.jpg');
     });
 });
 
 // ── time ──────────────────────────────────────────────────────────
 describe('parseEventDetailHtml — time', () => {
-    test('extracts time range from icon-time paragraph', () => {
-        const result = parseEventDetailHtml(makeHtml({ timeText: '11/03/2026 19:00-22:00' }));
-        expect(result.time).toBe('19:00-22:00');
+    test('renders the UTC range in Brussels local time', () => {
+        expect(parseEventDetailHtml(makeJsonLdHtml(LASERCUTTER)).time).toBe('19:00 - 22:00');
     });
 
-    test('normalises dot-separated times (19.00-22.00) to colons', () => {
-        const result = parseEventDetailHtml(makeHtml({ timeText: '11/03/2026 19.00-22.00' }));
-        expect(result.time).toBe('19:00-22:00');
+    test('drops an end date that falls on another day (recurring series end)', () => {
+        const html = makeJsonLdHtml({ ...LASERCUTTER, endDate: '2027-07-14T12:30:00Z' });
+        expect(parseEventDetailHtml(html).time).toBe('19:00');
     });
 
-    test('falls back to scanning main text when icon is absent', () => {
-        const html = makeHtml({ mainExtra: '<p>Het evenement loopt van 18:00–21:00 uur.</p>' });
-        const result = parseEventDetailHtml(html);
-        expect(result.time).toBe('18:00–21:00');
+    test('falls back to a time range in the page body', () => {
+        const html = makeJsonLdHtml(null, { mainExtra: '<p>Elke woensdag 11:30 – 14:30</p>' });
+        expect(parseEventDetailHtml(html).time).toBe('11:30 - 14:30');
     });
 
-    test('returns empty string when no time is found', () => {
-        const result = parseEventDetailHtml(makeHtml());
-        expect(result.time).toBe('');
+    test('returns empty string when there is no time anywhere', () => {
+        expect(parseEventDetailHtml(makeJsonLdHtml(null)).time).toBe('');
     });
 });
 
 // ── location ──────────────────────────────────────────────────────
 describe('parseEventDetailHtml — location', () => {
-    test('extracts location from icon-location paragraph', () => {
-        const result = parseEventDetailHtml(makeHtml({ locationText: 'High Tech Lab' }));
-        expect(result.location).toBe('High Tech Lab');
+    test('strips the venue prefix from the place name', () => {
+        expect(parseEventDetailHtml(makeJsonLdHtml(LASERCUTTER)).location).toBe('High Tech Lab');
     });
 
-    test('strips "Locatie" prefix if present', () => {
-        const result = parseEventDetailHtml(makeHtml({ locationText: 'Locatie Grafisch Lab' }));
-        expect(result.location).toBe('Grafisch Lab');
+    test('keeps a place name that has no prefix', () => {
+        const html = makeJsonLdHtml({ ...LASERCUTTER, location: { name: 'Kantine' } });
+        expect(parseEventDetailHtml(html).location).toBe('Kantine');
     });
 
-    test('falls back to scanning main text for lab names when icon is absent', () => {
-        const html = makeHtml({ mainExtra: '<p>Welkom in het High Tech Lab voor deze workshop.</p>' });
-        const result = parseEventDetailHtml(html);
-        expect(result.location).toBe('High Tech Lab');
-    });
-
-    test('returns empty string when location icon and lab names are absent', () => {
-        const result = parseEventDetailHtml(makeHtml());
-        expect(result.location).toBe('');
+    test('returns empty string when there is no location', () => {
+        expect(parseEventDetailHtml(makeJsonLdHtml(null)).location).toBe('');
     });
 });
 
 // ── price ─────────────────────────────────────────────────────────
 describe('parseEventDetailHtml — price', () => {
-    test('extracts price from icon-price paragraph', () => {
-        const result = parseEventDetailHtml(makeHtml({ priceText: '€30' }));
-        expect(result.price).toBe('€30');
+    test('formats a whole-euro offer', () => {
+        expect(parseEventDetailHtml(makeJsonLdHtml(LASERCUTTER)).price).toBe('€30');
     });
 
-    test('strips "Prijs" prefix if present', () => {
-        const result = parseEventDetailHtml(makeHtml({ priceText: 'Prijs €15' }));
-        expect(result.price).toBe('€15');
+    test('keeps two decimals for a fractional amount', () => {
+        const html = makeJsonLdHtml({ ...LASERCUTTER, offers: { price: 12.5, priceCurrency: 'EUR' } });
+        expect(parseEventDetailHtml(html).price).toBe('€12.50');
     });
 
-    test('strips "Price" prefix (English) if present', () => {
-        const result = parseEventDetailHtml(makeHtml({ priceText: 'Price €10' }));
-        expect(result.price).toBe('€10');
+    test('accepts offers as an array', () => {
+        const html = makeJsonLdHtml({ ...LASERCUTTER, offers: [{ price: 40 }] });
+        expect(parseEventDetailHtml(html).price).toBe('€40');
     });
 
-    test('falls back to scanning main text for a € amount', () => {
-        const html = makeHtml({ mainExtra: '<p>Inschrijving kost €25 per persoon.</p>' });
-        const result = parseEventDetailHtml(html);
-        expect(result.price).toBe('€25');
+    test('returns empty string for a free event', () => {
+        const html = makeJsonLdHtml({ ...LASERCUTTER, isAccessibleForFree: true, offers: undefined });
+        expect(parseEventDetailHtml(html).price).toBe('');
     });
 
-    test('falls back to scanning main for decimal price', () => {
-        const html = makeHtml({ mainExtra: '<p>Prijs: € 5,00</p>' });
-        const result = parseEventDetailHtml(html);
-        expect(result.price).toBe('€5,00');
+    test('returns empty string when the event carries no offer', () => {
+        const html = makeJsonLdHtml({ ...LASERCUTTER, isAccessibleForFree: false, offers: undefined });
+        expect(parseEventDetailHtml(html).price).toBe('');
     });
 
-    test('returns empty string when no price is found', () => {
-        const result = parseEventDetailHtml(makeHtml());
-        expect(result.price).toBe('');
-    });
-
-    test('icon-ticket.svg is also recognised', () => {
-        const html = `<html><body><main>
-          <p><img data-src="/icons/icon-ticket.svg"> €20</p>
-        </main></body></html>`;
-        const result = parseEventDetailHtml(html);
-        expect(result.price).toBe('€20');
+    test('scans the body for a euro amount only when JSON-LD is absent', () => {
+        const html = makeJsonLdHtml(null, { mainExtra: '<p>Deelname: € 25</p>' });
+        expect(parseEventDetailHtml(html).price).toBe('€25');
     });
 });

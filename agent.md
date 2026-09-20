@@ -11,7 +11,7 @@ Designed for a 4K TV via Chromecast (rendered at 1080p, upscaled).
 ```
 Tv-Presentation/
 ├── data-fetcher/              # Node.js Express + Cheerio scraper
-│   ├── server.js              # Scrapes maakleerplek.be/kalender/ and homepage
+│   ├── server.js              # Serves the scraped agenda, news, pricing and drinks
 │   ├── Dockerfile             # node:20-alpine
 │   └── package.json           # ESM, Express, Cheerio, CORS
 ├── Reworked website/          # Next.js frontend (React + Tailwind CSS v4)
@@ -51,7 +51,7 @@ Tv-Presentation/
 - **Next.js & React**: Utilizing modern Next.js App Router (`Reworked website/`).
 - **Tailwind CSS v4**: Using Tailwind for rapid, responsive UI styling.
 - **Bun**: Next.js is built and served using Bun instead of Node in the frontend container.
-- **Scraping**: Website has no public API → Cheerio parses HTML from `/kalender/` and homepage via the `data-fetcher` Express app.
+- **Scraping**: Website has no public API → Cheerio parses HTML from `/nl/agenda` and `/nl/verhalen` via the `data-fetcher` Express app, reading schema.org JSON-LD where the site publishes it.
 - **Dockerized**: Two services defined in `docker-compose.yml` (`frontend` and `data-fetcher`), managing port mappings and building images cleanly.
 
 ## Configuration
@@ -71,9 +71,9 @@ Settings and configuration are primarily managed via Environment Variables point
 
 ## Important URLs
 
-- Calendar: https://maakleerplek.be/kalender/
-- Homepage (news): https://maakleerplek.be/
-- HTML selectors (Backend): `.agenda_element`, `.agenda_date h4`, `.agenda_item`, `.agenda_item_title`, `.agenda_item_time`
+- Agenda: https://maakleerplek.be/nl/agenda?view=month&month=YYYY-MM
+- News: https://maakleerplek.be/nl/verhalen
+- HTML selectors (Backend): `a[href*="/agenda/"][title]`, `a[href*="/verhalen/"]`, `script[type="application/ld+json"]`
 
 ## Known Limitations
 

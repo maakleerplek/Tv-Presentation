@@ -1,148 +1,220 @@
 /**
- * scrapers/calendar.js — Fetches upcoming events from the maakleerplek WP REST API.
+ * scrapers/calendar.js — Fetches upcoming events from the maakleerplek agenda.
  *
- * The legacy HTML scraper used `.agenda_element` CSS classes, but the calendar
- * page switched to a JS-rendered layout. The WP REST API exposes a `kalender`
- * custom post type with all event data in ACF fields, so we use that instead.
+ * History: the site ran on WordPress and exposed a `kalender` custom post type
+ * over the WP REST API. In September 2026 it was rebuilt on Next.js and the
+ * whole `/wp-json` surface disappeared, so we read the public agenda instead.
+ *
+ * The agenda renders one month per request. Every occurrence is a link with a
+ * machine-readable `title` attribute:
+ *
+ *   href  = /nl/agenda/<slug>?date=YYYY-MM-DD
+ *   title = "13:00–17:00 · YOUNG MAKER LAB (woensdag) · Jongeren · High Tech Lab · Gewoon binnenlopen"
+ *           └─ time ──┘   └─ name ─────────────────┘   └─ cat ─┘  └─ lab (opt) ┘  └─ registration ─┘
+ *
+ * That gives us the site's own expansion of recurring events, including its
+ * holiday cancellations — logic we would otherwise have to duplicate. The
+ * per-event description, image and price are not in the overview, so they are
+ * pulled from each event page's schema.org JSON-LD and cached per slug.
  */
 
-import { MAAKLEERPLEK_URL, CACHE_DURATION_MS } from '../config.js';
+import * as cheerio from 'cheerio';
+import {
+    CALENDAR_URL,
+    CALENDAR_MONTHS_AHEAD,
+    CACHE_DURATION_MS,
+    MAX_EVENT_DETAILS,
+    resolveMaakleerplekUrl,
+} from '../config.js';
 import { isCacheValid } from '../utils.js';
+import { fetchEventDetail } from '../event-detail.js';
 
 // ── In-memory cache ───────────────────────────────────────────────────────────
 
 let calendarCache = { data: null, timestamp: 0 };
 let inflightFetch = null; // shared promise — prevents duplicate concurrent fetches
 
+/**
+ * Per-slug cache of event-page details. Descriptions, images and prices belong
+ * to the event itself rather than to a single occurrence, so one fetch serves
+ * every date a recurring event runs on — and survives the next refresh.
+ */
+const detailCache = new Map(); // slug → { data, timestamp }
+const DETAIL_CACHE_DURATION_MS = 6 * 60 * 60 * 1000; // 6 hours
+
 // ── Constants ─────────────────────────────────────────────────────────────────
 
 const USER_AGENT = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36';
 
-const BASE = MAAKLEERPLEK_URL ? MAAKLEERPLEK_URL.origin : 'https://maakleerplek.be';
-const API_BASE = `${BASE}/wp-json/wp/v2/kalender`;
-const FIELDS = '_fields=id,title,link,excerpt,content,acf,featured_media';
-const MEDIA_API = `${BASE}/wp-json/wp/v2/media`;
-
 const DUTCH_DAYS   = ['zo', 'ma', 'di', 'wo', 'do', 'vr', 'za'];
 const DUTCH_MONTHS = ['jan', 'feb', 'mrt', 'apr', 'mei', 'jun', 'jul', 'aug', 'sep', 'okt', 'nov', 'dec'];
 
+/** Registration label the agenda puts on an occurrence that will not happen. */
+const CANCELLED_LABEL = 'geannuleerd';
+
+/** Fetch this many event pages concurrently. */
+const DETAIL_BATCH = 4;
+
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
-/** "20260507" → "2026-05-07" */
-function datumToISO(datum) {
-    return `${datum.slice(0, 4)}-${datum.slice(4, 6)}-${datum.slice(6, 8)}`;
+/** "2026-05-07" → "do 7 mei" */
+export function isoToDutch(dateISO) {
+    const [y, m, d] = dateISO.split('-').map(Number);
+    if (!y || !m || !d) return '';
+    const dow = new Date(y, m - 1, d).getDay();
+    return `${DUTCH_DAYS[dow]} ${d} ${DUTCH_MONTHS[m - 1]}`;
 }
 
-/** "20260507" → "do 7 mei" */
-function datumToDutch(datum) {
-    const y = parseInt(datum.slice(0, 4), 10);
-    const m = parseInt(datum.slice(4, 6), 10) - 1;
-    const d = parseInt(datum.slice(6, 8), 10);
-    const dow = new Date(y, m, d).getDay();
-    return `${DUTCH_DAYS[dow]} ${d} ${DUTCH_MONTHS[m]}`;
+/** Today as "YYYY-MM-DD" in local time (not UTC — the agenda is a local calendar). */
+function todayISO() {
+    const now = new Date();
+    return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
 }
 
-/** Fetch one page; return { items, totalPages }. Retries once on 5xx. */
-async function fetchPage(page) {
-    const url = `${API_BASE}?per_page=100&page=${page}&${FIELDS}`;
-    for (let attempt = 0; attempt < 2; attempt++) {
-        try {
-            const res = await fetch(url, { headers: { 'User-Agent': USER_AGENT } });
-            if (res.ok) {
-                const totalPages = parseInt(res.headers.get('X-WP-TotalPages') || '1', 10);
-                const items = await res.json();
-                return { items: Array.isArray(items) ? items : [], totalPages };
-            }
-            if (res.status < 500) break; // 4xx won't improve with a retry
-            if (attempt === 0) await new Promise(r => setTimeout(r, 1000));
-        } catch (err) {
-            console.warn(`[Calendar] Page ${page} fetch failed:`, err.message);
-            if (attempt === 0) await new Promise(r => setTimeout(r, 1000));
-        }
+/** The current month plus the next `count` months, as "YYYY-MM" strings. */
+export function monthsToFetch(count, from = new Date()) {
+    const months = [];
+    for (let i = 0; i <= count; i++) {
+        const d = new Date(from.getFullYear(), from.getMonth() + i, 1);
+        months.push(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`);
     }
-    return { items: [], totalPages: null }; // null signals failure
-}
-
-/** Fetch pages in small concurrent batches to avoid hammering the WordPress site. */
-async function fetchAllPages(totalPages) {
-    const BATCH = 4;
-    const allItems = [];
-    for (let start = 2; start <= totalPages; start += BATCH) {
-        const batch = Array.from(
-            { length: Math.min(BATCH, totalPages - start + 1) },
-            (_, i) => fetchPage(start + i)
-        );
-        const results = await Promise.all(batch);
-        results.forEach(r => allItems.push(...r.items));
-        if (start + BATCH <= totalPages) await new Promise(r => setTimeout(r, 300));
-    }
-    return allItems;
+    return months;
 }
 
 /**
- * Batch-fetch image URLs for a set of media IDs.
- * Returns a Map<id, source_url>.
+ * Split an agenda `title` attribute into its parts.
+ * Four- and five-part forms both occur; the lab segment is the optional one.
+ *
+ * @returns {{time:string, name:string, category:string, lab:string, registration:string}|null}
  */
-async function fetchMediaMap(mediaIds) {
-    const unique = [...new Set(mediaIds.filter(Boolean))];
-    if (unique.length === 0) return new Map();
+export function parseTitleAttr(titleAttr) {
+    const parts = titleAttr.split('·').map(s => s.trim()).filter(Boolean);
+    if (parts.length < 4) return null;
 
-    // WP REST API supports up to 100 items per request via `include`
-    const chunks = [];
-    for (let i = 0; i < unique.length; i += 100) chunks.push(unique.slice(i, i + 100));
+    const [time, name, category] = parts;
+    const registration = parts[parts.length - 1];
+    const lab = parts.length >= 5 ? parts[3] : '';
 
-    const results = await Promise.all(chunks.map(async chunk => {
-        const url = `${MEDIA_API}?include=${chunk.join(',')}&per_page=100&_fields=id,source_url`;
-        try {
-            const res = await fetch(url, { headers: { 'User-Agent': USER_AGENT } });
-            if (!res.ok) return [];
-            return await res.json();
-        } catch {
-            return [];
-        }
-    }));
-
-    const map = new Map();
-    results.flat().forEach(m => { if (m.id && m.source_url) map.set(m.id, m.source_url); });
-    console.log(`[Calendar] Resolved ${map.size}/${unique.length} media images`);
-    return map;
-}
-
-/** Map a single WP REST API item to our CalendarEvent shape. */
-function mapItem(item, mediaMap) {
-    const acf   = item.acf || {};
-    const datum = (acf.datum || '').toString().trim();
-    if (datum.length !== 8 || !/^\d{8}$/.test(datum)) return null;
-
-    // Normalise time: "18:00-22:00" or "18:00 - 22:00" → "18:00 - 22:00"
-    const time = (acf.uur || '').replace(/\s*[-–]\s*/, ' - ').trim();
-
-    // Price: ACF stores it as a number (5) or empty string
-    const priceRaw = acf.prijs;
-    const price = priceRaw && String(priceRaw).trim() ? `€${priceRaw}` : '';
-
-    // Featured image from the pre-fetched media map
-    const imageUrl = (item.featured_media && mediaMap.get(item.featured_media)) || '';
-
-    // Prefer full content over truncated excerpt; strip HTML from whichever we use
-    const rawDesc = item.content?.rendered || item.excerpt?.rendered || '';
-    const description = rawDesc
-        .replace(/<[^>]*>/g, ' ')
-        .replace(/\s{2,}/g, ' ')
-        .trim()
-        .slice(0, 1500);
+    if (!/^\d{1,2}:\d{2}/.test(time) || !name) return null;
 
     return {
-        title:       (item.title?.rendered || '').trim(),
-        location:    'maakleerplek',
-        time,
-        date:        datumToDutch(datum),
-        dateISO:     datumToISO(datum),
-        link:        item.link || '',
-        description,
-        imageUrl,
-        price,
+        // "13:00–17:00" → "13:00 - 17:00", matching the format utils.js parses
+        time: time.replace(/\s*[-–—]\s*/, ' - '),
+        name,
+        category,
+        lab,
+        registration,
     };
+}
+
+/**
+ * Extract every event occurrence from one rendered agenda month.
+ *
+ * @param {string} html
+ * @returns {Array<object>} occurrences, possibly containing duplicates
+ */
+export function parseAgendaMonth(html) {
+    const $ = cheerio.load(html);
+    const occurrences = [];
+
+    $('a[href*="/agenda/"][title]').each((_, el) => {
+        const href = $(el).attr('href') || '';
+        const match = href.match(/\/agenda\/([^/?#]+)\?(?:[^#]*&)?date=(\d{4}-\d{2}-\d{2})/);
+        if (!match) return;
+
+        const parsed = parseTitleAttr($(el).attr('title') || '');
+        if (!parsed) return;
+
+        const [, slug, dateISO] = match;
+
+        occurrences.push({
+            slug,
+            dateISO,
+            date:         isoToDutch(dateISO),
+            title:        parsed.name,
+            time:         parsed.time,
+            category:     parsed.category,
+            registration: parsed.registration,
+            location:     parsed.lab || 'maakleerplek',
+            link:         resolveMaakleerplekUrl(href.replace(/^\//, '')),
+            description:  '',
+            imageUrl:     '',
+            price:        '',
+        });
+    });
+
+    return occurrences;
+}
+
+/** Fetch one agenda month. Retries once, then gives up and reports failure. */
+async function fetchMonth(month) {
+    const url = `${CALENDAR_URL}?view=month&month=${month}`;
+    for (let attempt = 0; attempt < 2; attempt++) {
+        try {
+            const res = await fetch(url, { headers: { 'User-Agent': USER_AGENT } });
+            if (res.ok) return { month, occurrences: parseAgendaMonth(await res.text()), ok: true };
+            if (res.status < 500) break; // 4xx won't improve with a retry
+        } catch (err) {
+            console.warn(`[Calendar] Month ${month} fetch failed:`, err.message);
+        }
+        if (attempt === 0) await new Promise(r => setTimeout(r, 1000));
+    }
+    return { month, occurrences: [], ok: false };
+}
+
+/**
+ * Look up description, image and price for an event, reusing the per-slug
+ * cache so a weekly event costs one request instead of one per occurrence.
+ */
+async function getDetail(occurrence) {
+    const cached = detailCache.get(occurrence.slug);
+    if (cached && Date.now() - cached.timestamp < DETAIL_CACHE_DURATION_MS) return cached.data;
+
+    const data = await fetchEventDetail(occurrence.link);
+    detailCache.set(occurrence.slug, { data, timestamp: Date.now() });
+    return data;
+}
+
+/**
+ * Enrich events with their detail-page metadata, in small concurrent batches
+ * so we never hammer the site.
+ *
+ * The budget is spent per distinct event, not per occurrence: a weekly open lab
+ * fills 15 slots in the list but needs one fetch, and the result is copied onto
+ * every one of its dates. That makes MAX_EVENT_DETAILS cover months of agenda
+ * instead of the next fortnight.
+ */
+async function enrichEvents(events) {
+    const bySlug = new Map();
+    for (const event of events) {
+        if (!bySlug.has(event.slug)) bySlug.set(event.slug, []);
+        bySlug.get(event.slug).push(event);
+    }
+
+    // Insertion order follows the sorted event list, so the soonest events are
+    // enriched first and the cap only ever drops the most distant ones.
+    const slugs = [...bySlug.keys()].slice(0, MAX_EVENT_DETAILS);
+
+    for (let i = 0; i < slugs.length; i += DETAIL_BATCH) {
+        const batch = slugs.slice(i, i + DETAIL_BATCH);
+        const details = await Promise.all(batch.map(slug => getDetail(bySlug.get(slug)[0])));
+
+        batch.forEach((slug, j) => {
+            const detail = details[j] || {};
+            for (const event of bySlug.get(slug)) {
+                if (detail.description) event.description = detail.description;
+                if (detail.imageUrl)    event.imageUrl    = detail.imageUrl;
+                if (detail.price)       event.price       = detail.price;
+                // The agenda's own time wins: JSON-LD reports the series end date
+                // for recurring events, which would render as a nonsense range.
+                if (!event.time && detail.time) event.time = detail.time;
+            }
+        });
+
+        if (i + DETAIL_BATCH < slugs.length) await new Promise(r => setTimeout(r, 300));
+    }
+
+    return events;
 }
 
 // ── Main export ───────────────────────────────────────────────────────────────
@@ -166,46 +238,45 @@ export async function scrapeCalendar() {
 }
 
 async function doFetch() {
-    console.log('[Calendar] Fetching from WP REST API', API_BASE);
+    const months = monthsToFetch(CALENDAR_MONTHS_AHEAD);
+    console.log(`[Calendar] Fetching agenda ${CALENDAR_URL} for ${months.join(', ')}`);
 
-    // First page gives us the total page count
-    const { items: firstItems, totalPages } = await fetchPage(1);
+    const results = await Promise.all(months.map(fetchMonth));
 
-    if (!totalPages) {
-        console.error('[Calendar] First page fetch failed, skipping cache update');
+    // A month that failed outright is different from a month with no events:
+    // only bail out when we could not read a single page.
+    if (!results.some(r => r.ok)) {
+        console.error('[Calendar] All agenda months failed to fetch, skipping cache update');
         return calendarCache.data ?? [];
     }
 
-    // Fetch remaining pages in small batches to avoid hammering the WP site
-    const extraItems = await fetchAllPages(totalPages);
-    const allItems = [...firstItems, ...extraItems];
+    results.filter(r => !r.ok).forEach(r => console.warn(`[Calendar] Month ${r.month} unavailable`));
 
-    // Filter to upcoming events only
-    const today = new Date();
-    const todayStr = `${today.getFullYear()}${String(today.getMonth() + 1).padStart(2, '0')}${String(today.getDate()).padStart(2, '0')}`;
+    // Deduplicate: the agenda renders the same occurrence twice for its
+    // responsive layouts, and month views overlap at the edges.
+    const today = todayISO();
+    const seen = new Map();
 
-    const upcomingItems = allItems.filter(item => {
-        const datum = (item.acf?.datum || '').toString().trim();
-        return datum.length === 8 && datum >= todayStr;
-    });
+    for (const occurrence of results.flatMap(r => r.occurrences)) {
+        if (occurrence.dateISO < today) continue;
+        if (occurrence.registration.toLowerCase() === CANCELLED_LABEL) continue;
+        const key = `${occurrence.slug}|${occurrence.dateISO}|${occurrence.time}`;
+        if (!seen.has(key)) seen.set(key, occurrence);
+    }
 
-    // Batch-fetch all unique media images in parallel with no extra per-event requests
-    const mediaIds = upcomingItems.map(item => item.featured_media).filter(Boolean);
-    const mediaMap = await fetchMediaMap(mediaIds);
+    const events = [...seen.values()].sort(
+        (a, b) => a.dateISO.localeCompare(b.dateISO) || a.time.localeCompare(b.time)
+    );
 
-    const events = upcomingItems
-        .map(item => mapItem(item, mediaMap))
-        .filter(e => e && e.title)
-        .sort((a, b) => a.dateISO.localeCompare(b.dateISO));
+    await enrichEvents(events);
 
     // Only cache if we got real data — don't lock in an empty result on transient failures
     if (events.length > 0) calendarCache = { data: events, timestamp: Date.now() };
 
-    console.log(`[Calendar] Fetched ${events.length} upcoming events from ${totalPages} pages:`);
+    console.log(`[Calendar] Fetched ${events.length} upcoming events from ${months.length} months:`);
     events.slice(0, 15).forEach((e, i) =>
-        console.log(`  ${i + 1}. [${e.dateISO} ${e.time || '??:??'}] ${e.title}`)
+        console.log(`  ${i + 1}. [${e.dateISO} ${e.time || '??:??'}] ${e.title} (${e.category})`)
     );
 
     return events;
 }
-

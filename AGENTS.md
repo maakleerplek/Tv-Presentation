@@ -99,13 +99,18 @@ The application uses **Server-Side Rendering (SSR)** to ensure the Raspberry Pi 
 
 ### Key Scraper Selectors
 
+The site was rebuilt on Next.js in September 2026; the WordPress markup and the
+`/wp-json` API are both gone.
+
 ```
-.agenda_element, .agenda_date h4, .agenda_item
-.agenda_item_title, .agenda_item_time
+a[href*="/agenda/"][title]     → one event occurrence; href has ?date=, title has
+                                 "time · name · category · lab? · registration"
+a[href*="/verhalen/"]          → one story card; h3 = title, p1 = "date · author", p2 = excerpt
+script[type="application/ld+json"] with "@type":"Event" | "Article"
 ```
 
-- Calendar: `https://maakleerplek.be/kalender/`
-- Homepage (news): `https://maakleerplek.be/`
+- Agenda: `https://maakleerplek.be/nl/agenda?view=month&month=YYYY-MM`
+- News: `https://maakleerplek.be/nl/verhalen`
 
 ## Code Style Guidelines
 

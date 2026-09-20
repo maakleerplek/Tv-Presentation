@@ -44,9 +44,22 @@ export function resolveMaakleerplekUrl(path = '') {
 
 // ── Resolved endpoint URLs ────────────────────────────────────────────────────
 
-export const CALENDAR_URL = resolveMaakleerplekUrl('kalender/');
-export const VERHALEN_URL  = resolveMaakleerplekUrl('verhalen/');
+/**
+ * Locale prefix used by the maakleerplek site (it redirects `/` → `/nl`).
+ * Every content path below is built on top of it.
+ */
+export const SITE_LOCALE = process.env.SITE_LOCALE || 'nl';
+
+export const CALENDAR_URL = resolveMaakleerplekUrl(`${SITE_LOCALE}/agenda`);
+export const VERHALEN_URL  = resolveMaakleerplekUrl(`${SITE_LOCALE}/verhalen`);
 export const HOMEPAGE_URL  = resolveMaakleerplekUrl('');
+
+/**
+ * How many months past the current one to pull from the agenda.
+ * The agenda renders one month per request (`?view=month&month=YYYY-MM`),
+ * so this is also the number of extra HTTP requests per refresh.
+ */
+export const CALENDAR_MONTHS_AHEAD = parseInt(process.env.CALENDAR_MONTHS_AHEAD || '3', 10);
 
 // ── Cache durations ───────────────────────────────────────────────────────────
 
@@ -81,6 +94,17 @@ export const WORKSHOP_KEYWORDS = ['workshop', 'initiatie', 'cursus', 'opleiding'
 
 /** Title keywords that identify a recurring free/community service event. */
 export const RECURRING_SERVICE_KEYWORDS = ['open lab', 'repair', 'gereedschappenbib', 'buurtkantine', 'herstel hub', 'geopend'];
+
+/**
+ * The agenda labels every event with its own category, which beats guessing
+ * from the title. Both lists hold lower-cased category labels as the site
+ * writes them; anything unknown falls back to the keyword lists above.
+ */
+export const WORKSHOP_CATEGORIES = ['workshop'];
+
+export const RECURRING_SERVICE_CATEGORIES = [
+    'open lab', 'jongeren', 'kantine', 'herstel hub', 'repair café', 'repair cafe',
+];
 
 // ── Frontend display timings ──────────────────────────────────────────────────
 
