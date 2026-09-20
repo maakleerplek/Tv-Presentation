@@ -77,8 +77,16 @@ export const NEWS_MAX_AGE_DAYS = parseInt(process.env.NEWS_MAX_AGE_DAYS || '14',
 /** Maximum number of news articles to return. */
 export const MAX_NEWS_ITEMS = parseInt(process.env.MAX_NEWS_ITEMS || '6', 10);
 
-/** Maximum number of events for which to fetch detail pages. */
-export const MAX_EVENT_DETAILS = parseInt(process.env.MAX_EVENT_DETAILS || '30', 10);
+/**
+ * Maximum number of *distinct* events for which to fetch detail pages.
+ *
+ * An event past this cap reaches the screen with no description and no image,
+ * which looks like a bug rather than a limit, so the default is set well above
+ * the number of distinct events a CALENDAR_MONTHS_AHEAD window actually holds
+ * (about 40 for four months). Each one costs a single request per 6-hour
+ * detail-cache window, not one per occurrence.
+ */
+export const MAX_EVENT_DETAILS = parseInt(process.env.MAX_EVENT_DETAILS || '80', 10);
 
 // ── Event categorisation keywords ─────────────────────────────────────────────
 

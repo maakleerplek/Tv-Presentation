@@ -100,7 +100,7 @@ The site ran on WordPress until September 2026 and exposed a `kalender` custom p
    The lab segment is optional, so the title has four or five parts.
    Reading the rendered agenda means the site's own expansion of recurring events — including its holiday cancellations — comes for free, instead of having to duplicate that logic here.
 3. Drops past dates and occurrences the agenda marks `Geannuleerd`, then deduplicates on `slug|date|time`: the responsive layout renders each occurrence twice, and consecutive months overlap at the edges.
-4. Enriches events with description, image and price from each event page's schema.org `Event` JSON-LD. The budget is spent per **distinct event**, not per occurrence, so a weekly open lab costs one fetch and the result is copied onto all of its dates. Fetched in batches of 4 with a 300 ms gap, capped at `MAX_EVENT_DETAILS` events, and cached per slug for 6 hours.
+4. Enriches events with description, image and price from each event page's schema.org `Event` JSON-LD. The budget is spent per **distinct event**, not per occurrence, so a weekly open lab costs one fetch and the result is copied onto all of its dates. Fetched in batches of 4 with a 300 ms gap, capped at `MAX_EVENT_DETAILS` events, and cached per slug for 6 hours. Hitting the cap is logged, because on screen it only shows as an event with no text and no picture.
 5. Produces the `CalendarEvent` shape: `title`, `dateISO`, `date` (Dutch display string like "do 7 mei"), `time`, `price`, `imageUrl`, `description`, `link`, plus `slug`, `category`, `registration` and `location` from the agenda.
 6. Sorts results ascending by `dateISO`, then `time`.
 
@@ -216,7 +216,7 @@ Single source of truth for all environment variables. Nothing here makes network
 | `DRINKS_CACHE_DURATION_MS` | `DRINKS_CACHE_DURATION_MINUTES` | 5 min | Drinks cache lifetime |
 | `NEWS_MAX_AGE_DAYS` | `NEWS_MAX_AGE_DAYS` | 14 | Max age for news articles |
 | `MAX_NEWS_ITEMS` | `MAX_NEWS_ITEMS` | 6 | Max news articles returned |
-| `MAX_EVENT_DETAILS` | `MAX_EVENT_DETAILS` | 30 | Max distinct events given detail-page enrichment |
+| `MAX_EVENT_DETAILS` | `MAX_EVENT_DETAILS` | 80 | Max distinct events given detail-page enrichment |
 | `EVENT_PRIORITY` | `EVENT_PRIORITY` | `""` | Comma-separated priority keywords |
 | `WORKSHOP_KEYWORDS` | — | `['workshop', 'initiatie', …]` | Keywords that flag an event as a workshop |
 | `RECURRING_SERVICE_KEYWORDS` | — | `['open lab', 'repair', …]` | Keywords that flag a free community event |

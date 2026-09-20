@@ -193,7 +193,17 @@ async function enrichEvents(events) {
 
     // Insertion order follows the sorted event list, so the soonest events are
     // enriched first and the cap only ever drops the most distant ones.
-    const slugs = [...bySlug.keys()].slice(0, MAX_EVENT_DETAILS);
+    const allSlugs = [...bySlug.keys()];
+    const slugs = allSlugs.slice(0, MAX_EVENT_DETAILS);
+
+    // Truncation is silent on screen — those events just render without a
+    // description or image — so say it out loud in the log.
+    if (allSlugs.length > slugs.length) {
+        console.warn(
+            `[Calendar] MAX_EVENT_DETAILS=${MAX_EVENT_DETAILS} leaves ` +
+            `${allSlugs.length - slugs.length} of ${allSlugs.length} events without a description or image`
+        );
+    }
 
     for (let i = 0; i < slugs.length; i += DETAIL_BATCH) {
         const batch = slugs.slice(i, i + DETAIL_BATCH);

@@ -5,15 +5,13 @@
  * Exported: categoriseEvents(calendar)
  *
  * Algorithm:
- *   1. Count how many times each normalised title appears.
- *   2. Events whose title appears only once → categorised on their own.
- *   3. Events whose title appears more than once → grouped.
- *   4. From each group, pick the "best" instance (currently happening >
- *      soonest upcoming > skip past).
- *   5. Categorise by the agenda's own category label when we recognise it,
- *      otherwise fall back to title keywords and price:
- *      - Has workshop keywords or a price, but NOT a recurring-service keyword → workshop.
- *      - Otherwise → recurringEvent.
+ *   1. Group every occurrence by its agenda slug, falling back to the
+ *      normalised title for entries that have none.
+ *   2. From each group, pick the "best" instance (currently happening >
+ *      soonest upcoming > skip past), so one event is one slide.
+ *   3. Categorise by the agenda's own category label when we recognise it,
+ *      otherwise fall back to title keywords and price, and failing that to
+ *      whether the event repeats.
  */
 
 import {
@@ -51,82 +49,72 @@ function pickBestInstance(instances, now) {
  * Decide whether an event is a paid workshop or a recurring community service.
  *
  * The agenda labels every event with its own category, so when that label is
- * one we recognise it settles the question outright. Only unlabelled events
- * — or labels we have not seen before — fall back to guessing from the title.
+ * one we recognise it settles the question outright. Everything else falls
+ * back to the title keywords and the price, and only when none of those say
+ * anything does the shape of the event decide: something that repeats is a
+ * service, a one-off is a workshop.
  *
- * @param {string} normalizedTitle
+ * That last step matters for an unfamiliar label. "maakleerfest — Autovrije
+ * Zondag" is filed under "Evenement", which we do not recognise; an unknown
+ * label is not evidence of anything and must not demote a genuine one-off.
+ *
  * @param {object} event
+ * @param {boolean} isRepeating  whether the event has more than one date
  * @returns {'workshop'|'recurring'}
  */
-function categoriseEvent(normalizedTitle, event) {
+function categoriseEvent(event, isRepeating) {
     const category = (event.category || '').trim().toLowerCase();
-    if (category) {
-        if (RECURRING_SERVICE_CATEGORIES.includes(category)) return 'recurring';
-        if (WORKSHOP_CATEGORIES.includes(category)) return 'workshop';
-    }
+    if (RECURRING_SERVICE_CATEGORIES.includes(category)) return 'recurring';
+    if (WORKSHOP_CATEGORIES.includes(category)) return 'workshop';
 
+    const normalizedTitle = event.title.trim().toLowerCase();
     const isService  = RECURRING_SERVICE_KEYWORDS.some(kw => normalizedTitle.includes(kw));
     const isWorkshop = WORKSHOP_KEYWORDS.some(kw => normalizedTitle.includes(kw));
     const hasPaidPrice = event.price &&
         event.price.trim().length > 0 &&
         !/gratis|free/i.test(event.price);
 
-    // An event is a workshop if it looks like one and is NOT a known free service
-    if ((isWorkshop || hasPaidPrice) && !isService) return 'workshop';
-    return 'recurring';
+    if (isService) return 'recurring';
+    if (isWorkshop || hasPaidPrice) return 'workshop';
+
+    return isRepeating ? 'recurring' : 'workshop';
 }
 
 /**
- * Classify a flat array of calendar events into workshops and recurring events.
+ * The key that decides whether two entries are the same event.
  *
- * @param {Array<object>} calendar - Raw events from scrapeCalendar()
- * @returns {{ workshops: Array<object>, recurringEvents: Array<object> }}
+ * The agenda slug is the site's own identity for an event and is the only
+ * reliable one. Titles are not: a four-part course numbers its sessions
+ * ("CNC-frees leren gebruiken (1/4)" … "(4/4)"), which reads as four distinct
+ * titles and used to fill the carousel with four near-identical slides.
+ * Custom news and older cached events carry no slug, so those fall back to
+ * the normalised title.
  */
+function groupKey(event) {
+    return event.slug || event.title.trim().toLowerCase();
+}
+
 export function categoriseEvents(calendar) {
     const workshops       = [];
     const recurringEvents = [];
     const now             = new Date();
 
-    // Step 1 — Count normalised title occurrences
-    const titleCounts = {};
+    // Step 1 — Bucket every occurrence under the event it belongs to
+    const groups = new Map();
     for (const event of calendar) {
-        const key = event.title.trim().toLowerCase();
-        titleCounts[key] = (titleCounts[key] || 0) + 1;
+        const key = groupKey(event);
+        if (!groups.has(key)) groups.set(key, []);
+        groups.get(key).push(event);
     }
 
-    // Step 2 — Bucket events by uniqueness
-    const groupsByTitle = {};
-    const uniqueEvents  = [];
-
-    for (const event of calendar) {
-        const key = event.title.trim().toLowerCase();
-        if (titleCounts[key] > 1) {
-            if (!groupsByTitle[key]) groupsByTitle[key] = [];
-            groupsByTitle[key].push(event);
-        } else {
-            uniqueEvents.push(event);
-        }
-    }
-
-    // Step 3 — A one-off event is a workshop unless the agenda explicitly files
-    // it under a recurring community service. An unrecognised category is not
-    // evidence of anything, so it must not demote a genuine one-off.
-    for (const event of uniqueEvents) {
-        const category = (event.category || '').trim().toLowerCase();
-        if (RECURRING_SERVICE_CATEGORIES.includes(category)) {
-            recurringEvents.push({ ...event, type: 'recurring' });
-        } else {
-            workshops.push({ ...event, type: 'workshop' });
-        }
-    }
-
-    // Step 4 — Process each group of repeating events
-    for (const [normalizedTitle, instances] of Object.entries(groupsByTitle)) {
-        const best = pickBestInstance(instances, now);
+    // Step 2 — Each event contributes exactly one slide: the instance that is
+    // running now, else the soonest one still to come.
+    for (const instances of groups.values()) {
+        const isRepeating = instances.length > 1;
+        const best = isRepeating ? pickBestInstance(instances, now) : instances[0];
         if (!best) continue;
 
-        const category = categoriseEvent(normalizedTitle, best);
-        if (category === 'workshop') {
+        if (categoriseEvent(best, isRepeating) === 'workshop') {
             workshops.push({ ...best, type: 'workshop' });
         } else {
             recurringEvents.push({ ...best, type: 'recurring' });
