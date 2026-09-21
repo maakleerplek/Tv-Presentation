@@ -168,7 +168,7 @@ function EventCard({ item, color }: { item: CalendarEvent, color: string }) {
     <div className="bg-white border-2 border-[#2C1E16] flex flex-col h-full shadow-[4px_4px_0_0_#2C1E16]">
       {item.imageUrl && (
         <div className="h-40 border-b-2 border-[#2C1E16] bg-[#2C1E16] overflow-hidden flex items-center justify-center">
-          <Image src={item.imageUrl.startsWith('/') ? `https://maakleerplek.be${item.imageUrl}` : item.imageUrl} alt={item.title} width={640} height={240} className="w-full h-full object-contain" sizes="(min-width: 1024px) 360px, 100vw" />
+          <Image src={item.imageUrl.startsWith('/') ? `https://maakleerplek.be${item.imageUrl}` : item.imageUrl} alt={item.title} width={640} height={240} className="w-full h-full object-cover object-center" sizes="(min-width: 1024px) 360px, 100vw" />
         </div>
       )}
       <div className="p-4 flex flex-col flex-1">

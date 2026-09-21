@@ -37,8 +37,6 @@ export function EventCarousel({ initialData }: { initialData?: ScreenData }) {
   const transitionTime = data?.config?.transitionTime ?? 15;
   const [currentIndex, setCurrentIndex] = useState(0);
   // 'cover' = fill cleanly, 'contain' = show full image (bars visible but needed)
-  const [imgFit, setImgFit] = useState<'cover' | 'contain'>('cover');
-  const imgContainerRef = useRef<HTMLDivElement>(null);
   const descViewportRef = useRef<HTMLDivElement>(null);
 
   // Build the unshuffled list (safe for SSR — no randomness)
@@ -56,9 +54,6 @@ export function EventCarousel({ initialData }: { initialData?: ScreenData }) {
     setCarouselItems(shuffleArray(baseItems));
     setCurrentIndex(0);
   }, [baseItems.length]);
-
-  // Reset to cover optimistically whenever the carousel advances to a new item
-  useEffect(() => { setImgFit('cover'); }, [currentIndex]);
 
   // Compute line-clamp so text stops above the QR area
   const [lineClamp, setLineClamp] = useState<number | undefined>(undefined);
@@ -164,35 +159,21 @@ export function EventCarousel({ initialData }: { initialData?: ScreenData }) {
             style={{ animation: 'carousel-fade-in 0.4s ease-out forwards' }}
           >
             {/* Top section: Image — 45% of card height.
-                Adaptive fit: default to object-cover (no bars), but onLoad we check if the image's
-                aspect ratio differs from the container's by more than 50%. If it does, we fall back
-                to object-contain so extreme portrait/landscape images aren't badly cropped. The
-                blurred backdrop still fills any remaining gaps. */}
-            <div ref={imgContainerRef} className="basis-[45%] shrink-0 border-b-2 border-[#2C1E16] min-h-0 overflow-hidden relative flex items-center justify-center">
+                Always fill the frame: scale up from the centre until the image touches all
+                four edges and crop the overflow. No letterbox bars, whatever the source
+                aspect ratio is. */}
+            <div className="basis-[45%] shrink-0 border-b-2 border-[#2C1E16] min-h-0 overflow-hidden relative flex items-center justify-center">
               {hasImage ? (
-                <>
-                  <Image
-                    key={displayImage}
-                    src={displayImage}
-                    alt={currentItem.title}
-                    fill
-                    sizes="(min-width: 1280px) 720px, 50vw"
-                    quality={55}
-                    priority
-                    onLoad={(e) => {
-                      const img = e.currentTarget;
-                      const container = imgContainerRef.current;
-                      if (!container || !img.naturalWidth || !img.naturalHeight) return;
-                      const imgRatio = img.naturalWidth / img.naturalHeight;
-                      const containerRatio = container.clientWidth / container.clientHeight;
-                      // Switch to contain only when the image is more than 1.6× wider or taller
-                      // than the container — otherwise cover looks fine with minimal cropping
-                      const ratio = imgRatio / containerRatio;
-                      setImgFit(ratio > 1.6 || ratio < 0.625 ? 'contain' : 'cover');
-                    }}
-                    className={`relative z-10 w-full h-full transition-all duration-300 ${imgFit === 'cover' ? 'object-cover' : 'object-contain'}`}
-                  />
-                </>
+                <Image
+                  key={displayImage}
+                  src={displayImage}
+                  alt={currentItem.title}
+                  fill
+                  sizes="(min-width: 1280px) 720px, 50vw"
+                  quality={55}
+                  priority
+                  className="relative z-10 w-full h-full object-cover object-center"
+                />
               ) : (
                 <Image
                   key="placeholder"
