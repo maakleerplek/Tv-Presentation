@@ -82,9 +82,45 @@ async function fetchCategoryNames(partIds, headers) {
 }
 
 /**
- * Derive a price string from a part_detail object.
+ * Batch-fetch the selling price per part from InvenTree's sale price breaks.
+ *
+ * This is the field that actually means "what the customer pays". pricing_max is
+ * the overall cost range and only matched the till price while the selling price
+ * was being stored in the stock item's purchase_price.
  */
-function extractPrice(partDetail) {
+async function fetchSalePrices(headers) {
+    try {
+        const res = await fetchWithTimeout(
+            `${INVENTREE_URL}/api/part/sale-price/?limit=500`,
+            { headers },
+            10_000,
+        );
+        if (!res.ok) return new Map();
+        const data  = await res.json();
+        const rows  = Array.isArray(data) ? data : (data.results || []);
+        const best  = new Map();
+        for (const b of rows) {
+            const qty   = parseFloat(b.quantity);
+            const price = parseFloat(b.price);
+            if (!isFinite(qty) || !isFinite(price)) continue;
+            const cur = best.get(b.part);
+            if (!cur || qty < cur.qty) best.set(b.part, { qty, price });
+        }
+        return new Map([...best].map(([part, v]) => [part, v.price]));
+    } catch {
+        return new Map();
+    }
+}
+
+/**
+ * Derive a price string from a part_detail object.
+ *
+ * `salePrices` is the map from fetchSalePrices; the pricing_* branches are
+ * fallbacks for a part that has no sale price break yet.
+ */
+function extractPrice(partDetail, salePrices) {
+    const sale = salePrices && salePrices.get(partDetail.pk);
+    if (sale !== undefined)            return '€' + sale.toFixed(2);
     if (partDetail.pricing_max)        return '€' + parseFloat(partDetail.pricing_max).toFixed(2);
     if (partDetail.pricing_max_string) return partDetail.pricing_max_string;
     if (partDetail.sell_price)         return '€' + parseFloat(partDetail.sell_price).toFixed(2);
@@ -137,6 +173,9 @@ export async function fetchDrinks() {
 
         console.log('[Drinks] Found', stockItems.length, 'total stock items');
 
+        // Selling prices, fetched once for the whole batch.
+        const salePrices = await fetchSalePrices(headers);
+
         // Aggregate quantities per (partId, locationId)
         const itemsByKey = new Map();
 
@@ -154,7 +193,7 @@ export async function fetchDrinks() {
             if (!itemsByKey.has(key)) {
                 itemsByKey.set(key, {
                     name:     partDetail.name,
-                    price:    extractPrice(partDetail),
+                    price:    extractPrice(partDetail, salePrices),
                     stock:    quantity,
                     imageUrl: buildProxiedImageUrl(partDetail),
                     location: locDetail.name || null,

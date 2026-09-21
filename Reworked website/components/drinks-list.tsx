@@ -134,9 +134,21 @@ const ACTION_ICONS: Record<string, React.ElementType> = {
   create: Sparkles,
 };
 
-function formatRelativeTime(isoString: string): string {
+/**
+ * SQLite's CURRENT_TIMESTAMP writes UTC as "2026-09-21 14:18:11" — a space
+ * separator and no zone marker. JavaScript parses that form as *local* time, so
+ * on a Brussels screen every entry read two hours old the moment it was written.
+ * Pin it to UTC when the string carries no zone of its own.
+ */
+export function parseDbTimestamp(value: string): number {
+  const hasZone = /(?:Z|[+-]\d{2}:?\d{2})$/.test(value.trim());
+  const normalised = hasZone ? value.trim() : value.trim().replace(' ', 'T') + 'Z';
+  return new Date(normalised).getTime();
+}
+
+export function formatRelativeTime(isoString: string): string {
   try {
-    const diffMs = Date.now() - new Date(isoString).getTime();
+    const diffMs = Date.now() - parseDbTimestamp(isoString);
     const diffMin = Math.floor(diffMs / 60_000);
     if (diffMin < 1) return 'just now';
     if (diffMin === 1) return '1 min ago';
