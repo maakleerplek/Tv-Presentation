@@ -121,9 +121,11 @@ async function fetchSalePrices(headers) {
 function extractPrice(partDetail, salePrices) {
     const sale = salePrices && salePrices.get(partDetail.pk);
     if (sale !== undefined)            return '€' + sale.toFixed(2);
-    if (partDetail.pricing_max)        return '€' + parseFloat(partDetail.pricing_max).toFixed(2);
-    if (partDetail.pricing_max_string) return partDetail.pricing_max_string;
-    if (partDetail.sell_price)         return '€' + parseFloat(partDetail.sell_price).toFixed(2);
+    // Deliberately no fallback to pricing_max/pricing_min: those are cost
+    // figures now that the selling price lives in the sale price break, and
+    // showing a cost as a price is worse than showing nothing, because it
+    // looks right. A dash is visibly missing.
+    console.warn(`[Drinks] No sale price for part ${partDetail.pk} (${partDetail.name})`);
     if (partDetail.description &&
         partDetail.description.toLowerCase() !== partDetail.name.toLowerCase()) {
         return partDetail.description;
