@@ -168,8 +168,13 @@ export async function fetchDrinks() {
 
     try {
         const headers    = { 'Authorization': `Token ${INVENTREE_TOKEN}` };
+        // Only stock that is still ours. The stock app books sales as sales
+        // orders, and InvenTree moves sold units into stock items "at the
+        // customer" (no location). Counted here, a sale would not lower the
+        // stock and would show up as an extra row without a location.
         const stockItems = await fetchAllPages(
-            `${INVENTREE_URL}/api/stock/?part_detail=true&location_detail=true`,
+            `${INVENTREE_URL}/api/stock/?part_detail=true&location_detail=true`
+                + '&sent_to_customer=false&consumed=false&installed=false',
             headers,
         );
 
