@@ -134,8 +134,8 @@ Unlike the old scraper this never visits the individual article pages: the archi
 Fetches live stock from an [InvenTree](https://inventree.readthedocs.io/) instance.
 
 **How it works:**
-1. Calls `GET /api/stock/?part_detail=true&location_detail=true` with a 15-second timeout.
-2. Filters stock items by `INVENTREE_DRINKS_LOCATIONS` (matched against the location name and path string). If no locations are configured, all items are included.
+1. Calls `GET /api/stock/?part_detail=true&location_detail=true&sent_to_customer=false&consumed=false&installed=false` with a 15-second timeout. The filters leave out units sold through a sales order, which InvenTree keeps as stock items at the customer.
+2. `INVENTREE_DRINKS_LOCATIONS` is not applied at the moment: all locations are included.
 3. Groups items by part ID and sums quantities (one physical drink can have multiple stock records).
 4. Derives a price string from `pricing_min`, `pricing_min_string`, or `sell_price` — whichever is populated.
 5. Builds a `/api/proxy-image?url=...` URL for each thumbnail so the token stays server-side.
