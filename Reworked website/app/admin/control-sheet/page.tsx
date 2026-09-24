@@ -11,8 +11,10 @@ const CONTROLS = [
   { label: 'CONFIRM', data: 'CONFIRM', description: 'Start checkout / generate payment QR', color: '#86EFAC' },
   { label: 'CANCEL', data: 'CANCEL', description: 'Clear the cart', color: '#FCA5A5' },
   { label: 'UNDO / REMOVE', data: 'REMOVE', description: 'Remove last item from cart', color: '#FEF08A' },
-  { label: 'VOLUNTEER', data: 'VOLUNTEER', description: 'Volunteer drink after a shift — makes the whole cart free', color: '#D8B4FE' },
 ];
+
+// Not a customer action, so it sits apart and smaller, like on the TV bar.
+const VOLUNTEER = { label: 'VOLUNTEER', data: 'VOLUNTEER', description: 'Volunteer drink after a shift — makes the whole cart free', color: '#D8B4FE' };
 
 export default function ControlSheetPage() {
   const [drinks, setDrinks] = useState<DrinkItem[]>([]);
@@ -50,7 +52,7 @@ export default function ControlSheetPage() {
         {/* Special commands */}
         <section className="mb-16">
           <h2 className="text-xl font-black uppercase tracking-widest border-b-4 border-[#2C1E16] pb-2 mb-8">Scanner Commands</h2>
-          <div className="grid grid-cols-2 gap-6">
+          <div className="grid grid-cols-3 gap-6">
             {CONTROLS.map(c => (
               <div key={c.label} className="border-4 border-[#2C1E16] flex flex-col items-center gap-4 p-6 shadow-[6px_6px_0_0_#2C1E16]">
                 <div className="w-full text-center py-2 border-b-4 border-[#2C1E16]" style={{ backgroundColor: c.color }}>
@@ -63,6 +65,15 @@ export default function ControlSheetPage() {
                 <span className="text-sm font-black uppercase tracking-[0.3em] opacity-40">{c.data}</span>
               </div>
             ))}
+          </div>
+          <div className="mt-8 mx-auto w-fit border-4 border-[#2C1E16] flex flex-row items-center gap-4 p-3 shadow-[4px_4px_0_0_#2C1E16]">
+            <div className="border-2 border-[#2C1E16] p-1.5 bg-white">
+              <QRCode value={VOLUNTEER.data} size={80} level="H" bgColor="#ffffff" fgColor="#2C1E16" />
+            </div>
+            <div className="flex flex-col gap-1">
+              <span className="text-lg font-black uppercase tracking-widest px-2 w-fit" style={{ backgroundColor: VOLUNTEER.color }}>{VOLUNTEER.label}</span>
+              <p className="text-sm font-bold leading-snug max-w-56">{VOLUNTEER.description}</p>
+            </div>
           </div>
         </section>
 

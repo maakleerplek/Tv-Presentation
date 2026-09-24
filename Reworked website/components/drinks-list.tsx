@@ -286,22 +286,32 @@ export function DrinksList({ initialData }: { initialData?: ScreenData }) {
       {/* Control Barcodes + Changelog */}
       <div className="px-3 py-1.5 border-t-2 border-[#2C1E16] bg-[#F5F2EB] flex flex-row items-center gap-4 shrink-0">
         <ChangelogPanel entries={changelog} />
-        <div className="flex flex-row items-center gap-5 shrink-0">
-          {[
-            { label: 'Confirm', data: 'CONFIRM', icon: CheckCircle2, color: '#22C55E' },
-            { label: 'Cancel', data: 'CANCEL', icon: XCircle, color: '#EF4444' },
-            { label: 'Undo (Remove)', data: 'REMOVE', icon: Undo2, color: '#F59E0B' },
-            { label: 'Volunteer', data: 'VOLUNTEER', icon: HandHeart, color: '#A855F7' },
-          ].map((ctrl) => (
-            <div key={ctrl.label} className="flex flex-col items-center gap-0.5">
-              <div className="border-2 border-[#2C1E16] p-1 bg-white shadow-[2px_2px_0_0_#2C1E16]">
-                <QRCode value={ctrl.data} size={60} bgColor="#FFFFFF" fgColor="#2C1E16" />
+        <div className="flex flex-col items-center gap-1.5 shrink-0">
+          <div className="flex flex-row items-center gap-5">
+            {[
+              { label: 'Confirm', data: 'CONFIRM', icon: CheckCircle2, color: '#22C55E' },
+              { label: 'Cancel', data: 'CANCEL', icon: XCircle, color: '#EF4444' },
+              { label: 'Undo (Remove)', data: 'REMOVE', icon: Undo2, color: '#F59E0B' },
+            ].map((ctrl) => (
+              <div key={ctrl.label} className="flex flex-col items-center gap-0.5">
+                <div className="border-2 border-[#2C1E16] p-1 bg-white shadow-[2px_2px_0_0_#2C1E16]">
+                  <QRCode value={ctrl.data} size={60} bgColor="#FFFFFF" fgColor="#2C1E16" />
+                </div>
+                <span className="text-[9px] font-black uppercase tracking-tight flex items-center gap-1">
+                  <ctrl.icon className="w-2.5 h-2.5" style={{ color: ctrl.color }} /> {ctrl.label}
+                </span>
               </div>
-              <span className="text-[9px] font-black uppercase tracking-tight flex items-center gap-1">
-                <ctrl.icon className="w-2.5 h-2.5" style={{ color: ctrl.color }} /> {ctrl.label}
-              </span>
+            ))}
+          </div>
+          {/* Volunteer drink: smaller and set apart, it is not a customer action */}
+          <div className="flex flex-row items-center gap-1.5">
+            <div className="border-2 border-[#2C1E16] p-0.5 bg-white shadow-[2px_2px_0_0_#2C1E16]">
+              <QRCode value="VOLUNTEER" size={34} bgColor="#FFFFFF" fgColor="#2C1E16" />
             </div>
-          ))}
+            <span className="text-[9px] font-black uppercase tracking-tight flex items-center gap-1">
+              <HandHeart className="w-2.5 h-2.5" style={{ color: '#A855F7' }} /> Volunteer
+            </span>
+          </div>
         </div>
       </div>
 
