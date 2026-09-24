@@ -11,6 +11,7 @@ const CONTROLS = [
   { label: 'CONFIRM', data: 'CONFIRM', description: 'Start checkout / generate payment QR', color: '#86EFAC' },
   { label: 'CANCEL', data: 'CANCEL', description: 'Clear the cart', color: '#FCA5A5' },
   { label: 'UNDO / REMOVE', data: 'REMOVE', description: 'Remove last item from cart', color: '#FEF08A' },
+  { label: 'VOLUNTEER', data: 'VOLUNTEER', description: 'Volunteer drink after a shift — makes the whole cart free', color: '#D8B4FE' },
 ];
 
 export default function ControlSheetPage() {
@@ -49,7 +50,7 @@ export default function ControlSheetPage() {
         {/* Special commands */}
         <section className="mb-16">
           <h2 className="text-xl font-black uppercase tracking-widest border-b-4 border-[#2C1E16] pb-2 mb-8">Scanner Commands</h2>
-          <div className="grid grid-cols-3 gap-6">
+          <div className="grid grid-cols-2 gap-6">
             {CONTROLS.map(c => (
               <div key={c.label} className="border-4 border-[#2C1E16] flex flex-col items-center gap-4 p-6 shadow-[6px_6px_0_0_#2C1E16]">
                 <div className="w-full text-center py-2 border-b-4 border-[#2C1E16]" style={{ backgroundColor: c.color }}>

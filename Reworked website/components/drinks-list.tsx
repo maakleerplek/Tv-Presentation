@@ -1,7 +1,7 @@
 'use client';
 
 import React from 'react';
-import { Coffee, Tag, MapPin, CheckCircle2, XCircle, Undo2, ShoppingCart, Plus, Minus, RotateCcw, Sparkles, ArrowBigRight } from 'lucide-react';
+import { Coffee, Tag, MapPin, CheckCircle2, XCircle, Undo2, ShoppingCart, HandHeart, Plus, Minus, RotateCcw, Sparkles, ArrowBigRight } from 'lucide-react';
 
 import QRCode from 'react-qr-code';
 import { useScreenData } from '@/hooks/useScreenData';
@@ -112,6 +112,7 @@ const SOURCE_LABELS: Record<string, string> = {
 
 const ACTION_VERBS: Record<string, string> = {
   checkout: 'bought',
+  volunteer: 'took (volunteer)',
   add: 'restocked',
   remove: 'removed',
   set: 'set',
@@ -120,6 +121,7 @@ const ACTION_VERBS: Record<string, string> = {
 
 const ACTION_COLORS: Record<string, string> = {
   checkout: '#22C55E',
+  volunteer: '#A855F7',
   add: '#3B82F6',
   remove: '#EF4444',
   set: '#F59E0B',
@@ -128,6 +130,7 @@ const ACTION_COLORS: Record<string, string> = {
 
 const ACTION_ICONS: Record<string, React.ElementType> = {
   checkout: ShoppingCart,
+  volunteer: HandHeart,
   add: Plus,
   remove: Minus,
   set: RotateCcw,
@@ -288,6 +291,7 @@ export function DrinksList({ initialData }: { initialData?: ScreenData }) {
             { label: 'Confirm', data: 'CONFIRM', icon: CheckCircle2, color: '#22C55E' },
             { label: 'Cancel', data: 'CANCEL', icon: XCircle, color: '#EF4444' },
             { label: 'Undo (Remove)', data: 'REMOVE', icon: Undo2, color: '#F59E0B' },
+            { label: 'Volunteer', data: 'VOLUNTEER', icon: HandHeart, color: '#A855F7' },
           ].map((ctrl) => (
             <div key={ctrl.label} className="flex flex-col items-center gap-0.5">
               <div className="border-2 border-[#2C1E16] p-1 bg-white shadow-[2px_2px_0_0_#2C1E16]">

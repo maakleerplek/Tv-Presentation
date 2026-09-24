@@ -90,8 +90,8 @@ export type ScreenData = {
 /** A stock action event sent from an external project (stock-frontend, interface-stock). */
 export type ChangelogEntry = {
     id: number;
-    /** Type of stock action: checkout (sold), add (restocked), remove, set, or create (new item/category/location) */
-    action: 'checkout' | 'add' | 'remove' | 'set' | 'create';
+    /** Type of stock action: checkout (sold), volunteer (free volunteer drink), add (restocked), remove, set, or create (new item/category/location) */
+    action: 'checkout' | 'volunteer' | 'add' | 'remove' | 'set' | 'create';
     /** Identifier of the source project, e.g. "stock-frontend" or "interface-stock" */
     source: string;
     item_name: string;
