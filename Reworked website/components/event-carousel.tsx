@@ -158,11 +158,12 @@ export function EventCarousel({ initialData }: { initialData?: ScreenData }) {
             className="absolute top-0 right-0 bottom-0 left-0 flex flex-col"
             style={{ animation: 'carousel-fade-in 0.4s ease-out forwards' }}
           >
-            {/* Top section: Image — 45% of card height.
-                Always fill the frame: scale up from the centre until the image touches all
-                four edges and crop the overflow. No letterbox bars, whatever the source
-                aspect ratio is. */}
-            <div className="basis-[45%] shrink-0 border-b-2 border-[#2C1E16] min-h-0 overflow-hidden relative flex items-center justify-center">
+            {/* Top section: Image — framed at 1200:630, the share-image format nearly every
+                event and news image comes in (39 of 42 on 2026-09-24), so those show whole.
+                A 45%-height frame was ~1.43:1 on the TV and cut a quarter off every image.
+                Anything else still fills the frame: scale from the centre, crop the overflow,
+                no letterbox bars. Capped so the text keeps room on unusually wide screens. */}
+            <div className="w-full aspect-[40/21] max-h-[55%] shrink-0 border-b-2 border-[#2C1E16] min-h-0 overflow-hidden relative flex items-center justify-center">
               {hasImage ? (
                 <Image
                   key={displayImage}
