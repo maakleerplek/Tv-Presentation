@@ -112,7 +112,7 @@ const SOURCE_LABELS: Record<string, string> = {
 
 const ACTION_VERBS: Record<string, string> = {
   checkout: 'bought',
-  volunteer: 'took (volunteer)',
+  volunteer: 'volunteer drink:',
   add: 'restocked',
   remove: 'removed',
   set: 'set',
@@ -168,7 +168,7 @@ export function formatRelativeTime(isoString: string): string {
 function formatEntryLine(entry: ChangelogEntry): string {
   const source = SOURCE_LABELS[entry.source] ?? entry.source;
   const verb = ACTION_VERBS[entry.action] ?? entry.action;
-  const price = entry.price != null ? ` €${entry.price.toFixed(2)}` : '';
+  const price = entry.action === 'volunteer' ? ' (free)' : entry.price != null ? ` €${entry.price.toFixed(2)}` : '';
   return `From ${source}: ${verb} ${entry.quantity}× ${entry.item_name}${price}`;
 }
 
