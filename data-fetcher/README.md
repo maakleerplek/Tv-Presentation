@@ -228,6 +228,6 @@ Single source of truth for all environment variables. Nothing here makes network
 | `PAYMENT_QR_URL` | `PAYMENT_QR_URL` | `""` | Payment QR code URL |
 | `WIKI_QR_URL` | `WIKI_QR_URL` | `https://wiki…` | Wiki QR code URL |
 | `TIPS` | `TIP_1`, `TIP_2`, … | `[]` | Footer tips (stops at first missing number) |
-| `INVENTREE_URL` | `INVENTREE_URL` | `https://10.72.3.68:8443` | InvenTree base URL |
+| `INVENTREE_URL` | `INVENTREE_URL` | `http://10.72.1.246` | InvenTree base URL |
 | `INVENTREE_TOKEN` | `INVENTREE_TOKEN` | — | InvenTree API token |
 | `INVENTREE_DRINKS_LOCATIONS` | `INVENTREE_DRINKS_LOCATIONS` | `""` | Comma-separated location names to filter |
