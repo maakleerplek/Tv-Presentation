@@ -1,7 +1,7 @@
 'use client';
 
 import React from 'react';
-import { Coffee, Tag, MapPin, CheckCircle2, XCircle, Undo2, ShoppingCart, HandHeart, Plus, Minus, RotateCcw, Sparkles, ArrowBigRight } from 'lucide-react';
+import { Coffee, Tag, MapPin, CheckCircle2, XCircle, Undo2, ShoppingCart, HandHeart, Plus, Minus, RotateCcw, Sparkles } from 'lucide-react';
 
 import QRCode from 'react-qr-code';
 import { useScreenData } from '@/hooks/useScreenData';
@@ -271,16 +271,6 @@ export function DrinksList({ initialData }: { initialData?: ScreenData }) {
             </div>
           );
         })}
-      </div>
-
-      {/* Barcode scanner hint — pinned at 58% from top of the full panel */}
-      <div className="absolute right-3 top-[58%] -translate-y-1/2 flex items-center gap-2 pointer-events-none z-10">
-        <div className="text-right leading-tight">
-          <p className="text-[9px] font-black uppercase tracking-widest text-[#2C1E16]/70">Use barcode</p>
-          <p className="text-[9px] font-black uppercase tracking-widest text-[#2C1E16]/70">scanner to</p>
-          <p className="text-[9px] font-black uppercase tracking-widest text-[#2C1E16]/70">scan items</p>
-        </div>
-        <ArrowBigRight className="w-10 h-10 shrink-0 text-[#2C1E16]/70" strokeWidth={1.5} />
       </div>
 
       {/* Control Barcodes + Changelog */}
