@@ -7,6 +7,8 @@ import { resolveEvent } from '@/components/status';
 import type { ScreenData } from '@/lib/types';
 
 const WARNING_MINUTES = 30;
+/** How long the full-screen red flash stays up when the warning starts. */
+const FLASH_SECONDS = 10;
 
 /** Reconstruct event end as a Date from startTime + endLabel ("HH:MM"). */
 function getEndTime(event: ReturnType<typeof resolveEvent>): Date | null {
@@ -53,7 +55,7 @@ export function Clock({ initialData }: { initialData?: ScreenData }) {
     if (flashedForRef.current === key) return;
     flashedForRef.current = key;
     setShowFlash(true);
-    const t = setTimeout(() => setShowFlash(false), 4000);
+    const t = setTimeout(() => setShowFlash(false), FLASH_SECONDS * 1000);
     return () => clearTimeout(t);
   }, [warningActive, activeEvent, endTime]);
 
@@ -70,9 +72,9 @@ export function Clock({ initialData }: { initialData?: ScreenData }) {
       {showFlash && (
         <div
           className="fixed inset-0 z-[9999] flex flex-col items-center justify-center pointer-events-none"
-          style={{ animation: 'closing-flash 4s ease-in-out forwards' }}
+          style={{ animation: `closing-flash ${FLASH_SECONDS}s ease-in-out forwards` }}
         >
-          <div style={{ animation: 'flash-text-in 4s ease-in-out forwards' }} className="text-center px-8">
+          <div style={{ animation: `flash-text-in ${FLASH_SECONDS}s ease-in-out forwards` }} className="text-center px-8">
             <AlertTriangle className="w-24 h-24 text-white mx-auto mb-6 drop-shadow-lg" />
             <p className="text-white font-black uppercase tracking-widest text-5xl leading-tight drop-shadow-lg">
               {activeEvent?.title ?? 'Evenement'}
