@@ -8,6 +8,8 @@ import { useScreenData } from '@/hooks/useScreenData';
 import { useDrinksData } from '@/hooks/useDrinksData';
 import { useChangelog } from '@/hooks/useChangelog';
 import { useTvPage } from '@/hooks/useTvPage';
+import { useCategoryOrder } from '@/hooks/useCategoryOrder';
+import { DEFAULT_CATEGORY_ORDER, categoryRank } from '@/lib/category-order';
 import type { ScreenData, DrinkItem, ChangelogEntry } from '@/lib/types';
 import { PricingTable } from './pricing-table';
 import type { DrinkWithChange } from '@/hooks/useDrinksData';
@@ -169,8 +171,15 @@ export function wrapPage(page: number, count: number): number {
   return count === 0 ? 0 : ((page % count) + count) % count;
 }
 
-function groupDrinks(drinks: DrinkWithChange[]) {
-  const groups = new Map<string, { location: string | null; category: string | null; items: DrinkWithChange[] }>();
+/**
+ * One block per location + category, in the order set in the admin panel. Blocks of the same
+ * category in different locations stay next to each other.
+ */
+export function groupDrinks<T extends { location: string | null; category: string | null }>(
+  drinks: T[],
+  order: string[] = DEFAULT_CATEGORY_ORDER,
+) {
+  const groups = new Map<string, { location: string | null; category: string | null; items: T[] }>();
   for (const drink of drinks) {
     const key = `${drink.location ?? ''}::${drink.category ?? ''}`;
     if (!groups.has(key)) {
@@ -178,7 +187,10 @@ function groupDrinks(drinks: DrinkWithChange[]) {
     }
     groups.get(key)!.items.push(drink);
   }
-  return [...groups.values()];
+  return [...groups.values()].sort((a, b) =>
+    categoryRank(order, a.category) - categoryRank(order, b.category)
+    || (a.category ?? '').localeCompare(b.category ?? '')
+    || (a.location ?? '').localeCompare(b.location ?? ''));
 }
 
 const SOURCE_LABELS: Record<string, string> = {
@@ -295,6 +307,7 @@ export function DrinksList({ initialData }: { initialData?: ScreenData }) {
   const drinks = useDrinksData(initialData?.drinks);
   const changelog = useChangelog();
   const tvPage = useTvPage();
+  const categoryOrder = useCategoryOrder();
 
   // Height of the item area (minus its p-4 padding), so pages hold what fits.
   const areaRef = React.useRef<HTMLDivElement>(null);
@@ -335,7 +348,7 @@ export function DrinksList({ initialData }: { initialData?: ScreenData }) {
     );
   }
 
-  const pages = buildPages(groupDrinks(drinks), areaPx ?? FALLBACK_AREA_PX, sizes);
+  const pages = buildPages(groupDrinks(drinks, categoryOrder), areaPx ?? FALLBACK_AREA_PX, sizes);
   const pageIndex = wrapPage(tvPage.page, pages.length);
   const page = pages[pageIndex] ?? [];
 

@@ -2,12 +2,14 @@ import { checkAuth, logoutAction } from './actions';
 import { getScreenData } from '@/lib/data';
 import Image from 'next/image';
 import Link from 'next/link';
-import { Calendar, Globe, Repeat, LogOut, LayoutDashboard, Zap, MonitorPlay, QrCode } from 'lucide-react';
+import { Calendar, Globe, Repeat, LogOut, LayoutDashboard, Zap, MonitorPlay, QrCode, ListOrdered } from 'lucide-react';
 import type { CalendarEvent, NewsItem } from '@/lib/types';
 import { LoginForm } from './login-form';
 import { AddNewsForm } from './add-news-form';
 import { DeleteNewsButton } from './delete-news-button';
 import { AnimationTester } from './animations/animation-tester';
+import { CategoryOrderEditor } from './category-order-editor';
+import { getCategoryOrder } from '@/lib/db';
 
 export default async function AdminPage() {
   const isAuthenticated = await checkAuth();
@@ -57,6 +59,16 @@ export default async function AdminPage() {
       </header>
 
       <main className="max-w-7xl mx-auto p-8 flex flex-col gap-12">
+        {/* TV inventory category order */}
+        <section>
+          <div className="flex items-center justify-between border-b-4 border-[#2C1E16] pb-2 mb-6">
+            <h2 className="text-2xl font-black uppercase tracking-widest flex items-center gap-3">
+              <ListOrdered className="w-6 h-6" /> TV Category Order
+            </h2>
+          </div>
+          <CategoryOrderEditor saved={getCategoryOrder()} />
+        </section>
+
         {/* Animation Tester */}
         <section>
           <div className="flex items-center justify-between border-b-4 border-[#2C1E16] pb-2 mb-6">

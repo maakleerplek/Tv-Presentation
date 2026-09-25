@@ -72,7 +72,41 @@ describe('navigation', () => {
     });
 });
 
-import { buildPages, wrapPage, ROW_PX, HEADER_PX, GAP_PX } from '@/components/drinks-list';
+import { buildPages, wrapPage, groupDrinks, ROW_PX, HEADER_PX, GAP_PX } from '@/components/drinks-list';
+
+import { mergeCategoryOrder, sanitizeCategoryOrder } from '@/lib/category-order';
+
+describe('category order settings', () => {
+    test('merge keeps the saved order and appends new categories alphabetically', () => {
+        expect(mergeCategoryOrder(['Drinks', 'Wood'], ['wood', 'Snacks', 'Filament', 'Drinks']))
+            .toEqual(['Drinks', 'Wood', 'Filament', 'Snacks']);
+    });
+
+    test('sanitize trims, drops empties and duplicates, rejects non-lists', () => {
+        expect(sanitizeCategoryOrder([' Drinks ', '', 'drinks', 'Wood'])).toEqual(['Drinks', 'Wood']);
+        expect(sanitizeCategoryOrder('Drinks')).toBeNull();
+        expect(sanitizeCategoryOrder([1, 2])).toBeNull();
+    });
+
+    test('groupDrinks follows a custom order', () => {
+        const groups = groupDrinks([{ category: 'Drinks', location: 'X' }, { category: 'Wood', location: 'X' }], ['Wood', 'Drinks']);
+        expect(groups.map(g => g.category)).toEqual(['Wood', 'Drinks']);
+    });
+});
+
+describe('groupDrinks', () => {
+    test('orders categories Drinks, Wood, Filament, Per gewicht, then the rest alphabetically', () => {
+        const item = (category: string | null, location = 'X') => ({ category, location });
+        const groups = groupDrinks([
+            item('Per gewicht'), item('Zagen'), item('Filament'), item('Andere'),
+            item('wood'), item('Drinks', 'HTL-Fridge'), item('Drinks', 'Bar'), item(null),
+        ]);
+        expect(groups.map(g => `${g.category}@${g.location}`)).toEqual([
+            'Drinks@Bar', 'Drinks@HTL-Fridge', 'wood@X', 'Filament@X', 'Per gewicht@X',
+            'null@X', 'Andere@X', 'Zagen@X',
+        ]);
+    });
+});
 
 describe('buildPages', () => {
     const group = (category: string, n: number) => ({ location: null, category, items: Array.from({ length: n }, (_, i) => i) });

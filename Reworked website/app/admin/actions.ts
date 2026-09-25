@@ -3,7 +3,8 @@
 import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
 import { revalidatePath } from 'next/cache';
-import { addCustomNews, deleteCustomNews, verifyAdmin } from '@/lib/db';
+import { addCustomNews, deleteCustomNews, verifyAdmin, setCategoryOrder } from '@/lib/db';
+import { sanitizeCategoryOrder } from '@/lib/category-order';
 
 const COOKIE_NAME = 'admin_session';
 
@@ -67,4 +68,16 @@ export async function deleteNewsAction(id: number) {
   deleteCustomNews(id);
   revalidatePath('/admin');
   revalidatePath('/');
+}
+
+export async function saveCategoryOrderAction(order: string[]) {
+  const isAuth = await checkAuth();
+  if (!isAuth) return { error: 'Unauthorized' };
+
+  const clean = sanitizeCategoryOrder(order);
+  if (!clean) return { error: 'Invalid category list' };
+
+  setCategoryOrder(clean);
+  revalidatePath('/admin');
+  return { success: true };
 }
