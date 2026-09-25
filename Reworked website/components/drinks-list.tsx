@@ -14,7 +14,7 @@ import type { DrinkWithChange } from '@/hooks/useDrinksData';
 
 function HeaderRow({ category, location }: { category?: string | null; location?: string | null }) {
   return (
-    <div className="border-b-2 border-[#2C1E16] pb-0.5 mb-0">
+    <div data-tv-header className="border-b-2 border-[#2C1E16] pb-0.5 mb-0">
       {/* Row 1: category + location tags — always rendered so all columns stay vertically aligned */}
       <div className="flex items-center gap-1.5 mb-0.5 min-h-[1rem]">
         {category && (
@@ -44,6 +44,7 @@ function DrinkRow({ drink }: { drink: DrinkWithChange }) {
   const qrValue = drink.barcode || drink.IPN || null;
   return (
     <div
+      data-tv-row
       className={`grid grid-cols-[48px_1fr_auto_auto_52px] gap-1.5 items-center py-0.5 shrink-0 ${
         drink._change === 'decreased' ? 'drink-sold' :
         drink._change === 'increased' ? 'drink-restocked' : ''
@@ -97,12 +98,14 @@ function DrinkRow({ drink }: { drink: DrinkWithChange }) {
  */
 const UNCOUNTED_STOCK = 9999;
 
-// Heights in px of what one category block takes, from the Tailwind classes:
-// a DrinkRow is a 48px image plus py-0.5; a HeaderRow is the tag line, the
-// column titles and its border; blocks sit gap-4 apart.
-export const ROW_PX = 52;
-export const HEADER_PX = 38;
+// Starting estimates in px for one item row and one category header. The TV
+// replaces them with the heights it measures on screen, since fonts and QR
+// padding make the real rows a few px taller than the Tailwind classes suggest.
+export const ROW_PX = 56;
+export const HEADER_PX = 42;
 export const GAP_PX = 16;
+
+export interface RowSizes { rowPx: number; headerPx: number }
 /** Used until the item area has been measured (first render, tests). */
 export const FALLBACK_AREA_PX = 480;
 
@@ -117,8 +120,8 @@ export interface PageSection<T> {
 
 export type InventoryPage<T> = PageSection<T>[];
 
-function sectionHeight(itemCount: number): number {
-  return HEADER_PX + Math.ceil(itemCount / 3) * ROW_PX;
+function sectionHeight(itemCount: number, { rowPx, headerPx }: RowSizes): number {
+  return headerPx + Math.ceil(itemCount / 3) * rowPx;
 }
 
 /**
@@ -129,8 +132,9 @@ function sectionHeight(itemCount: number): number {
 export function buildPages<T>(
   groups: { location: string | null; category: string | null; items: T[] }[],
   areaPx: number = FALLBACK_AREA_PX,
+  sizes: RowSizes = { rowPx: ROW_PX, headerPx: HEADER_PX },
 ): InventoryPage<T>[] {
-  const rowsPerPage = Math.max(1, Math.floor((areaPx - HEADER_PX) / ROW_PX));
+  const rowsPerPage = Math.max(1, Math.floor((areaPx - sizes.headerPx) / sizes.rowPx));
   const perPage = rowsPerPage * 3;
 
   const sections: PageSection<T>[] = [];
@@ -145,7 +149,7 @@ export function buildPages<T>(
   let current: PageSection<T>[] = [];
   let used = 0;
   for (const sec of sections) {
-    const h = sectionHeight(sec.items.length);
+    const h = sectionHeight(sec.items.length, sizes);
     const needed = current.length === 0 ? h : used + GAP_PX + h;
     if (current.length > 0 && needed > areaPx) {
       pages.push(current);
@@ -295,6 +299,7 @@ export function DrinksList({ initialData }: { initialData?: ScreenData }) {
   // Height of the item area (minus its p-4 padding), so pages hold what fits.
   const areaRef = React.useRef<HTMLDivElement>(null);
   const [areaPx, setAreaPx] = React.useState<number | null>(null);
+  const [sizes, setSizes] = React.useState<RowSizes>({ rowPx: ROW_PX, headerPx: HEADER_PX });
   React.useEffect(() => {
     const el = areaRef.current;
     if (!el) return;
@@ -304,6 +309,15 @@ export function DrinksList({ initialData }: { initialData?: ScreenData }) {
     ro.observe(el);
     return () => ro.disconnect();
   }, [loading]);
+
+  // Read the real row and header heights off the page on screen.
+  React.useEffect(() => {
+    const el = areaRef.current;
+    const row = el?.querySelector<HTMLElement>('[data-tv-row]')?.offsetHeight;
+    const header = el?.querySelector<HTMLElement>('[data-tv-header]')?.offsetHeight;
+    if (!row || !header) return;
+    setSizes(prev => (prev.rowPx === row && prev.headerPx === header ? prev : { rowPx: row, headerPx: header }));
+  }, [tvPage.page, loading, drinks.length]);
 
   if (loading) {
     return (
@@ -321,7 +335,7 @@ export function DrinksList({ initialData }: { initialData?: ScreenData }) {
     );
   }
 
-  const pages = buildPages(groupDrinks(drinks), areaPx ?? FALLBACK_AREA_PX);
+  const pages = buildPages(groupDrinks(drinks), areaPx ?? FALLBACK_AREA_PX, sizes);
   const pageIndex = wrapPage(tvPage.page, pages.length);
   const page = pages[pageIndex] ?? [];
 
@@ -345,7 +359,7 @@ export function DrinksList({ initialData }: { initialData?: ScreenData }) {
 
       {/* Only the current page is rendered: lighter for the Pi driving the TV.
           The key remounts it on a page change, which replays the slide-in. */}
-      <div ref={areaRef} className="flex-1 min-h-0 overflow-hidden p-4">
+      <div ref={areaRef} data-area={areaPx ?? ''} data-sizes={`${sizes.rowPx}/${sizes.headerPx}`} className="flex-1 min-h-0 overflow-hidden p-4">
         <div key={pageIndex} className="tv-page-in flex flex-col gap-4">
           {page.map((sec, si) => {
             const c1 = Math.ceil(sec.items.length / 3);
