@@ -44,13 +44,13 @@ export function TipsFooter({ initialData }: { initialData?: ScreenData }) {
         </div>
 
         {/* The barcode scanner sits below the TV, under the logo. */}
-        <div className="absolute left-full ml-8 top-1/2 -translate-y-1/2 flex items-center gap-2 pointer-events-none whitespace-nowrap">
+        <div className="absolute left-full ml-16 top-1/2 -translate-y-1/2 flex items-center gap-2 pointer-events-none whitespace-nowrap">
           <div className="text-right leading-tight">
             <p className="text-[9px] font-black uppercase tracking-widest text-[#2C1E16]/70">Use barcode</p>
             <p className="text-[9px] font-black uppercase tracking-widest text-[#2C1E16]/70">scanner to</p>
             <p className="text-[9px] font-black uppercase tracking-widest text-[#2C1E16]/70">scan items</p>
           </div>
-          <ArrowBigDown className="ml-4 w-10 h-10 shrink-0 text-[#2C1E16]/70" strokeWidth={1.5} />
+          <ArrowBigDown className="w-10 h-10 shrink-0 text-[#2C1E16]/70" strokeWidth={1.5} />
         </div>
       </div>
 
