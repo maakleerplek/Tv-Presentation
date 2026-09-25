@@ -1,14 +1,15 @@
 /**
- * Which inventory page the TV shows, shared between the TV and the Pi scanner.
+ * Which inventory page the TV shows. The state lives in the TV's browser; the
+ * Pi scanner next to it drives it with key presses (see hooks/useTvPage.ts).
  *
- * The server never knows how many pages there are: it hands out an ever-growing
- * page number and the TV takes it modulo its own page count. While cycling,
- * the page is derived from the clock (basePage + whole cycles since baseAt), so
- * nothing has to tick on the server. Every event that stops or moves the
+ * The state never needs the page count: the page number keeps growing and the
+ * TV takes it modulo its own page count. While cycling, the page is derived
+ * from the clock (basePage + whole cycles since baseAt), so nothing has to
+ * tick. Every event that stops or moves the
  * cycling first folds the elapsed cycles into basePage, so the TV freezes on
  * the page people are actually looking at.
  *
- * The state lives in memory: a container restart just starts over at page 0.
+ * A page reload just starts over at page 0.
  */
 
 export const CYCLE_MS = 10_000;
@@ -87,22 +88,4 @@ export function reportKiosk(s: TvState, busy: boolean, now: number): TvState {
     // and a resume starts a fresh full cycle on it.
     const settled = settle(s, now);
     return { ...settled, kioskBusy: busy, kioskSeenAt: now };
-}
-
-// ── Module singleton (one Next.js server process) ─────────────────────────────
-
-let state: TvState = initialState(Date.now());
-
-export function getView(): TvPageView {
-    return view(state, Date.now());
-}
-
-export function navigatePage(step: 1 | -1): TvPageView {
-    state = navigate(state, step, Date.now());
-    return getView();
-}
-
-export function setKioskState(busy: boolean): TvPageView {
-    state = reportKiosk(state, busy, Date.now());
-    return getView();
 }
