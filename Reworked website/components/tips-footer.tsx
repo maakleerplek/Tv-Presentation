@@ -50,7 +50,7 @@ export function TipsFooter({ initialData }: { initialData?: ScreenData }) {
             <p className="text-[9px] font-black uppercase tracking-widest text-[#2C1E16]/70">scanner to</p>
             <p className="text-[9px] font-black uppercase tracking-widest text-[#2C1E16]/70">scan items</p>
           </div>
-          <ArrowBigDown className="w-10 h-10 shrink-0 text-[#2C1E16]/70" strokeWidth={1.5} />
+          <ArrowBigDown className="ml-4 w-10 h-10 shrink-0 text-[#2C1E16]/70" strokeWidth={1.5} />
         </div>
       </div>
 
