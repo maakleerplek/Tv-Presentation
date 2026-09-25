@@ -72,18 +72,32 @@ describe('navigation', () => {
     });
 });
 
-import { buildPages, wrapPage } from '@/components/drinks-list';
+import { buildPages, wrapPage, ROW_PX, HEADER_PX, GAP_PX } from '@/components/drinks-list';
 
 describe('buildPages', () => {
     const group = (category: string, n: number) => ({ location: null, category, items: Array.from({ length: n }, (_, i) => i) });
+    const cats = (pages: ReturnType<typeof buildPages<number>>) => pages.map(p => p.map(s => `${s.category}:${s.items.length}`));
 
-    test('one page per group, big groups split', () => {
-        const pages = buildPages([group('Drinks', 5), group('Filament', 30)], 24);
-        expect(pages.map(p => [p.category, p.items.length, p.part, p.parts])).toEqual([
-            ['Drinks', 5, 1, 1],
-            ['Filament', 24, 1, 2],
-            ['Filament', 6, 2, 2],
+    // Drinks 8 (3 rows), Wood 3 (1 row), Nuts 1 (1 row), Filament 4 (2 rows)
+    const shop = [group('Drinks', 8), group('Wood', 3), group('Per gewicht', 1), group('Filament', 4)];
+    const firstThree = 3 * HEADER_PX + 5 * ROW_PX + 2 * GAP_PX;
+
+    test('packs whole categories and moves the one that does not fit to the next page', () => {
+        expect(cats(buildPages(shop, firstThree + 10))).toEqual([
+            ['Drinks:8', 'Wood:3', 'Per gewicht:1'],
+            ['Filament:4'],
         ]);
+    });
+
+    test('everything on one page when it fits', () => {
+        const all = firstThree + GAP_PX + HEADER_PX + 2 * ROW_PX;
+        expect(buildPages(shop, all)).toHaveLength(1);
+    });
+
+    test('a category taller than a page is split into parts', () => {
+        const area = HEADER_PX + 4 * ROW_PX;   // 4 rows = 12 items
+        const pages = buildPages([group('Drinks', 30)], area);
+        expect(pages.map(p => [p[0].items.length, p[0].part, p[0].parts])).toEqual([[12, 1, 3], [12, 2, 3], [6, 3, 3]]);
     });
 
     test('wrapPage handles negatives and an empty list', () => {

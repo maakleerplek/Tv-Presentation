@@ -56,3 +56,11 @@
   80%  { opacity: 1; }
   100% { opacity: 0; }
 }
+
+/* TV inventory page change: a short slide-in. Only transform and opacity, the
+   two properties the Pi's GPU composites without a relayout. */
+@keyframes tv-page-in {
+  from { opacity: 0; transform: translateX(24px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+.tv-page-in { animation: tv-page-in 0.45s ease-out both; }

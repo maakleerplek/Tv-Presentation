@@ -97,36 +97,66 @@ function DrinkRow({ drink }: { drink: DrinkWithChange }) {
  */
 const UNCOUNTED_STOCK = 9999;
 
-/** Rows per column × 3 columns. Tune to what fits on the TV without scrolling. */
-export const ITEMS_PER_PAGE = 24;
+// Heights in px of what one category block takes, from the Tailwind classes:
+// a DrinkRow is a 48px image plus py-0.5; a HeaderRow is the tag line, the
+// column titles and its border; blocks sit gap-4 apart.
+export const ROW_PX = 52;
+export const HEADER_PX = 38;
+export const GAP_PX = 16;
+/** Used until the item area has been measured (first render, tests). */
+export const FALLBACK_AREA_PX = 480;
 
-export interface InventoryPage<T> {
+export interface PageSection<T> {
   location: string | null;
   category: string | null;
   items: T[];
-  /** 1-based part number and total when a group spans several pages. */
+  /** 1-based part number and total when a category spans several pages. */
   part: number;
   parts: number;
 }
 
-/** Every group gets its own page; a group bigger than perPage is split up. */
+export type InventoryPage<T> = PageSection<T>[];
+
+function sectionHeight(itemCount: number): number {
+  return HEADER_PX + Math.ceil(itemCount / 3) * ROW_PX;
+}
+
+/**
+ * Pack whole categories onto pages, in order, as long as they fit in areaPx.
+ * A category that doesn't fit on the current page moves in full to the next.
+ * Only a category taller than a whole page is split, into page-sized parts.
+ */
 export function buildPages<T>(
   groups: { location: string | null; category: string | null; items: T[] }[],
-  perPage: number = ITEMS_PER_PAGE,
+  areaPx: number = FALLBACK_AREA_PX,
 ): InventoryPage<T>[] {
-  const pages: InventoryPage<T>[] = [];
+  const rowsPerPage = Math.max(1, Math.floor((areaPx - HEADER_PX) / ROW_PX));
+  const perPage = rowsPerPage * 3;
+
+  const sections: PageSection<T>[] = [];
   for (const g of groups) {
     const parts = Math.max(1, Math.ceil(g.items.length / perPage));
     for (let i = 0; i < parts; i++) {
-      pages.push({
-        location: g.location,
-        category: g.category,
-        items: g.items.slice(i * perPage, (i + 1) * perPage),
-        part: i + 1,
-        parts,
-      });
+      sections.push({ ...g, items: g.items.slice(i * perPage, (i + 1) * perPage), part: i + 1, parts });
     }
   }
+
+  const pages: InventoryPage<T>[] = [];
+  let current: PageSection<T>[] = [];
+  let used = 0;
+  for (const sec of sections) {
+    const h = sectionHeight(sec.items.length);
+    const needed = current.length === 0 ? h : used + GAP_PX + h;
+    if (current.length > 0 && needed > areaPx) {
+      pages.push(current);
+      current = [sec];
+      used = h;
+    } else {
+      current.push(sec);
+      used = needed;
+    }
+  }
+  if (current.length > 0) pages.push(current);
   return pages;
 }
 
@@ -262,6 +292,19 @@ export function DrinksList({ initialData }: { initialData?: ScreenData }) {
   const changelog = useChangelog();
   const tvPage = useTvPage();
 
+  // Height of the item area (minus its p-4 padding), so pages hold what fits.
+  const areaRef = React.useRef<HTMLDivElement>(null);
+  const [areaPx, setAreaPx] = React.useState<number | null>(null);
+  React.useEffect(() => {
+    const el = areaRef.current;
+    if (!el) return;
+    const measure = () => setAreaPx(Math.max(0, el.clientHeight - 32));
+    measure();
+    const ro = new ResizeObserver(measure);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [loading]);
+
   if (loading) {
     return (
       <div className="flex-1 bg-[#F5F2EB] flex flex-col items-center justify-center p-6 h-full border-l-2 border-[#2C1E16]">
@@ -278,9 +321,9 @@ export function DrinksList({ initialData }: { initialData?: ScreenData }) {
     );
   }
 
-  const pages = buildPages(groupDrinks(drinks));
+  const pages = buildPages(groupDrinks(drinks), areaPx ?? FALLBACK_AREA_PX);
   const pageIndex = wrapPage(tvPage.page, pages.length);
-  const page = pages[pageIndex];
+  const page = pages[pageIndex] ?? [];
 
   return (
     <div className="flex-1 bg-[#F5F2EB] flex flex-col h-full overflow-hidden relative">
@@ -300,32 +343,35 @@ export function DrinksList({ initialData }: { initialData?: ScreenData }) {
         </p>
       </div>
 
-      {/* Only the current page is rendered: lighter for the Pi driving the TV */}
-      <div className="flex-1 flex flex-col p-4 min-h-0 overflow-hidden gap-4">
-        {page && (() => {
-          const c1 = Math.ceil(page.items.length / 3);
-          const c2 = Math.ceil((page.items.length - c1) / 2);
-          const col1 = page.items.slice(0, c1);
-          const col2 = page.items.slice(c1, c1 + c2);
-          const col3 = page.items.slice(c1 + c2);
-          const category = page.parts > 1 ? `${page.category ?? ''} (${page.part}/${page.parts})` : page.category;
-          return (
-            <div key={pageIndex} className="grid grid-cols-3 gap-x-3">
-              <div className="flex flex-col gap-0">
-                <HeaderRow category={category} location={page.location} />
-                {col1.map((drink, idx) => <DrinkRow key={idx} drink={drink} />)}
+      {/* Only the current page is rendered: lighter for the Pi driving the TV.
+          The key remounts it on a page change, which replays the slide-in. */}
+      <div ref={areaRef} className="flex-1 min-h-0 overflow-hidden p-4">
+        <div key={pageIndex} className="tv-page-in flex flex-col gap-4">
+          {page.map((sec, si) => {
+            const c1 = Math.ceil(sec.items.length / 3);
+            const c2 = Math.ceil((sec.items.length - c1) / 2);
+            const col1 = sec.items.slice(0, c1);
+            const col2 = sec.items.slice(c1, c1 + c2);
+            const col3 = sec.items.slice(c1 + c2);
+            const category = sec.parts > 1 ? `${sec.category ?? ''} (${sec.part}/${sec.parts})` : sec.category;
+            return (
+              <div key={si} className="grid grid-cols-3 gap-x-3">
+                <div className="flex flex-col gap-0">
+                  <HeaderRow category={category} location={sec.location} />
+                  {col1.map((drink, idx) => <DrinkRow key={idx} drink={drink} />)}
+                </div>
+                <div className="flex flex-col gap-0">
+                  {col2.length > 0 && <HeaderRow />}
+                  {col2.map((drink, idx) => <DrinkRow key={idx} drink={drink} />)}
+                </div>
+                <div className="flex flex-col gap-0">
+                  {col3.length > 0 && <HeaderRow />}
+                  {col3.map((drink, idx) => <DrinkRow key={idx} drink={drink} />)}
+                </div>
               </div>
-              <div className="flex flex-col gap-0">
-                {col2.length > 0 && <HeaderRow />}
-                {col2.map((drink, idx) => <DrinkRow key={idx} drink={drink} />)}
-              </div>
-              <div className="flex flex-col gap-0">
-                {col3.length > 0 && <HeaderRow />}
-                {col3.map((drink, idx) => <DrinkRow key={idx} drink={drink} />)}
-              </div>
-            </div>
-          );
-        })()}
+            );
+          })}
+        </div>
       </div>
 
       {/* Control Barcodes + Changelog */}
