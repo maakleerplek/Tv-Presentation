@@ -1,6 +1,7 @@
 import fs from 'fs';
 import path from 'path';
 import { createRequire } from 'module';
+import { DEFAULT_CATEGORY_ORDER, sanitizeCategoryOrder } from './category-order';
 
 // Define the shape of our custom news
 export type CustomNewsRow = {
@@ -25,7 +26,7 @@ export type ChangelogRow = {
 
 // Lazily initialize the database connection
 type DbLike = {
-  prepare: (query: string) => { get: () => unknown; all: (...args: unknown[]) => unknown[]; run: (...args: unknown[]) => { lastInsertRowid: number } };
+  prepare: (query: string) => { get: (...args: unknown[]) => unknown; all: (...args: unknown[]) => unknown[]; run: (...args: unknown[]) => { lastInsertRowid: number } };
   exec: (sql: string) => void;
 };
 
@@ -123,6 +124,14 @@ function getDb(): DbLike {
       } catch {
         // Column already exists, safe to ignore
       }
+
+      // Key/value settings edited in the admin panel (e.g. the TV category order)
+      db.exec(`
+        CREATE TABLE IF NOT EXISTS settings (
+          key TEXT PRIMARY KEY,
+          value TEXT NOT NULL
+        )
+      `);
 
       // Create admin users table
       db.exec(`
@@ -227,4 +236,39 @@ export function verifyAdmin(password: string): boolean {
     console.error('[DB] Error verifying admin:', error);
     return false;
   }
+}
+
+export function getSetting(key: string): string | null {
+  try {
+    const db = getDb();
+    const row = db.prepare('SELECT value FROM settings WHERE key = ?').get(key) as { value?: string } | null;
+    return row?.value ?? null;
+  } catch (error) {
+    console.error('[DB] Error reading setting:', error);
+    return null;
+  }
+}
+
+export function setSetting(key: string, value: string) {
+  const db = getDb();
+  db.prepare(`
+    INSERT INTO settings (key, value) VALUES (?, ?)
+    ON CONFLICT(key) DO UPDATE SET value = excluded.value
+  `).run(key, value);
+}
+
+const CATEGORY_ORDER_KEY = 'tv_category_order';
+
+export function getCategoryOrder(): string[] {
+  const raw = getSetting(CATEGORY_ORDER_KEY);
+  if (!raw) return DEFAULT_CATEGORY_ORDER;
+  try {
+    return sanitizeCategoryOrder(JSON.parse(raw)) ?? DEFAULT_CATEGORY_ORDER;
+  } catch {
+    return DEFAULT_CATEGORY_ORDER;
+  }
+}
+
+export function setCategoryOrder(order: string[]) {
+  setSetting(CATEGORY_ORDER_KEY, JSON.stringify(order));
 }
