@@ -77,7 +77,7 @@ function DrinkRow({ drink }: { drink: DrinkWithChange }) {
             'text-[#2C1E16]'
           }`}
         >
-          {drink.stock === Infinity || drink.stock >= UNCOUNTED_STOCK ? '∞' : drink.stock}
+          {drink.stock === Infinity ? '∞' : drink.stock}
         </span>
       </span>
       <span className="text-xs font-black text-[#2C1E16] text-right w-10 leading-none">{drink.price}</span>
@@ -93,12 +93,6 @@ function DrinkRow({ drink }: { drink: DrinkWithChange }) {
     </div>
   );
 }
-
-/**
- * Weight items (nuts & bolts per 100 g) sit on one uncounted stock item of 10000
- * so the scanner and the till accept them. Showing that number would be noise.
- */
-const UNCOUNTED_STOCK = 9999;
 
 // Starting estimates in px for one item row and one category header. The TV
 // replaces them with the heights it measures on screen, since fonts and QR
