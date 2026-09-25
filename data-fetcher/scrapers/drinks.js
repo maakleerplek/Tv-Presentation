@@ -60,22 +60,18 @@ async function fetchAllPages(baseUrl, headers) {
 }
 
 /**
- * Batch-fetch part records by ID and return a map of partId → category_name.
- * InvenTree includes category_name directly on the /api/part/ response.
+ * Map partId -> category_name for the parts on screen.
+ *
+ * Reads all parts page by page instead of filtering with pk__in: InvenTree
+ * 1.5 ignores that filter and returns the first N parts of the whole list, so
+ * every part past N (new filament, some drinks) lost its category.
  */
 async function fetchCategoryNames(partIds, headers) {
     if (partIds.length === 0) return new Map();
-    const ids = [...new Set(partIds)].join(',');
+    const wanted = new Set(partIds);
     try {
-        const res = await fetchWithTimeout(
-            `${INVENTREE_URL}/api/part/?pk__in=${ids}&limit=${partIds.length + 10}`,
-            { headers },
-            10_000,
-        );
-        if (!res.ok) return new Map();
-        const data  = await res.json();
-        const parts = Array.isArray(data) ? data : (data.results || []);
-        return new Map(parts.map(p => [p.pk, p.category_name || null]));
+        const parts = await fetchAllPages(`${INVENTREE_URL}/api/part/?active=true`, headers);
+        return new Map(parts.filter(p => wanted.has(p.pk)).map(p => [p.pk, p.category_name || null]));
     } catch {
         return new Map();
     }
