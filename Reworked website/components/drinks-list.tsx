@@ -1,12 +1,13 @@
 'use client';
 
 import React from 'react';
-import { Coffee, Tag, MapPin, CheckCircle2, XCircle, Undo2, ShoppingCart, HandHeart, Plus, Minus, RotateCcw, Sparkles } from 'lucide-react';
+import { Coffee, Tag, MapPin, CheckCircle2, XCircle, Undo2, ShoppingCart, HandHeart, Plus, Minus, RotateCcw, Sparkles, ChevronLeft, ChevronRight, Pause } from 'lucide-react';
 
 import QRCode from 'react-qr-code';
 import { useScreenData } from '@/hooks/useScreenData';
 import { useDrinksData } from '@/hooks/useDrinksData';
 import { useChangelog } from '@/hooks/useChangelog';
+import { useTvPage } from '@/hooks/useTvPage';
 import type { ScreenData, DrinkItem, ChangelogEntry } from '@/lib/types';
 import { PricingTable } from './pricing-table';
 import type { DrinkWithChange } from '@/hooks/useDrinksData';
@@ -73,7 +74,7 @@ function DrinkRow({ drink }: { drink: DrinkWithChange }) {
             'text-[#2C1E16]'
           }`}
         >
-          {drink.stock === Infinity ? '∞' : drink.stock}
+          {drink.stock === Infinity || drink.stock >= UNCOUNTED_STOCK ? '∞' : drink.stock}
         </span>
       </span>
       <span className="text-xs font-black text-[#2C1E16] text-right w-10 leading-none">{drink.price}</span>
@@ -88,6 +89,50 @@ function DrinkRow({ drink }: { drink: DrinkWithChange }) {
       </div>
     </div>
   );
+}
+
+/**
+ * Weight items (nuts & bolts per 100 g) sit on one uncounted stock item of 10000
+ * so the scanner and the till accept them. Showing that number would be noise.
+ */
+const UNCOUNTED_STOCK = 9999;
+
+/** Rows per column × 3 columns. Tune to what fits on the TV without scrolling. */
+export const ITEMS_PER_PAGE = 24;
+
+export interface InventoryPage<T> {
+  location: string | null;
+  category: string | null;
+  items: T[];
+  /** 1-based part number and total when a group spans several pages. */
+  part: number;
+  parts: number;
+}
+
+/** Every group gets its own page; a group bigger than perPage is split up. */
+export function buildPages<T>(
+  groups: { location: string | null; category: string | null; items: T[] }[],
+  perPage: number = ITEMS_PER_PAGE,
+): InventoryPage<T>[] {
+  const pages: InventoryPage<T>[] = [];
+  for (const g of groups) {
+    const parts = Math.max(1, Math.ceil(g.items.length / perPage));
+    for (let i = 0; i < parts; i++) {
+      pages.push({
+        location: g.location,
+        category: g.category,
+        items: g.items.slice(i * perPage, (i + 1) * perPage),
+        part: i + 1,
+        parts,
+      });
+    }
+  }
+  return pages;
+}
+
+/** The server hands out an unbounded page number; wrap it, negatives included. */
+export function wrapPage(page: number, count: number): number {
+  return count === 0 ? 0 : ((page % count) + count) % count;
 }
 
 function groupDrinks(drinks: DrinkWithChange[]) {
@@ -215,6 +260,7 @@ export function DrinksList({ initialData }: { initialData?: ScreenData }) {
   const { data, loading, error } = useScreenData(initialData);
   const drinks = useDrinksData(initialData?.drinks);
   const changelog = useChangelog();
+  const tvPage = useTvPage();
 
   if (loading) {
     return (
@@ -232,7 +278,9 @@ export function DrinksList({ initialData }: { initialData?: ScreenData }) {
     );
   }
 
-  const groups = groupDrinks(drinks);
+  const pages = buildPages(groupDrinks(drinks));
+  const pageIndex = wrapPage(tvPage.page, pages.length);
+  const page = pages[pageIndex];
 
   return (
     <div className="flex-1 bg-[#F5F2EB] flex flex-col h-full overflow-hidden relative">
@@ -240,24 +288,31 @@ export function DrinksList({ initialData }: { initialData?: ScreenData }) {
       <div className="p-2 border-b-2 border-[#2C1E16] bg-[#C8A98B] shrink-0">
         <h2 className="text-[#2C1E16] uppercase tracking-widest text-xs font-black flex items-center justify-center gap-2">
           <Coffee className="w-4 h-4" /> Inventory
+          {pages.length > 1 && (
+            <span className="flex items-center gap-1 text-[#2C1E16]/70">
+              · {pageIndex + 1}/{pages.length}
+              {!tvPage.cycling && <Pause className="w-3 h-3" />}
+            </span>
+          )}
         </h2>
         <p className="text-[#2C1E16]/60 text-[9px] font-bold uppercase tracking-wider text-center mt-0.5">
           Scan QR codes with scanner right of the TV
         </p>
       </div>
 
-      {/* Scrollable item area */}
-      <div className="flex-1 flex flex-col p-4 min-h-0 overflow-y-auto gap-4">
-        {groups.map((group, gi) => {
-          const c1 = Math.ceil(group.items.length / 3);
-          const c2 = Math.ceil((group.items.length - c1) / 2);
-          const col1 = group.items.slice(0, c1);
-          const col2 = group.items.slice(c1, c1 + c2);
-          const col3 = group.items.slice(c1 + c2);
+      {/* Only the current page is rendered: lighter for the Pi driving the TV */}
+      <div className="flex-1 flex flex-col p-4 min-h-0 overflow-hidden gap-4">
+        {page && (() => {
+          const c1 = Math.ceil(page.items.length / 3);
+          const c2 = Math.ceil((page.items.length - c1) / 2);
+          const col1 = page.items.slice(0, c1);
+          const col2 = page.items.slice(c1, c1 + c2);
+          const col3 = page.items.slice(c1 + c2);
+          const category = page.parts > 1 ? `${page.category ?? ''} (${page.part}/${page.parts})` : page.category;
           return (
-            <div key={gi} className="grid grid-cols-3 gap-x-3">
+            <div key={pageIndex} className="grid grid-cols-3 gap-x-3">
               <div className="flex flex-col gap-0">
-                <HeaderRow category={group.category} location={group.location} />
+                <HeaderRow category={category} location={page.location} />
                 {col1.map((drink, idx) => <DrinkRow key={idx} drink={drink} />)}
               </div>
               <div className="flex flex-col gap-0">
@@ -270,7 +325,7 @@ export function DrinksList({ initialData }: { initialData?: ScreenData }) {
               </div>
             </div>
           );
-        })}
+        })()}
       </div>
 
       {/* Control Barcodes + Changelog */}
@@ -282,6 +337,8 @@ export function DrinksList({ initialData }: { initialData?: ScreenData }) {
               { label: 'Confirm', data: 'CONFIRM', icon: CheckCircle2, color: '#22C55E' },
               { label: 'Cancel', data: 'CANCEL', icon: XCircle, color: '#EF4444' },
               { label: 'Undo (Remove)', data: 'REMOVE', icon: Undo2, color: '#F59E0B' },
+              { label: 'Prev page', data: 'PAGE-PREV', icon: ChevronLeft, color: '#2C1E16' },
+              { label: 'Next page', data: 'PAGE-NEXT', icon: ChevronRight, color: '#2C1E16' },
             ].map((ctrl) => (
               <div key={ctrl.label} className="flex flex-col items-center gap-0.5">
                 <div className="border-2 border-[#2C1E16] p-1 bg-white shadow-[2px_2px_0_0_#2C1E16]">
