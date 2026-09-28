@@ -9,6 +9,19 @@ import { priorityOf, formatDutchDate } from '@/lib/utils';
 import type { CalendarEvent, NewsItem, ScreenData } from '@/lib/types';
 
 // Helper to shuffle an array (Fisher-Yates)
+// The share-image format nearly every event and news image comes in (1200:630),
+// used until an image's real size is known.
+const DEFAULT_IMAGE_ASPECT = 1200 / 630;
+// How far the frame may follow an image: taller than 1.3:1 would squeeze the
+// text too much, wider than 2.2:1 leaves an odd strip. Outside: cropped.
+const MIN_IMAGE_ASPECT = 1.3;
+const MAX_IMAGE_ASPECT = 2.2;
+
+export function imageFrameAspect(imageAspect: number | undefined): number {
+  if (!imageAspect || !Number.isFinite(imageAspect)) return DEFAULT_IMAGE_ASPECT;
+  return Math.min(MAX_IMAGE_ASPECT, Math.max(MIN_IMAGE_ASPECT, imageAspect));
+}
+
 export function shuffleArray<T>(array: T[]): T[] {
   const a = [...array];
   for (let i = a.length - 1; i > 0; i--) {
@@ -80,6 +93,14 @@ export function EventCarousel({ initialData }: { initialData?: ScreenData }) {
     return () => ro.disconnect();
   }, [updateClamp]);
 
+  // Width / height of each image, learned when it loads (or is preloaded), so
+  // the frame can take the image's own shape; see imageFrameAspect().
+  const [aspects, setAspects] = useState<Record<string, number>>({});
+  const rememberAspect = useCallback((url: string, w: number, h: number) => {
+    if (!w || !h) return;
+    setAspects(prev => (prev[url] ? prev : { ...prev, [url]: w / h }));
+  }, []);
+
   // Preload the next slide's image into the browser cache while the current one is showing
   useEffect(() => {
     if (carouselItems.length < 2) return;
@@ -88,8 +109,9 @@ export function EventCarousel({ initialData }: { initialData?: ScreenData }) {
     if (url.startsWith('/')) url = `https://maakleerplek.be${url}`;
     if (!url) return;
     const img = new window.Image();
+    img.onload = () => rememberAspect(url, img.naturalWidth, img.naturalHeight);
     img.src = url;
-  }, [currentIndex, carouselItems]);
+  }, [currentIndex, carouselItems, rememberAspect]);
 
   // Use a simple ticker state to force CSS transition restart
   const [progressKey, setProgressKey] = useState(0);
@@ -158,12 +180,16 @@ export function EventCarousel({ initialData }: { initialData?: ScreenData }) {
             className="absolute top-0 right-0 bottom-0 left-0 flex flex-col"
             style={{ animation: 'carousel-fade-in 0.4s ease-out forwards' }}
           >
-            {/* Top section: Image — framed at 1200:630, the share-image format nearly every
-                event and news image comes in (39 of 42 on 2026-09-24), so those show whole.
-                A 45%-height frame was ~1.43:1 on the TV and cut a quarter off every image.
-                Anything else still fills the frame: scale from the centre, crop the overflow,
-                no letterbox bars. Capped so the text keeps room on unusually wide screens. */}
-            <div className="w-full aspect-[40/21] max-h-[55%] shrink-0 border-b-2 border-[#2C1E16] min-h-0 overflow-hidden relative flex items-center justify-center">
+            {/* Top section: Image — the frame takes the image's own shape, so a 3:2 poster
+                shows whole instead of losing a fifth top and bottom in the fixed 1200:630
+                frame. The text below gives up or gains the height. The shape is kept
+                between 1.3:1 and 2.2:1 (see imageFrameAspect) and the frame never takes
+                more than 60% of the column, so the title and QR code always fit; only
+                images outside that range are still cropped from the centre. */}
+            <div
+              className="w-full max-h-[60%] shrink-0 border-b-2 border-[#2C1E16] min-h-0 overflow-hidden relative flex items-center justify-center"
+              style={{ aspectRatio: imageFrameAspect(aspects[displayImage]) }}
+            >
               {hasImage ? (
                 <Image
                   key={displayImage}
@@ -173,6 +199,7 @@ export function EventCarousel({ initialData }: { initialData?: ScreenData }) {
                   sizes="(min-width: 1280px) 720px, 50vw"
                   quality={55}
                   priority
+                  onLoad={e => rememberAspect(displayImage, e.currentTarget.naturalWidth, e.currentTarget.naturalHeight)}
                   className="relative z-10 w-full h-full object-cover object-center"
                 />
               ) : (
