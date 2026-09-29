@@ -70,9 +70,12 @@ export type DrinkItem = {
 };
 
 /** Pricing information scraped from the wiki. */
+/** One machine: price per unit (e.g. "€0.50" per "min") and the least a job costs. */
+export type EquipmentPrice = { name: string; price: string; unit?: string | null; minimum?: string | null };
+
 export type PricingData = {
     memberships: { name: string; price: string }[];
-    equipment: { name: string; price: string }[];
+    equipment: EquipmentPrice[];
     materials: { name: string; price: string }[];
     workshops: { name: string; price: string }[];
 };

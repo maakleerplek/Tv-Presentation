@@ -29,6 +29,8 @@ export interface TvState {
 export interface TvPageView {
     page: number;
     cycling: boolean;
+    /** Someone is shopping at the kiosk (and it has reported in recently). */
+    busy: boolean;
     /** How far into the current page's cycle we are, so the TV can time the next swap. */
     msIntoPage: number;
 }
@@ -37,7 +39,7 @@ export function initialState(now: number): TvState {
     return { basePage: 0, baseAt: now, kioskBusy: false, kioskSeenAt: 0, manualUntil: 0 };
 }
 
-function isBusy(s: TvState, now: number): boolean {
+export function isBusy(s: TvState, now: number): boolean {
     return s.kioskBusy && now - s.kioskSeenAt < KIOSK_STALE_MS;
 }
 
@@ -67,11 +69,13 @@ function settle(s: TvState, now: number): TvState {
 }
 
 export function view(s: TvState, now: number): TvPageView {
-    if (!isCycling(s, now)) return { page: s.basePage, cycling: false, msIntoPage: 0 };
+    const busy = isBusy(s, now);
+    if (!isCycling(s, now)) return { page: s.basePage, cycling: false, busy, msIntoPage: 0 };
     const elapsed = now - cycleStart(s);
     return {
         page: s.basePage + Math.floor(elapsed / CYCLE_MS),
         cycling: true,
+        busy,
         msIntoPage: elapsed % CYCLE_MS,
     };
 }

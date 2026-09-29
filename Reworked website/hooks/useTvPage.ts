@@ -18,10 +18,10 @@ export const TV_KEYS = {
 } as const;
 
 /**
- * The page number the TV shows (not yet wrapped to the page count), and
- * whether it is cycling. The logic lives in lib/tv-state.ts.
+ * The page number the TV shows (not yet wrapped to the page count), whether it
+ * is cycling, and whether someone is shopping. The logic lives in lib/tv-state.ts.
  */
-export function useTvPage(): { page: number; cycling: boolean } {
+export function useTvPage(): { page: number; cycling: boolean; busy: boolean } {
     const [state, setState] = useState<TvState>(() => initialState(Date.now()));
     const [now, setNow] = useState(() => Date.now());
 
@@ -44,5 +44,5 @@ export function useTvPage(): { page: number; cycling: boolean } {
     }, []);
 
     const v = view(state, now);
-    return { page: v.page, cycling: v.cycling };
+    return { page: v.page, cycling: v.cycling, busy: v.busy };
 }

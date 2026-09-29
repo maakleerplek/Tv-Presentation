@@ -6,7 +6,7 @@
  *
  *   scrapers/calendar.js  — maakleerplek.be calendar
  *   scrapers/news.js      — maakleerplek.be story archive
- *   scrapers/pricing.js   — maakleerplek wiki pricing
+ *   scrapers/pricing.js   — machine usage prices from InvenTree
  *   scrapers/drinks.js    — Inventree stock / drinks inventory
  *   categorise.js         — event classification (workshops vs recurring)
  *   config.js             — all environment-variable constants
@@ -20,7 +20,7 @@ process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
 
 import { scrapeCalendar } from './scrapers/calendar.js';
 import { scrapeNews     } from './scrapers/news.js';
-import { scrapeWikiPricing } from './scrapers/pricing.js';
+import { fetchMachinePricing } from './scrapers/pricing.js';
 import { fetchDrinks    } from './scrapers/drinks.js';
 import { categoriseEvents } from './categorise.js';
 import {
@@ -82,7 +82,7 @@ app.get('/api/screen-data', async (_req, res) => {
             scrapeCalendar(),
             scrapeNews(),
             fetchDrinks(),
-            scrapeWikiPricing(),
+            fetchMachinePricing(),
         ]);
 
         const { workshops, recurringEvents } = categoriseEvents(calendar);
