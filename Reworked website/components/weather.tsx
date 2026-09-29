@@ -61,7 +61,7 @@ export function Weather({ initialData }: { initialData?: WeatherData }) {
   if (error) {
     return (
       <div className={base}>
-        <h2 className="text-[#2C1E16] uppercase tracking-widest text-xs font-black mb-3">Weer</h2>
+        <h2 className="text-[#2C1E16] uppercase tracking-widest text-base font-black mb-3">Weer</h2>
         <p className="text-[#2C1E16] text-sm font-black uppercase">Niet beschikbaar</p>
       </div>
     );
@@ -70,7 +70,7 @@ export function Weather({ initialData }: { initialData?: WeatherData }) {
   if (!weather) {
     return (
       <div className={base}>
-        <h2 className="text-[#2C1E16] uppercase tracking-widest text-xs font-black mb-3">Weer</h2>
+        <h2 className="text-[#2C1E16] uppercase tracking-widest text-base font-black mb-3">Weer</h2>
         <p className="text-[#2C1E16] text-sm font-black uppercase animate-pulse">Laden...</p>
       </div>
     );
@@ -80,19 +80,19 @@ export function Weather({ initialData }: { initialData?: WeatherData }) {
 
   return (
     <div className={base}>
-      <h2 className="text-[#2C1E16] uppercase tracking-widest text-xs font-black mb-3">Weer</h2>
+      <h2 className="text-[#2C1E16] uppercase tracking-widest text-base font-black mb-3">Weer</h2>
       <div className="flex items-center justify-center gap-4 mb-4">
         <Icon className="w-12 h-12 text-[#2C1E16] shrink-0" />
         <div className="text-left">
           <div className="text-5xl font-black text-[#2C1E16] leading-none">
             {weather.temperature}°C
           </div>
-          <div className="text-[#2C1E16] text-sm font-black mt-1 uppercase leading-none">
+          <div className="text-[#2C1E16] text-lg font-black mt-1 uppercase leading-none">
             {label}
           </div>
         </div>
       </div>
-      <div className="flex flex-col xl:flex-row items-center justify-center gap-x-4 gap-y-2 text-sm font-black">
+      <div className="flex flex-col xl:flex-row items-center justify-center gap-x-4 gap-y-2 text-lg font-black">
         <div className="flex items-center gap-2 text-[#2C1E16]">
           <Wind className="w-5 h-5 shrink-0" />
           <span>{weather.windSpeed} km/h</span>

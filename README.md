@@ -14,14 +14,14 @@ The screen is optimized for a 4K display and divided into three main columns:
 │ Weather     │   Event/News Carousel│                      │
 │ Status      │                      │                      │
 ├─────────────┴──────────────────────┴──────────────────────┤
-│ Bezoek QR URL │      HTL Logo      │      Wiki QR URL     │
+│ Bezoek QR URL │      HTL Logo      │  HTL stock QR URL    │
 └────────────────────────────────────────────────────────────┘
 ```
 
 - **Left:** Time, date, local weather, and currently running or next upcoming event.
 - **Center:** A rotating carousel of upcoming workshops, recurring events, and recent news articles.
 - **Right:** Live inventory from InvenTree (drinks, snacks & materials).
-- **Footer:** Direct links to the website and the Wiki via QR codes.
+- **Footer:** QR codes to the website and the HTL stock app.
 
 ## Features
 
@@ -80,7 +80,7 @@ docker compose up --build
 | Variable | Description |
 |---|---|
 | `MAAKLEERPLEK_URL` | Base URL of the website; also used for the "Bezoek" QR code |
-| `WIKI_QR_URL` | URL encoded into the "Wiki" QR code in the footer |
+| `STOCK_QR_URL` | URL encoded into the "HTL stock" QR code in the footer |
 | `INVENTREE_URL` | URL of your InvenTree instance |
 | `INVENTREE_TOKEN` | InvenTree API token |
 | `INVENTREE_MACHINE_CATEGORY` | InvenTree category with the machine usage prices (default `Machinegebruik`) |

@@ -280,14 +280,14 @@ export function EventCarousel({ initialData }: { initialData?: ScreenData }) {
                 {/* QR row — always pinned below text */}
                 {currentItem.link && (
                   <div className="shrink-0 flex items-center justify-between gap-4 border-t border-[#2C1E16]/20 pt-2">
-                    <p className="text-xs font-black uppercase tracking-widest text-[#2C1E16]/50 leading-snug">
+                    <p className="text-sm font-black uppercase tracking-widest text-[#2C1E16] leading-snug">
                       Want to read more?<br />Scan here →
                     </p>
                     <div className="flex flex-col items-center gap-1 shrink-0">
                       <div className="border-2 border-[#2C1E16] p-1.5 bg-[#F5F2EB]">
                         <QRCode value={currentItem.link} size={80} bgColor="#F5F2EB" fgColor="#2C1E16" />
                       </div>
-                      <span className="text-[9px] font-black uppercase tracking-widest text-[#2C1E16]/50">
+                      <span className="text-xs font-black uppercase tracking-widest text-[#2C1E16]">
                         {currentItem._type === 'workshop' ? 'Schrijf je in' : currentItem._type === 'news' ? 'Lees meer' : 'Meer info'}
                       </span>
                     </div>
