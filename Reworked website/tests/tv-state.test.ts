@@ -12,7 +12,7 @@ describe('cycling', () => {
         expect(view(s, T0).page).toBe(0);
         expect(view(s, T0 + CYCLE_MS - 1).page).toBe(0);
         expect(view(s, T0 + CYCLE_MS).page).toBe(1);
-        expect(view(s, T0 + 3.5 * CYCLE_MS)).toEqual({ page: 3, cycling: true, msIntoPage: CYCLE_MS / 2 });
+        expect(view(s, T0 + 3.5 * CYCLE_MS)).toEqual({ page: 3, cycling: true, busy: false, msIntoPage: CYCLE_MS / 2 });
     });
 
     test('an idle heartbeat does not disturb the cycle', () => {
@@ -26,7 +26,7 @@ describe('kiosk busy', () => {
     test('freezes on the page on screen and resumes there with a full cycle', () => {
         let s = initialState(T0);
         s = reportKiosk(s, true, T0 + 2.5 * CYCLE_MS);
-        expect(view(s, T0 + 2.5 * CYCLE_MS)).toEqual({ page: 2, cycling: false, msIntoPage: 0 });
+        expect(view(s, T0 + 2.5 * CYCLE_MS)).toEqual({ page: 2, cycling: false, busy: true, msIntoPage: 0 });
         expect(view(s, T0 + 8 * CYCLE_MS).page).toBe(2);
 
         const resume = T0 + 9 * CYCLE_MS;
@@ -40,7 +40,7 @@ describe('kiosk busy', () => {
         let s = initialState(T0);
         s = reportKiosk(s, true, T0);
         expect(view(s, T0 + KIOSK_STALE_MS - 1).cycling).toBe(false);
-        expect(view(s, T0 + KIOSK_STALE_MS)).toEqual({ page: 0, cycling: true, msIntoPage: 0 });
+        expect(view(s, T0 + KIOSK_STALE_MS)).toEqual({ page: 0, cycling: true, busy: false, msIntoPage: 0 });
         expect(view(s, T0 + KIOSK_STALE_MS + CYCLE_MS).page).toBe(1);
     });
 });
@@ -50,7 +50,7 @@ describe('navigation', () => {
         let s = initialState(T0);
         const t = T0 + 2.5 * CYCLE_MS;
         s = navigate(s, 1, t);
-        expect(view(s, t)).toEqual({ page: 3, cycling: false, msIntoPage: 0 });
+        expect(view(s, t)).toEqual({ page: 3, cycling: false, busy: false, msIntoPage: 0 });
         s = navigate(s, -1, t + 1000);
         s = navigate(s, -1, t + 2000);
         expect(view(s, t + 2000).page).toBe(1);
@@ -61,7 +61,7 @@ describe('navigation', () => {
         let s = initialState(T0);
         s = navigate(s, 1, T0);
         const end = T0 + MANUAL_HOLD_MS;
-        expect(view(s, end)).toEqual({ page: 1, cycling: true, msIntoPage: 0 });
+        expect(view(s, end)).toEqual({ page: 1, cycling: true, busy: false, msIntoPage: 0 });
         expect(view(s, end + CYCLE_MS).page).toBe(2);
     });
 
@@ -72,7 +72,7 @@ describe('navigation', () => {
     });
 });
 
-import { buildPages, wrapPage, groupDrinks, ROW_PX, HEADER_PX, GAP_PX } from '@/components/drinks-list';
+import { buildPages, wrapPage, pickPage, groupDrinks, ROW_PX, HEADER_PX, GAP_PX } from '@/components/drinks-list';
 
 import { mergeCategoryOrder, sanitizeCategoryOrder } from '@/lib/category-order';
 
@@ -138,5 +138,20 @@ describe('buildPages', () => {
         expect(wrapPage(5, 3)).toBe(2);
         expect(wrapPage(-1, 3)).toBe(2);
         expect(wrapPage(7, 0)).toBe(0);
+    });
+});
+
+describe('info page', () => {
+    test('comes after the last inventory page and wraps back to the first', () => {
+        expect(pickPage(0, 2, false)).toEqual({ info: false, index: 0 });
+        expect(pickPage(1, 2, false)).toEqual({ info: false, index: 1 });
+        expect(pickPage(2, 2, false)).toEqual({ info: true, index: 2 });
+        expect(pickPage(3, 2, false)).toEqual({ info: false, index: 0 });
+        expect(pickPage(-1, 2, false)).toEqual({ info: true, index: 2 });
+    });
+
+    test('gives way to the first inventory page while someone is shopping', () => {
+        expect(pickPage(2, 2, true)).toEqual({ info: false, index: 0 });
+        expect(pickPage(1, 2, true)).toEqual({ info: false, index: 1 });
     });
 });

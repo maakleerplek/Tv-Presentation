@@ -12,6 +12,7 @@ import { useCategoryOrder } from '@/hooks/useCategoryOrder';
 import { DEFAULT_CATEGORY_ORDER, categoryRank } from '@/lib/category-order';
 import type { ScreenData, DrinkItem, ChangelogEntry } from '@/lib/types';
 import { PricingTable } from './pricing-table';
+import { InfoBoard } from './info-board';
 import type { DrinkWithChange } from '@/hooks/useDrinksData';
 
 function HeaderRow({ category, location }: { category?: string | null; location?: string | null }) {
@@ -163,6 +164,17 @@ export function buildPages<T>(
 /** The server hands out an unbounded page number; wrap it, negatives included. */
 export function wrapPage(page: number, count: number): number {
   return count === 0 ? 0 : ((page % count) + count) % count;
+}
+
+/**
+ * Which page to show. The info board comes after the last inventory page. While
+ * someone is shopping it gives way to the first inventory page, so the QR codes
+ * stay on screen.
+ */
+export function pickPage(page: number, inventoryPages: number, busy: boolean): { info: boolean; index: number } {
+  const index = wrapPage(page, inventoryPages + 1);
+  if (index < inventoryPages) return { info: false, index };
+  return busy ? { info: false, index: 0 } : { info: true, index };
 }
 
 /**
@@ -343,8 +355,9 @@ export function DrinksList({ initialData }: { initialData?: ScreenData }) {
   }
 
   const pages = buildPages(groupDrinks(drinks, categoryOrder), areaPx ?? FALLBACK_AREA_PX, sizes);
-  const pageIndex = wrapPage(tvPage.page, pages.length);
-  const page = pages[pageIndex] ?? [];
+  const shown = pickPage(tvPage.page, pages.length, tvPage.busy);
+  const pageIndex = shown.index;
+  const page = shown.info ? [] : pages[pageIndex] ?? [];
 
   return (
     <div className="flex-1 bg-[#F5F2EB] flex flex-col h-full overflow-hidden relative">
@@ -352,12 +365,10 @@ export function DrinksList({ initialData }: { initialData?: ScreenData }) {
       <div className="p-2 border-b-2 border-[#2C1E16] bg-[#C8A98B] shrink-0">
         <h2 className="text-[#2C1E16] uppercase tracking-widest text-xs font-black flex items-center justify-center gap-2">
           <Coffee className="w-4 h-4" /> Inventory
-          {pages.length > 1 && (
-            <span className="flex items-center gap-1 text-[#2C1E16]/70">
-              · {pageIndex + 1}/{pages.length}
-              {!tvPage.cycling && <Pause className="w-3 h-3" />}
-            </span>
-          )}
+          <span className="flex items-center gap-1 text-[#2C1E16]/70">
+            · {shown.info ? 'Info' : `${pageIndex + 1}/${pages.length}`}
+            {!tvPage.cycling && <Pause className="w-3 h-3" />}
+          </span>
         </h2>
         <p className="text-[#2C1E16]/60 text-[9px] font-bold uppercase tracking-wider text-center mt-0.5">
           Scan QR codes with scanner right of the TV
@@ -367,7 +378,8 @@ export function DrinksList({ initialData }: { initialData?: ScreenData }) {
       {/* Only the current page is rendered: lighter for the Pi driving the TV.
           The key remounts it on a page change, which replays the slide-in. */}
       <div ref={areaRef} data-area={areaPx ?? ''} data-sizes={`${sizes.rowPx}/${sizes.headerPx}`} className="flex-1 min-h-0 overflow-hidden p-4">
-        <div key={pageIndex} className="tv-page-in flex flex-col gap-4">
+        <div key={pageIndex} className="tv-page-in flex flex-col gap-4 h-full">
+          {shown.info && <InfoBoard />}
           {page.map((sec, si) => {
             const c1 = Math.ceil(sec.items.length / 3);
             const c2 = Math.ceil((sec.items.length - c1) / 2);
@@ -394,6 +406,8 @@ export function DrinksList({ initialData }: { initialData?: ScreenData }) {
           })}
         </div>
       </div>
+
+      <PricingTable initialData={data || undefined} />
 
       {/* Control Barcodes + Changelog */}
       <div className="px-3 py-1.5 border-t-2 border-[#2C1E16] bg-[#F5F2EB] flex flex-row items-center gap-4 shrink-0">
@@ -428,8 +442,6 @@ export function DrinksList({ initialData }: { initialData?: ScreenData }) {
           </div>
         </div>
       </div>
-
-      <PricingTable initialData={data || undefined} />
     </div>
   );
 }
