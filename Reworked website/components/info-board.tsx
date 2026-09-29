@@ -25,7 +25,7 @@ const STEPS = [
 /** Ruben's drawing (docs/cellar-route.png) as an SVG in the TV colours. */
 function CellarRoute() {
   return (
-    <svg viewBox="0 0 960 600" preserveAspectRatio="xMidYMid meet" className="w-full h-full" role="img"
+    <svg viewBox="0 0 960 600" preserveAspectRatio="xMidYMid meet" className="absolute inset-0 w-full h-full" role="img"
       aria-label="Route from the stairs to the drinks in the cellar">
       {/* Route band and dashed path */}
       <path d={ROUTE} fill="none" stroke={BAND} strokeWidth={56} strokeLinejoin="round" />
@@ -101,7 +101,8 @@ const BUY_STEPS = [
 export function InfoBoard() {
   return (
     <div className="flex flex-col h-full min-h-0 gap-3">
-      <div className="flex-1 min-h-0">
+      {/* Absolute, so the SVG fills the free space instead of sizing the panel from its width. */}
+      <div className="relative flex-1 min-h-0">
         <CellarRoute />
       </div>
       <div className="shrink-0">
