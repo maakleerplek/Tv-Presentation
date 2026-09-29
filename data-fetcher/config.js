@@ -154,5 +154,8 @@ export const TIPS = (() => {
 export const INVENTREE_URL   = process.env.INVENTREE_URL   || 'http://10.72.1.246';
 export const INVENTREE_TOKEN = process.env.INVENTREE_TOKEN;
 
+/** InvenTree category whose virtual parts are the machine usage prices. */
+export const INVENTREE_MACHINE_CATEGORY = process.env.INVENTREE_MACHINE_CATEGORY || 'Machinegebruik';
+
 /** Internal URL of the Next.js frontend — used to POST changelog events from within Docker. */
 export const FRONTEND_INTERNAL_URL = process.env.FRONTEND_INTERNAL_URL || 'http://tv-frontend:3000';
