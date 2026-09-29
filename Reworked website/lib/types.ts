@@ -69,7 +69,7 @@ export type DrinkItem = {
     IPN: string | null;
 };
 
-/** Pricing information scraped from the wiki. */
+/** Pricing information (machine usage comes from InvenTree). */
 /** One machine: price per unit (e.g. "€0.50" per "min") and the least a job costs. */
 export type EquipmentPrice = { name: string; price: string; unit?: string | null; minimum?: string | null };
 
@@ -114,8 +114,8 @@ export type ScreenConfig = {
     statusRotationTime: number;
     /** URL encoded into the payment QR code in the drinks panel */
     paymentQrUrl: string;
-    /** URL encoded into the wiki QR code in the tips footer */
-    wikiQrUrl: string;
+    /** URL encoded into the stock-app QR code in the tips footer */
+    stockQrUrl: string;
     /** Ordered keyword list for event priority; earlier index = higher priority */
     eventPriority: string[];
     /** Custom tip strings shown in the footer */

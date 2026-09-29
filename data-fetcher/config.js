@@ -130,8 +130,8 @@ export const STATUS_ROTATION_TIME = parseInt(process.env.STATUS_ROTATION_TIME ||
 /** URL encoded into the payment QR code in the drinks panel. */
 export const PAYMENT_QR_URL = process.env.PAYMENT_QR_URL || '';
 
-/** URL encoded into the wiki QR code in the tips footer. */
-export const WIKI_QR_URL = process.env.WIKI_QR_URL || 'https://wiki.maakleerplek.be/en/hightechlab';
+/** URL encoded into the stock-app QR code in the tips footer. */
+export const STOCK_QR_URL = process.env.STOCK_QR_URL || 'https://stock.int.maakleerplek.be';
 
 // ── Rotating footer tips ──────────────────────────────────────────────────────
 
