@@ -35,8 +35,10 @@ async function api(method, path, body) {
 const list = (data) => (Array.isArray(data) ? data : data.results || []);
 const query = (params) => new URLSearchParams(params).toString();
 
+// Match the name here too: InvenTree ignores `name` as a filter on /api/part/
+// and returns every part in the category.
 async function findOrCreate(path, filter, body) {
-    const found = list(await api('GET', `${path}?${query(filter)}`))[0];
+    const found = list(await api('GET', `${path}?${query(filter)}`)).find(r => r.name === body.name);
     if (found) return found;
     console.log(`+ ${path} ${JSON.stringify(body)}`);
     return api('POST', path, body);

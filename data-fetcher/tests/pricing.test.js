@@ -35,13 +35,13 @@ describe('fetchMachinePricing', () => {
     test('reads category, parts, sale prices and minimums from InvenTree', async () => {
         globalThis.fetch = async (url) => {
             const u = String(url);
-            if (u.includes('/api/part/category/')) return json([{ pk: 9 }]);
+            if (u.includes('/api/part/category/')) return json([{ pk: 8, name: 'Other' }, { pk: 9, name: 'Machinegebruik' }]);
             if (u.includes('/api/part/sale-price/')) return json([
                 { part: 1, quantity: '1', price: '0.50' },
                 { part: 3, quantity: '1', price: '0.10' },
             ]);
             if (u.includes('/api/part/?category=9')) return json({ results: PARTS.filter(p => p.pk !== 2), next: null });
-            if (u.includes('/api/parameter/template/')) return json([{ pk: 4 }]);
+            if (u.includes('/api/parameter/template/')) return json([{ pk: 4, name: 'Minimum' }]);
             if (u.includes('/api/parameter/?')) return json({ results: [{ model_id: 1, data: '5', data_numeric: 5 }], next: null });
             throw new Error(`unexpected ${u}`);
         };

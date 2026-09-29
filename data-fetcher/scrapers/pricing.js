@@ -57,7 +57,8 @@ async function getJson(url, headers) {
 /** Part pk → numeric value of the Minimum parameter. */
 async function fetchMinimums(base, headers) {
     const templates = await getJson(`${base}/api/parameter/template/?name=${encodeURIComponent(MINIMUM_TEMPLATE)}`, headers);
-    const template  = (Array.isArray(templates) ? templates : templates.results || [])[0];
+    const template  = (Array.isArray(templates) ? templates : templates.results || [])
+        .find(t => t.name === MINIMUM_TEMPLATE);
     if (!template) return new Map();
 
     const params = await fetchAllPages(
@@ -84,7 +85,8 @@ export async function fetchMachinePricing({ base = INVENTREE_URL, token = INVENT
         const headers    = { 'Authorization': `Token ${token}` };
         const categories = await getJson(
             `${base}/api/part/category/?name=${encodeURIComponent(INVENTREE_MACHINE_CATEGORY)}`, headers);
-        const category   = (Array.isArray(categories) ? categories : categories.results || [])[0];
+        const category   = (Array.isArray(categories) ? categories : categories.results || [])
+            .find(c => c.name === INVENTREE_MACHINE_CATEGORY);
 
         let equipment = [];
         if (category) {
