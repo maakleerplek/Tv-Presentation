@@ -25,11 +25,8 @@ The screen is optimized for a 4K display and divided into three main columns:
 
 ## Features
 
-### Dynamic Wiki Scraper
-The data-fetcher service includes a resilient scraper that pulls live pricing and equipment data from the [High Tech Lab Wiki](https://wiki.maakleerplek.be/en/hightechlab).
-- **Auto-detection:** Automatically identifies "Machine Gebruik" sections.
-- **Resilient Parsing:** Handles standard tables, nested lists, and grid-style pricing (like MDF dimensions).
-- **Caching:** Scraped data is cached along with calendar and news data to minimize load on the Wiki.
+### Machine prices
+The "Machine usage" strip reads its prices from InvenTree. Each machine is a virtual part in the category `INVENTREE_MACHINE_CATEGORY` (default `Machinegebruik`). The sale price break is the price per unit (the part's units, e.g. `min` or `g`), and the parameter `Minimum` is the least a job costs. `data-fetcher/scripts/seed-machine-pricing.js` creates the category and the parts.
 
 ### InvenTree Integration
 Pulls live stock levels and prices for drinks, snacks, and consumable materials directly from an InvenTree instance.
@@ -84,9 +81,9 @@ docker compose up --build
 |---|---|
 | `MAAKLEERPLEK_URL` | Base URL of the website; also used for the "Bezoek" QR code |
 | `WIKI_QR_URL` | URL encoded into the "Wiki" QR code in the footer |
-| `WIKI_PRICING_URL` | The specific Wiki page to scrape machine usage from |
 | `INVENTREE_URL` | URL of your InvenTree instance |
 | `INVENTREE_TOKEN` | InvenTree API token |
+| `INVENTREE_MACHINE_CATEGORY` | InvenTree category with the machine usage prices (default `Machinegebruik`) |
 | `INVENTREE_DRINKS_LOCATIONS` | Comma-separated location names to show in the inventory panel |
 | `PAYMENT_QR_URL` | URL for the payment QR code shown in the inventory section |
 | `CAROUSEL_TRANSITION_TIME` | Seconds per carousel slide (default `15`) |

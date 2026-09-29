@@ -1,7 +1,8 @@
 /**
  * scrapers/drinks.js — Fetches the current inventory from Inventree.
  *
- * Exported: fetchDrinks()
+ * Exported: fetchDrinks(), and the InvenTree helpers fetchWithTimeout(),
+ * fetchAllPages() and fetchSalePrices() that scrapers/pricing.js reuses.
  */
 
 import {
@@ -22,7 +23,7 @@ let previousSnapshot = null;
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
-async function fetchWithTimeout(url, options = {}, timeoutMs = 5000) {
+export async function fetchWithTimeout(url, options = {}, timeoutMs = 5000) {
     const controller = new AbortController();
     const timer      = setTimeout(() => controller.abort(), timeoutMs);
     try {
@@ -39,7 +40,7 @@ async function fetchWithTimeout(url, options = {}, timeoutMs = 5000) {
  * Fetch all pages from a paginated Inventree endpoint.
  * Inventree returns { count, next, results } when results exceed the limit.
  */
-async function fetchAllPages(baseUrl, headers) {
+export async function fetchAllPages(baseUrl, headers) {
     const limit    = 500;
     let   offset   = 0;
     const allItems = [];
@@ -84,10 +85,10 @@ async function fetchCategoryNames(partIds, headers) {
  * the overall cost range and only matched the till price while the selling price
  * was being stored in the stock item's purchase_price.
  */
-async function fetchSalePrices(headers) {
+export async function fetchSalePrices(headers, base = INVENTREE_URL) {
     try {
         const res = await fetchWithTimeout(
-            `${INVENTREE_URL}/api/part/sale-price/?limit=500`,
+            `${base}/api/part/sale-price/?limit=500`,
             { headers },
             10_000,
         );
