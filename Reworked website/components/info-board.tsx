@@ -158,13 +158,13 @@ function FloorPlan() {
       <Box x1={372} y1={800} x2={438} y2={1240} label="Electronics rack" vertical />
       <Box x1={690} y1={675} x2={1110} y2={965} label="Main table" />
       <Box x1={1160} y1={690} x2={1268} y2={975} label="Display rack" vertical />
-      <Box x1={1276} y1={690} x2={1345} y2={975} label="Bolts & nuts" vertical />
-      {/* Scrap wood: boxes under the display rack */}
-      <rect x={X(1164)} y={Y(930)} width={X(1264) - X(1164)} height={Y(970) - Y(930)} fill={PAPER}
-        stroke={INK} strokeWidth={1.5} strokeDasharray="4 3" />
-      <text x={X(1200)} y={Y(1010)} fill={INK} fontSize={13} fontWeight={800}>Scrap wood</text>
-      <text x={X(1200)} y={Y(1010) + 13} fill={INK} fontSize={9} fontWeight={700} letterSpacing={0.5}
-        className="font-mono">UNDER THE RACK</text>
+      {/* Scrap wood: stored in boxes under the display rack, taken from this side */}
+      <Box x1={1276} y1={690} x2={1345} y2={975} fill={PAPER} />
+      <text x={X(1300)} y={Y(832)} textAnchor="middle" fill={INK} fontSize={13} fontWeight={800}
+        transform={`rotate(-90 ${X(1300)} ${Y(832)})`}>Scrap wood</text>
+      <text x={X(1325)} y={Y(832)} textAnchor="middle" fill={INK} fontSize={8} fontWeight={700} letterSpacing={0.5}
+        className="font-mono" transform={`rotate(-90 ${X(1325)} ${Y(832)})`}>UNDER DISPLAY RACK</text>
+      <Box x1={1160} y1={995} x2={1345} y2={1100} label="Bolts & nuts" />
       {/* Right wall: craft supplies, the lasercutters and their PCs */}
       <Box x1={1665} y1={540} x2={1783} y2={660} label="Craft" sub="SUPPLIES" fill={PAPER} />
       <Box x1={1680} y1={668} x2={1783} y2={735} label="Wood" sub="BIN" />
@@ -182,7 +182,7 @@ function FloorPlan() {
       <Mark x={815} y={532} n="€" outline />
       <Mark x={1380} y={532} n="1" />
       <Mark x={1300} y={1135} n="2" />
-      <Mark x={1172} y={1000} n="3" />
+      <Mark x={1345} y={690} n="3" />
       <Mark x={272} y={730} n="4" />
       <Mark x={1665} y={540} n="5" />
     </svg>
