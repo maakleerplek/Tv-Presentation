@@ -91,7 +91,7 @@ export function Clock({ initialData }: { initialData?: ScreenData }) {
         <div className="text-6xl font-black tracking-tighter text-[#2C1E16]">
           {timeStr}
         </div>
-        <div className="text-[#2C1E16] mt-2 font-black uppercase tracking-widest text-sm text-center">
+        <div className="text-[#2C1E16] mt-2 font-black uppercase tracking-widest text-xl text-center">
           {dateStr}
         </div>
 
@@ -99,7 +99,7 @@ export function Clock({ initialData }: { initialData?: ScreenData }) {
         {warningActive && !showFlash && minsLeft !== null && endTime && (
           <div className="mt-2 flex items-center gap-1.5 bg-red-500 text-white px-2.5 py-1 border-2 border-[#2C1E16]">
             <AlertTriangle className="w-3 h-3 shrink-0" />
-            <span className="font-black uppercase text-[10px] tracking-widest leading-none">
+            <span className="font-black uppercase text-xs tracking-widest leading-none">
               Sluit {minsLeft <= 1 ? 'nu' : `over ${minsLeft} min`} — {endTime.toLocaleTimeString('nl-BE', { hour: '2-digit', minute: '2-digit' })}
             </span>
           </div>

@@ -1,7 +1,7 @@
 'use client';
 
 import React from 'react';
-import { Coffee, Tag, MapPin, CheckCircle2, XCircle, Undo2, ShoppingCart, HandHeart, Plus, Minus, RotateCcw, Sparkles, ChevronLeft, ChevronRight, Pause } from 'lucide-react';
+import { Info, Tag, MapPin, CheckCircle2, XCircle, Undo2, ShoppingCart, HandHeart, Plus, Minus, RotateCcw, Sparkles, ChevronLeft, ChevronRight, Pause } from 'lucide-react';
 
 import QRCode from 'react-qr-code';
 import { useScreenData } from '@/hooks/useScreenData';
@@ -21,23 +21,23 @@ function HeaderRow({ category, location }: { category?: string | null; location?
       {/* Row 1: category + location tags — always rendered so all columns stay vertically aligned */}
       <div className="flex items-center gap-1.5 mb-0.5 min-h-[1rem]">
         {category && (
-          <span className="flex items-center gap-1 text-[10px] font-black uppercase tracking-widest text-[#2C1E16]">
-            <Tag className="w-2.5 h-2.5 shrink-0" />{category}
+          <span className="flex items-center gap-1 text-sm font-black uppercase tracking-widest text-[#2C1E16]">
+            <Tag className="w-3.5 h-3.5 shrink-0" />{category}
           </span>
         )}
         {location && (
-          <span className="flex items-center gap-1 text-[9px] font-bold uppercase tracking-wider text-[#2C1E16]/50">
-            <MapPin className="w-2.5 h-2.5 shrink-0" />{location}
+          <span className="flex items-center gap-1 text-sm font-black uppercase tracking-wider text-[#2C1E16]">
+            <MapPin className="w-3.5 h-3.5 shrink-0" />{location}
           </span>
         )}
       </div>
       {/* Row 2: column headers — always show Item aligned with Stock/Prijs/Scan */}
       <div className="grid grid-cols-[48px_1fr_auto_auto_52px] gap-1.5 items-end">
         <div />
-        <span className="text-[10px] text-[#2C1E16] font-black uppercase text-center">Item</span>
-        <span className="text-[10px] text-[#2C1E16] font-black uppercase text-center w-8">Stock</span>
-        <span className="text-[10px] text-[#2C1E16] font-black uppercase text-right w-10">Prijs</span>
-        <span className="text-[10px] text-[#2C1E16] font-black uppercase text-center">Scan</span>
+        <span className="text-xs text-[#2C1E16] font-black uppercase text-center">Item</span>
+        <span className="text-xs text-[#2C1E16] font-black uppercase text-center w-11">Stock</span>
+        <span className="text-xs text-[#2C1E16] font-black uppercase text-right w-12">Prijs</span>
+        <span className="text-xs text-[#2C1E16] font-black uppercase text-center">Scan</span>
       </div>
     </div>
   );
@@ -70,7 +70,7 @@ function DrinkRow({ drink }: { drink: DrinkWithChange }) {
       <span className="text-xs text-[#2C1E16] font-bold uppercase leading-tight text-center break-words min-w-0 self-center line-clamp-2">
         {drink.name}
       </span>
-      <span className="w-8 flex justify-center">
+      <span className="w-11 flex justify-center">
         <span
           className={`text-xs font-black leading-none ${
             drink._change === 'decreased' ? 'text-green-700' :
@@ -81,7 +81,7 @@ function DrinkRow({ drink }: { drink: DrinkWithChange }) {
           {drink.stock === Infinity ? '∞' : drink.stock}
         </span>
       </span>
-      <span className="text-xs font-black text-[#2C1E16] text-right w-10 leading-none">{drink.price}</span>
+      <span className="text-xs font-black text-[#2C1E16] text-right w-12 leading-none">{drink.price}</span>
       <div className="flex items-center justify-center">
         {qrValue ? (
           <div className="border-2 border-[#2C1E16] p-0.5 bg-white">
@@ -281,24 +281,24 @@ function ChangelogPanel({ entries }: { entries: ChangelogEntry[] }) {
   if (entries.length === 0) {
     return (
       <div className="flex flex-col min-w-0 flex-1 pr-4">
-        <span className="text-xs font-black uppercase tracking-widest text-[#2C1E16]/40">Recent activity</span>
+        <span className="text-sm font-black uppercase tracking-widest text-[#2C1E16]">Recent activity</span>
       </div>
     );
   }
 
   return (
     <div className="flex flex-col min-w-0 flex-1 pr-4">
-      <span className="text-[10px] font-black uppercase tracking-widest text-[#2C1E16]/50 mb-0.5">Recent activity</span>
-      {entries.slice(0, 12).map((entry) => {
+      <span className="text-sm font-black uppercase tracking-widest text-[#2C1E16] mb-0.5">Recent activity</span>
+      {entries.slice(0, 9).map((entry) => {
         const Icon = ACTION_ICONS[entry.action] ?? ShoppingCart;
         const color = ACTION_COLORS[entry.action] ?? '#2C1E16';
         return (
           <div key={entry.id} className="flex items-center gap-1.5 min-w-0">
-            <Icon className="w-3 h-3 shrink-0" style={{ color }} />
-            <span className="text-xs font-bold text-[#2C1E16] truncate">
+            <Icon className="w-4 h-4 shrink-0" style={{ color }} />
+            <span className="text-sm font-bold text-[#2C1E16] truncate">
               {formatEntryLine(entry)}
             </span>
-            <span className="text-[10px] text-[#2C1E16]/40 shrink-0 ml-auto whitespace-nowrap">
+            <span className="text-xs font-bold text-[#2C1E16] shrink-0 ml-auto whitespace-nowrap">
               {formatRelativeTime(entry.created_at)}
             </span>
           </div>
@@ -363,15 +363,14 @@ export function DrinksList({ initialData }: { initialData?: ScreenData }) {
     <div className="flex-1 bg-[#F5F2EB] flex flex-col h-full overflow-hidden relative">
 
       <div className="p-2 border-b-2 border-[#2C1E16] bg-[#C8A98B] shrink-0">
-        <h2 className="text-[#2C1E16] uppercase tracking-widest text-xs font-black flex items-center justify-center gap-2">
-          <Coffee className="w-4 h-4" /> Inventory
-          <span className="flex items-center gap-1 text-[#2C1E16]/70">
-            · {shown.info ? 'Info' : `${pageIndex + 1}/${pages.length}`}
-            {!tvPage.cycling && <Pause className="w-3 h-3" />}
-          </span>
+        <h2 className="text-[#2C1E16] uppercase tracking-widest text-xl font-black flex items-center justify-center gap-2">
+          {shown.info
+            ? <><Info className="w-5 h-5" /> Welcome to the High Tech Lab</>
+            : <><ShoppingCart className="w-5 h-5" /> For sale · {pageIndex + 1}/{pages.length}</>}
+          {!tvPage.cycling && <Pause className="w-4 h-4" />}
         </h2>
-        <p className="text-[#2C1E16]/60 text-[9px] font-bold uppercase tracking-wider text-center mt-0.5">
-          Scan QR codes with scanner right of the TV
+        <p className="text-[#2C1E16] text-sm font-black uppercase tracking-wider text-center mt-0.5">
+          {shown.info ? 'Where everything is and how to buy it' : 'Scan the QR code with the scanner right of the TV'}
         </p>
       </div>
 
@@ -425,8 +424,8 @@ export function DrinksList({ initialData }: { initialData?: ScreenData }) {
                 <div className="border-2 border-[#2C1E16] p-1 bg-white shadow-[2px_2px_0_0_#2C1E16]">
                   <QRCode value={ctrl.data} size={60} bgColor="#FFFFFF" fgColor="#2C1E16" />
                 </div>
-                <span className="text-[9px] font-black uppercase tracking-tight flex items-center gap-1">
-                  <ctrl.icon className="w-2.5 h-2.5" style={{ color: ctrl.color }} /> {ctrl.label}
+                <span className="text-xs font-black uppercase tracking-tight flex items-center gap-1">
+                  <ctrl.icon className="w-3.5 h-3.5" style={{ color: ctrl.color }} /> {ctrl.label}
                 </span>
               </div>
             ))}
@@ -436,8 +435,8 @@ export function DrinksList({ initialData }: { initialData?: ScreenData }) {
             <div className="border-2 border-[#2C1E16] p-0.5 bg-white shadow-[2px_2px_0_0_#2C1E16]">
               <QRCode value="VOLUNTEER" size={34} bgColor="#FFFFFF" fgColor="#2C1E16" />
             </div>
-            <span className="text-[9px] font-black uppercase tracking-tight flex items-center gap-1">
-              <HandHeart className="w-2.5 h-2.5" style={{ color: '#A855F7' }} /> Volunteer
+            <span className="text-xs font-black uppercase tracking-tight flex items-center gap-1">
+              <HandHeart className="w-3.5 h-3.5" style={{ color: '#A855F7' }} /> Volunteer
             </span>
           </div>
         </div>

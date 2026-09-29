@@ -1,6 +1,6 @@
 # Data-Fetcher
 
-Node.js/Express service that aggregates all external data for the TV presentation: calendar events, news articles, drinks inventory, and wiki pricing. The Next.js frontend polls this service rather than hitting external sources directly.
+Node.js/Express service that aggregates all external data for the TV presentation: calendar events, news articles, drinks inventory, and machine prices from InvenTree. The Next.js frontend polls this service rather than hitting external sources directly.
 
 ## Running locally
 
@@ -31,7 +31,7 @@ scrapers/
   calendar.js      WP REST API → upcoming events with images
   news.js          HTML scraper → recent news articles from /nl/verhalen
   drinks.js        Inventree REST API → current drinks/snacks inventory
-  pricing.js       HTML scraper → machine & membership pricing from the wiki
+  pricing.js       InvenTree → machine usage prices
 ```
 
 ---
@@ -53,7 +53,7 @@ The main endpoint. Calls all four scrapers concurrently and returns the full pay
     "tipsTransitionTime": 60,
     "statusRotationTime": 10,
     "paymentQrUrl": "...",
-    "wikiQrUrl": "...",
+    "stockQrUrl": "...",
     "eventPriority": ["open (high tech) lab", "repair"],
     "tips": ["Ruim je werkplek op..."],
     "websiteQrUrl": "https://maakleerplek.be"
@@ -144,19 +144,13 @@ Fetches live stock from an [InvenTree](https://inventree.readthedocs.io/) instan
 
 ---
 
-### `scrapers/pricing.js` — `scrapeWikiPricing()`
+### `scrapers/pricing.js` — `fetchMachinePricing()`
 
-Scrapes machine usage and membership pricing from the wiki (`WIKI_PRICING_URL`).
+Reads the machine usage prices from InvenTree. Every machine is a virtual part in the category `INVENTREE_MACHINE_CATEGORY` (default `Machinegebruik`):
+- the sale price break at quantity 1 is the price per unit (the part's `units`, e.g. `min` or `g`);
+- the parameter `Minimum` is the least a job costs.
 
-**How it works:**
-1. Fetches the wiki page and walks every `<h1>`–`<h4>` heading.
-2. Matches headings against `SECTION_MAP` keywords to identify sections (memberships, equipment, materials, workshops).
-3. Calls `extractEntriesUnderHeading()` which walks the siblings of the heading until the next heading, collecting entries from `<ul>`, `<table>`, and `<details>` (accordion) elements.
-4. `parseEntries()` handles two table layouts:
-   - **Grid tables** (e.g. MDF sheet prices with dimension columns): expands into `rowLabel (colHeader) → price` pairs.
-   - **Standard key-value tables**: column 0 = name, column 1 = price.
-   - **Lists**: splits each `<li>` on `:`, `-`, `–`, or `€`.
-5. Deduplicates entries by name within each section.
+Only `equipment` is filled; `memberships`, `materials` and `workshops` stay empty. `scripts/seed-machine-pricing.js` creates the category and parts (`docker exec tv-data-fetcher node scripts/seed-machine-pricing.js`).
 
 **Caching:** 15-minute cache.
 
@@ -226,7 +220,7 @@ Single source of truth for all environment variables. Nothing here makes network
 | `TIPS_TRANSITION_TIME` | `TIPS_TRANSITION_TIME` | 10 s | Seconds per footer tip |
 | `STATUS_ROTATION_TIME` | `STATUS_ROTATION_TIME` | 10 s | Status panel rotation speed |
 | `PAYMENT_QR_URL` | `PAYMENT_QR_URL` | `""` | Payment QR code URL |
-| `WIKI_QR_URL` | `WIKI_QR_URL` | `https://wiki…` | Wiki QR code URL |
+| `STOCK_QR_URL` | `STOCK_QR_URL` | `https://stock.int.maakleerplek.be` | Stock-app QR code URL |
 | `TIPS` | `TIP_1`, `TIP_2`, … | `[]` | Footer tips (stops at first missing number) |
 | `INVENTREE_URL` | `INVENTREE_URL` | `http://10.72.1.246` | InvenTree base URL |
 | `INVENTREE_TOKEN` | `INVENTREE_TOKEN` | — | InvenTree API token |
