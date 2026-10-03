@@ -55,7 +55,6 @@ export async function GET(request: NextRequest) {
     const xCache = dataFetcherRes.headers.get('x-cache') ?? 'MISS';
     const buffer = await dataFetcherRes.arrayBuffer();
     const contentType = dataFetcherRes.headers.get('content-type') || 'image/jpeg';
-    console.log(`[proxy-image] ${xCache} ${url.split('/').pop()?.split('?')[0]} (${Math.round(buffer.byteLength / 1024)}kb)`);
 
     return new NextResponse(buffer, {
         status: 200,

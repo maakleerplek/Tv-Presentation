@@ -151,7 +151,7 @@ async function fetchMonth(month) {
     const url = `${CALENDAR_URL}?view=month&month=${month}`;
     for (let attempt = 0; attempt < 2; attempt++) {
         try {
-            const res = await fetch(url, { headers: { 'User-Agent': USER_AGENT } });
+            const res = await fetch(url, { headers: { 'User-Agent': USER_AGENT }, signal: AbortSignal.timeout(10_000) });
             if (res.ok) return { month, occurrences: parseAgendaMonth(await res.text()), ok: true };
             if (res.status < 500) break; // 4xx won't improve with a retry
         } catch (err) {

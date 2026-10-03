@@ -53,6 +53,7 @@ async function translateWithLibreTranslate(
                 format: 'text',
             }),
             cache: 'no-store',
+            signal: AbortSignal.timeout(3000),
         });
         if (!res.ok) return null;
         const json = await res.json() as { translatedText?: string };
@@ -71,10 +72,12 @@ async function translateWithMyMemory(
         const langpair = `${sourceLang}|${targetLang}`;
         const res = await fetch(
             `https://api.mymemory.translated.net/get?q=${encodeURIComponent(text)}&langpair=${encodeURIComponent(langpair)}`,
-            { next: { revalidate: CACHE_REVALIDATE } }
+            { next: { revalidate: CACHE_REVALIDATE }, signal: AbortSignal.timeout(3000) }
         );
         if (!res.ok) return null;
-        const json = await res.json() as { responseData?: { translatedText?: string } };
+        // MyMemory answers a used-up quota with HTTP 200 and the warning as the "translation".
+        const json = await res.json() as { responseStatus?: number | string; responseData?: { translatedText?: string } };
+        if (Number(json.responseStatus) !== 200) return null;
         return json.responseData?.translatedText?.trim() || null;
     } catch {
         return null;
@@ -94,8 +97,10 @@ async function translateText(text: string | null | undefined): Promise<string> {
     // Keep free providers responsive by avoiding very long payloads.
     const bounded = source.slice(0, 900);
     const libre = await translateWithLibreTranslate(bounded, TRANSLATION_SOURCE_LANG, TRANSLATION_TARGET_LANG);
-    const translated = libre || await translateWithMyMemory(bounded, TRANSLATION_SOURCE_LANG, TRANSLATION_TARGET_LANG) || source;
+    const translated = libre || await translateWithMyMemory(bounded, TRANSLATION_SOURCE_LANG, TRANSLATION_TARGET_LANG);
+    if (!translated) return source;   // not cached: try again next time
 
+    if (translationCache.size > 500) translationCache.clear();
     translationCache.set(cacheKey, translated);
     return translated;
 }

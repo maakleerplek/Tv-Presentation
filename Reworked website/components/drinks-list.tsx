@@ -43,7 +43,14 @@ function HeaderRow({ category, location }: { category?: string | null; location?
   );
 }
 
-function DrinkRow({ drink }: { drink: DrinkWithChange }) {
+/** Polls hand out new objects every 3 s; only redraw a row (and its QR) when what it shows changed. */
+function sameRow(a: { drink: DrinkWithChange }, b: { drink: DrinkWithChange }) {
+  const x = a.drink, y = b.drink;
+  return x.name === y.name && x.imageUrl === y.imageUrl && x.stock === y.stock && x.price === y.price
+    && x.barcode === y.barcode && x.IPN === y.IPN && x._change === y._change;
+}
+
+const DrinkRow = React.memo(function DrinkRow({ drink }: { drink: DrinkWithChange }) {
   const qrValue = drink.barcode || drink.IPN || null;
   return (
     <div
@@ -59,6 +66,9 @@ function DrinkRow({ drink }: { drink: DrinkWithChange }) {
           <img
             src={drink.imageUrl}
             alt={drink.name}
+            width={48}
+            height={48}
+            decoding="async"
             className="absolute inset-0 w-full h-full object-cover"
           />
         ) : (
@@ -93,7 +103,9 @@ function DrinkRow({ drink }: { drink: DrinkWithChange }) {
       </div>
     </div>
   );
-}
+}, sameRow);
+
+const rowKey = (d: DrinkWithChange) => `${d.IPN || d.barcode || d.name}::${d.location ?? ''}`;
 
 // Starting estimates in px for one item row and one category header. The TV
 // replaces them with the heights it measures on screen, since fonts and QR
@@ -269,7 +281,7 @@ function formatEntryLine(entry: ChangelogEntry): string {
   return `From ${source}: ${verb} ${entry.quantity}× ${entry.item_name}${price}`;
 }
 
-function ChangelogPanel({ entries }: { entries: ChangelogEntry[] }) {
+const ChangelogPanel = React.memo(function ChangelogPanel({ entries }: { entries: ChangelogEntry[] }) {
   const [, setTick] = React.useState(0);
 
   // Re-render every 30s so relative timestamps stay fresh
@@ -306,10 +318,47 @@ function ChangelogPanel({ entries }: { entries: ChangelogEntry[] }) {
       })}
     </div>
   );
-}
+});
+
+const CONTROLS = [
+  { label: 'Confirm', data: 'CONFIRM', icon: CheckCircle2, color: '#22C55E' },
+  { label: 'Cancel', data: 'CANCEL', icon: XCircle, color: '#EF4444' },
+  { label: 'Undo (Remove)', data: 'REMOVE', icon: Undo2, color: '#F59E0B' },
+  { label: 'Prev page', data: 'PAGE-PREV', icon: ChevronLeft, color: '#2C1E16' },
+  { label: 'Next page', data: 'PAGE-NEXT', icon: ChevronRight, color: '#2C1E16' },
+];
+
+/** Never changes, so it renders once instead of re-encoding six QR codes on every update. */
+const ControlBarcodes = React.memo(function ControlBarcodes() {
+  return (
+    <div className="flex flex-col items-center gap-1.5 shrink-0">
+      <div className="flex flex-row items-center gap-5">
+        {CONTROLS.map((ctrl) => (
+          <div key={ctrl.label} className="flex flex-col items-center gap-0.5">
+            <div className="border-2 border-[#2C1E16] p-1 bg-white shadow-[2px_2px_0_0_#2C1E16]">
+              <QRCode value={ctrl.data} size={60} bgColor="#FFFFFF" fgColor="#2C1E16" />
+            </div>
+            <span className="text-xs font-black uppercase tracking-tight flex items-center gap-1">
+              <ctrl.icon className="w-3.5 h-3.5" style={{ color: ctrl.color }} /> {ctrl.label}
+            </span>
+          </div>
+        ))}
+      </div>
+      {/* Volunteer drink: smaller and set apart, it is not a customer action */}
+      <div className="flex flex-row items-center gap-1.5">
+        <div className="border-2 border-[#2C1E16] p-0.5 bg-white shadow-[2px_2px_0_0_#2C1E16]">
+          <QRCode value="VOLUNTEER" size={34} bgColor="#FFFFFF" fgColor="#2C1E16" />
+        </div>
+        <span className="text-xs font-black uppercase tracking-tight flex items-center gap-1">
+          <HandHeart className="w-3.5 h-3.5" style={{ color: '#A855F7' }} /> Volunteer
+        </span>
+      </div>
+    </div>
+  );
+});
 
 export function DrinksList({ initialData }: { initialData?: ScreenData }) {
-  const { data, loading, error } = useScreenData(initialData);
+  const { data, loading } = useScreenData(initialData);
   const drinks = useDrinksData(initialData?.drinks);
   const changelog = useChangelog();
   const tvPage = useTvPage();
@@ -338,6 +387,11 @@ export function DrinksList({ initialData }: { initialData?: ScreenData }) {
     setSizes(prev => (prev.rowPx === row && prev.headerPx === header ? prev : { rowPx: row, headerPx: header }));
   }, [tvPage.page, loading, drinks.length]);
 
+  const pages = React.useMemo(
+    () => buildPages(groupDrinks(drinks, categoryOrder), areaPx ?? FALLBACK_AREA_PX, sizes),
+    [drinks, categoryOrder, areaPx, sizes],
+  );
+
   if (loading) {
     return (
       <div className="flex-1 bg-[#F5F2EB] flex flex-col items-center justify-center p-6 h-full border-l-2 border-[#2C1E16]">
@@ -346,7 +400,7 @@ export function DrinksList({ initialData }: { initialData?: ScreenData }) {
     );
   }
 
-  if (error || !data) {
+  if (!data) {   // a failed poll keeps the last data on screen
     return (
       <div className="flex-1 bg-[#F5F2EB] flex flex-col items-center justify-center p-6 h-full border-l-2 border-[#2C1E16]">
         <p className="text-red-600 font-bold uppercase">Error loading drinks</p>
@@ -354,7 +408,6 @@ export function DrinksList({ initialData }: { initialData?: ScreenData }) {
     );
   }
 
-  const pages = buildPages(groupDrinks(drinks, categoryOrder), areaPx ?? FALLBACK_AREA_PX, sizes);
   const shown = pickPage(tvPage.page, pages.length, tvPage.busy);
   const pageIndex = shown.index;
   const page = shown.info ? [] : pages[pageIndex] ?? [];
@@ -390,15 +443,15 @@ export function DrinksList({ initialData }: { initialData?: ScreenData }) {
               <div key={si} className="grid grid-cols-3 gap-x-3">
                 <div className="flex flex-col gap-0">
                   <HeaderRow category={category} location={sec.location} />
-                  {col1.map((drink, idx) => <DrinkRow key={idx} drink={drink} />)}
+                  {col1.map((drink) => <DrinkRow key={rowKey(drink)} drink={drink} />)}
                 </div>
                 <div className="flex flex-col gap-0">
                   {col2.length > 0 && <HeaderRow />}
-                  {col2.map((drink, idx) => <DrinkRow key={idx} drink={drink} />)}
+                  {col2.map((drink) => <DrinkRow key={rowKey(drink)} drink={drink} />)}
                 </div>
                 <div className="flex flex-col gap-0">
                   {col3.length > 0 && <HeaderRow />}
-                  {col3.map((drink, idx) => <DrinkRow key={idx} drink={drink} />)}
+                  {col3.map((drink) => <DrinkRow key={rowKey(drink)} drink={drink} />)}
                 </div>
               </div>
             );
@@ -411,35 +464,7 @@ export function DrinksList({ initialData }: { initialData?: ScreenData }) {
       {/* Control Barcodes + Changelog */}
       <div className="px-3 py-1.5 border-t-2 border-[#2C1E16] bg-[#F5F2EB] flex flex-row items-center gap-4 shrink-0">
         <ChangelogPanel entries={changelog} />
-        <div className="flex flex-col items-center gap-1.5 shrink-0">
-          <div className="flex flex-row items-center gap-5">
-            {[
-              { label: 'Confirm', data: 'CONFIRM', icon: CheckCircle2, color: '#22C55E' },
-              { label: 'Cancel', data: 'CANCEL', icon: XCircle, color: '#EF4444' },
-              { label: 'Undo (Remove)', data: 'REMOVE', icon: Undo2, color: '#F59E0B' },
-              { label: 'Prev page', data: 'PAGE-PREV', icon: ChevronLeft, color: '#2C1E16' },
-              { label: 'Next page', data: 'PAGE-NEXT', icon: ChevronRight, color: '#2C1E16' },
-            ].map((ctrl) => (
-              <div key={ctrl.label} className="flex flex-col items-center gap-0.5">
-                <div className="border-2 border-[#2C1E16] p-1 bg-white shadow-[2px_2px_0_0_#2C1E16]">
-                  <QRCode value={ctrl.data} size={60} bgColor="#FFFFFF" fgColor="#2C1E16" />
-                </div>
-                <span className="text-xs font-black uppercase tracking-tight flex items-center gap-1">
-                  <ctrl.icon className="w-3.5 h-3.5" style={{ color: ctrl.color }} /> {ctrl.label}
-                </span>
-              </div>
-            ))}
-          </div>
-          {/* Volunteer drink: smaller and set apart, it is not a customer action */}
-          <div className="flex flex-row items-center gap-1.5">
-            <div className="border-2 border-[#2C1E16] p-0.5 bg-white shadow-[2px_2px_0_0_#2C1E16]">
-              <QRCode value="VOLUNTEER" size={34} bgColor="#FFFFFF" fgColor="#2C1E16" />
-            </div>
-            <span className="text-xs font-black uppercase tracking-tight flex items-center gap-1">
-              <HandHeart className="w-3.5 h-3.5" style={{ color: '#A855F7' }} /> Volunteer
-            </span>
-          </div>
-        </div>
+        <ControlBarcodes />
       </div>
     </div>
   );

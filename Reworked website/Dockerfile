@@ -4,9 +4,9 @@ FROM oven/bun:1 AS base
 FROM base AS deps
 WORKDIR /app
 
-# Install dependencies
-COPY package.json ./
-RUN bun install
+# Install dependencies, at the versions in the lockfile
+COPY package.json bun.lock ./
+RUN bun install --frozen-lockfile
 
 # Rebuild the source code only when needed
 FROM base AS builder
