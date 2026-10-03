@@ -20,6 +20,19 @@ let drinksCache = { data: null, timestamp: 0 };
 // Snapshot of the last known stock quantities: key → { stock, price }
 let previousSnapshot = null;
 
+// The crawl in progress. The TV, /api/screen-data and the admin preview poll at
+// the same time; without this each started its own crawl, and two crawls that
+// saw the same sale both reported it to the changelog.
+let inflight = null;
+
+// Part pk → category name. Reading every active part takes a while and
+// categories rarely change, so once per 15 minutes is enough.
+const CATEGORY_TTL_MS = 15 * 60 * 1000;
+let categoryCache = { byPart: new Map(), timestamp: 0 };
+
+// Parts already warned about for a missing sale price: once per part, not every 3 s.
+const warnedNoPrice = new Set();
+
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -69,13 +82,18 @@ export async function fetchAllPages(baseUrl, headers) {
  */
 async function fetchCategoryNames(partIds, headers) {
     if (partIds.length === 0) return new Map();
-    const wanted = new Set(partIds);
+    const fresh = Date.now() - categoryCache.timestamp < CATEGORY_TTL_MS;
+    if (fresh && partIds.every(id => categoryCache.byPart.has(id))) return categoryCache.byPart;
     try {
         const parts = await fetchAllPages(`${INVENTREE_URL}/api/part/?active=true`, headers);
-        return new Map(parts.filter(p => wanted.has(p.pk)).map(p => [p.pk, p.category_name || null]));
+        categoryCache = {
+            byPart: new Map(parts.map(p => [p.pk, p.category_name || null])),
+            timestamp: Date.now(),
+        };
     } catch {
-        return new Map();
+        // keep the last known categories
     }
+    return categoryCache.byPart;
 }
 
 /**
@@ -87,14 +105,8 @@ async function fetchCategoryNames(partIds, headers) {
  */
 export async function fetchSalePrices(headers, base = INVENTREE_URL) {
     try {
-        const res = await fetchWithTimeout(
-            `${base}/api/part/sale-price/?limit=500`,
-            { headers },
-            10_000,
-        );
-        if (!res.ok) return new Map();
-        const data  = await res.json();
-        const rows  = Array.isArray(data) ? data : (data.results || []);
+        // All pages: past 500 price breaks the rest showed no price.
+        const rows  = await fetchAllPages(`${base}/api/part/sale-price/?`, headers);
         const best  = new Map();
         for (const b of rows) {
             const qty   = parseFloat(b.quantity);
@@ -122,7 +134,10 @@ function extractPrice(partDetail, salePrices) {
     // figures now that the selling price lives in the sale price break, and
     // showing a cost as a price is worse than showing nothing, because it
     // looks right. A dash is visibly missing.
-    console.warn(`[Drinks] No sale price for part ${partDetail.pk} (${partDetail.name})`);
+    if (!warnedNoPrice.has(partDetail.pk)) {
+        warnedNoPrice.add(partDetail.pk);
+        console.warn(`[Drinks] No sale price for part ${partDetail.pk} (${partDetail.name})`);
+    }
     if (partDetail.description &&
         partDetail.description.toLowerCase() !== partDetail.name.toLowerCase()) {
         return partDetail.description;
@@ -134,7 +149,9 @@ function extractPrice(partDetail, salePrices) {
  * Build a proxied image URL so the frontend doesn't need to hold an Inventree token.
  */
 function buildProxiedImageUrl(partDetail) {
-    const imgSource = partDetail.thumbnail || partDetail.image;
+    // Thumbnail only: the TV shows a 48 px box, and a full-size phone photo
+    // decodes to tens of MB in the Pi's renderer. No thumbnail → name instead.
+    const imgSource = partDetail.thumbnail;
     if (!imgSource) return null;
 
     const fullUrl = imgSource.startsWith('/')
@@ -155,13 +172,16 @@ function buildProxiedImageUrl(partDetail) {
  */
 export async function fetchDrinks() {
     if (isCacheValid(drinksCache, DRINKS_CACHE_DURATION_MS)) return drinksCache.data;
+    if (!inflight) inflight = crawlDrinks().finally(() => { inflight = null; });
+    return inflight;
+}
 
+async function crawlDrinks() {
     if (!INVENTREE_TOKEN) {
         console.warn('[Drinks] No INVENTREE_TOKEN configured');
         return [];
     }
 
-    console.log('[Drinks] Fetching from Inventree', INVENTREE_URL);
 
     try {
         const headers    = { 'Authorization': `Token ${INVENTREE_TOKEN}` };
@@ -175,7 +195,6 @@ export async function fetchDrinks() {
             headers,
         );
 
-        console.log('[Drinks] Found', stockItems.length, 'total stock items');
 
         // Selling prices, fetched once for the whole batch.
         const salePrices = await fetchSalePrices(headers);
@@ -228,7 +247,6 @@ export async function fetchDrinks() {
             return a.name.localeCompare(b.name);
         });
 
-        console.log(`[Drinks] Fetched ${drinks.length} unique items across all locations`);
 
         // Detect stock changes vs the previous snapshot and report to changelog.
         // Aggregate by name (same part at multiple locations sums to one entry),
@@ -267,6 +285,7 @@ export async function fetchDrinks() {
         return drinks;
     } catch (err) {
         console.error('[Drinks] Exception fetching drinks:', err.message);
-        return [];
+        // The last good list: an empty one made the whole inventory vanish from the TV.
+        return drinksCache.data ?? [];
     }
 }

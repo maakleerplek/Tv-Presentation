@@ -21,7 +21,7 @@ process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
 import { scrapeCalendar } from './scrapers/calendar.js';
 import { scrapeNews     } from './scrapers/news.js';
 import { fetchMachinePricing } from './scrapers/pricing.js';
-import { fetchDrinks    } from './scrapers/drinks.js';
+import { fetchDrinks, fetchWithTimeout } from './scrapers/drinks.js';
 import { categoriseEvents } from './categorise.js';
 import {
     MAAKLEERPLEK_URL,
@@ -123,19 +123,29 @@ app.get('/api/screen-data', async (_req, res) => {
 // ── Image proxy (keeps Inventree token server-side) ───────────────────────────
 
 // In-memory image cache: avoids re-fetching InvenTree on every Next.js optimizer request.
-// Entries expire after 1 hour; the Map is bounded to 200 entries (typical inventory size).
+// Entries expire after 1 hour; bounded to 200 entries and 30 MB in total.
 const IMAGE_CACHE_TTL_MS = 60 * 60 * 1000;
 const IMAGE_CACHE_MAX = 200;
+const IMAGE_CACHE_MAX_BYTES = 30 * 1024 * 1024;
 const imageCache = new Map(); // url → { buf, contentType, cachedAt }
+let imageCacheBytes = 0;
+
+/** Only InvenTree's own files: the request carries the InvenTree token. */
+function isInventreeUrl(url) {
+    try {
+        return new URL(url).origin === new URL(INVENTREE_URL).origin;
+    } catch {
+        return false;
+    }
+}
 
 app.get('/api/proxy-image', async (req, res) => {
     const targetUrl = req.query.url;
-    if (!targetUrl) return res.status(400).send('Missing url parameter');
+    if (!targetUrl || typeof targetUrl !== 'string') return res.status(400).send('Missing url parameter');
+    if (!isInventreeUrl(targetUrl)) return res.status(403).send('Only InvenTree images');
 
     const cached = imageCache.get(targetUrl);
     if (cached && (Date.now() - cached.cachedAt) < IMAGE_CACHE_TTL_MS) {
-        const age = Math.round((Date.now() - cached.cachedAt) / 1000);
-        console.log(`[Image Cache] HIT  ${targetUrl.split('/').pop()} (age ${age}s, ${imageCache.size} entries)`);
         res.setHeader('Content-Type', cached.contentType);
         res.setHeader('Cache-Control', 'public, max-age=3600');
         res.setHeader('X-Cache', 'HIT');
@@ -143,19 +153,25 @@ app.get('/api/proxy-image', async (req, res) => {
     }
 
     try {
-        const response = await fetch(targetUrl, {
+        const response = await fetchWithTimeout(targetUrl, {
             headers: { 'Authorization': `Token ${INVENTREE_TOKEN}` },
-        });
+        }, 5000);
         if (!response.ok) return res.status(response.status).send(`Failed to fetch image: ${response.status}`);
 
         const contentType = response.headers.get('content-type') || 'image/jpeg';
         const buf = Buffer.from(await response.arrayBuffer());
 
-        // Evict oldest entry if at capacity
-        if (imageCache.size >= IMAGE_CACHE_MAX) {
-            imageCache.delete(imageCache.keys().next().value);
+        // Evict the oldest entries until the new one fits
+        const old = imageCache.get(targetUrl);
+        if (old) { imageCacheBytes -= old.buf.length; imageCache.delete(targetUrl); }
+        while (imageCache.size > 0
+               && (imageCache.size >= IMAGE_CACHE_MAX || imageCacheBytes + buf.length > IMAGE_CACHE_MAX_BYTES)) {
+            const [k, v] = imageCache.entries().next().value;
+            imageCacheBytes -= v.buf.length;
+            imageCache.delete(k);
         }
         imageCache.set(targetUrl, { buf, contentType, cachedAt: Date.now() });
+        imageCacheBytes += buf.length;
         console.log(`[Image Cache] MISS ${targetUrl.split('/').pop()} (${Math.round(buf.length / 1024)}kb, ${imageCache.size} entries)`);
 
         res.setHeader('Content-Type', contentType);

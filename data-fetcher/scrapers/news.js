@@ -167,7 +167,7 @@ async function doFetch() {
 
     let items;
     try {
-        const response = await fetch(VERHALEN_URL, { headers: { 'User-Agent': USER_AGENT } });
+        const response = await fetch(VERHALEN_URL, { headers: { 'User-Agent': USER_AGENT }, signal: AbortSignal.timeout(10_000) });
         if (!response.ok) {
             console.error(`[News] Archive fetch failed: ${response.status}, skipping cache update`);
             return newsCache.data ?? [];

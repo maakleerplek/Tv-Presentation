@@ -1,9 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { initialState, navigate, reportKiosk, view, type TvState } from '@/lib/tv-state';
-
-const TICK_MS = 1_000;
+import { initialState, navigate, reportKiosk, view, CYCLE_MS, KIOSK_STALE_MS, type TvState } from '@/lib/tv-state';
 
 /**
  * Keys the Pi scanner presses in this browser (xdotool, see Interface-stock
@@ -39,10 +37,23 @@ export function useTvPage(): { page: number; cycling: boolean; busy: boolean } {
             setNow(t);
         }
         window.addEventListener('keydown', onKey);
-        const tick = setInterval(() => setNow(Date.now()), TICK_MS);
-        return () => { window.removeEventListener('keydown', onKey); clearInterval(tick); };
+        return () => window.removeEventListener('keydown', onKey);
     }, []);
 
     const v = view(state, now);
+
+    // Wake up only when the view can change: the next page swap while cycling,
+    // otherwise the end of a manual hold or of a silent busy kiosk. A 1 s tick
+    // re-rendered the whole inventory (and its QR codes) every second on the Pi.
+    useEffect(() => {
+        const t = Date.now();
+        const wakes = v.cycling
+            ? [t + CYCLE_MS - v.msIntoPage]
+            : [state.manualUntil, state.kioskBusy ? state.kioskSeenAt + KIOSK_STALE_MS : 0].filter(w => w > t);
+        if (wakes.length === 0) return;
+        const id = setTimeout(() => setNow(Date.now()), Math.max(50, Math.min(...wakes) - t));
+        return () => clearTimeout(id);
+    }, [state, now, v.cycling, v.msIntoPage]);
+
     return { page: v.page, cycling: v.cycling, busy: v.busy };
 }
