@@ -211,21 +211,18 @@ export function groupDrinks<T extends { location: string | null; category: strin
     || (a.location ?? '').localeCompare(b.location ?? ''));
 }
 
-const SOURCE_LABELS: Record<string, string> = {
-  'interface-stock': 'Barcode scanner',
-  'checkout': 'Self-checkout',
-  'volunteer-scanner': 'Volunteer',
-  'inventory-overview': 'Volunteer',
-  'inventree-sync': 'InvenTree',
+/** Where a sale happened. InvenTree-synced entries do not say, so they get nothing. */
+const SOURCE_PLACES: Record<string, string> = {
+  'interface-stock': 'kiosk',
+  'checkout': 'app',
 };
 
-const ACTION_VERBS: Record<string, string> = {
-  checkout: 'bought',
-  volunteer: 'volunteer drink:',
+const ACTION_DETAILS: Record<string, string> = {
+  volunteer: 'free volunteer drink',
   add: 'restocked',
   remove: 'removed',
-  set: 'set',
-  create: 'added',
+  set: 'stock set',
+  create: 'new item',
 };
 
 const ACTION_COLORS: Record<string, string> = {
@@ -274,11 +271,14 @@ export function formatRelativeTime(isoString: string): string {
   }
 }
 
-function formatEntryLine(entry: ChangelogEntry): string {
-  const source = SOURCE_LABELS[entry.source] ?? entry.source;
-  const verb = ACTION_VERBS[entry.action] ?? entry.action;
-  const price = entry.action === 'volunteer' ? ' (free)' : entry.price != null ? ` €${entry.price.toFixed(2)}` : '';
-  return `From ${source}: ${verb} ${entry.quantity}× ${entry.item_name}${price}`;
+/** "Duvel ×1" plus a short note: where it was bought and the price, or what happened. */
+export function formatEntryLine(entry: ChangelogEntry): { item: string; detail: string } {
+  const item = `${entry.item_name} ×${entry.quantity}`;
+  if (entry.action === 'checkout') {
+    const price = entry.price != null ? `€${entry.price.toFixed(2)}` : '';
+    return { item, detail: [SOURCE_PLACES[entry.source], price].filter(Boolean).join(' · ') };
+  }
+  return { item, detail: ACTION_DETAILS[entry.action] ?? entry.action };
 }
 
 const ChangelogPanel = React.memo(function ChangelogPanel({ entries }: { entries: ChangelogEntry[] }) {
@@ -304,12 +304,12 @@ const ChangelogPanel = React.memo(function ChangelogPanel({ entries }: { entries
       {entries.slice(0, 9).map((entry) => {
         const Icon = ACTION_ICONS[entry.action] ?? ShoppingCart;
         const color = ACTION_COLORS[entry.action] ?? '#2C1E16';
+        const { item, detail } = formatEntryLine(entry);
         return (
           <div key={entry.id} className="flex items-center gap-1.5 min-w-0">
             <Icon className="w-4 h-4 shrink-0" style={{ color }} />
-            <span className="text-sm font-bold text-[#2C1E16] truncate">
-              {formatEntryLine(entry)}
-            </span>
+            <span className="text-sm font-bold text-[#2C1E16] truncate">{item}</span>
+            {detail && <span className="text-xs font-bold text-[#2C1E16]/60 shrink-0 whitespace-nowrap">{detail}</span>}
             <span className="text-xs font-bold text-[#2C1E16] shrink-0 ml-auto whitespace-nowrap">
               {formatRelativeTime(entry.created_at)}
             </span>
@@ -324,8 +324,13 @@ const CONTROLS = [
   { label: 'Confirm', data: 'CONFIRM', icon: CheckCircle2, color: '#22C55E' },
   { label: 'Cancel', data: 'CANCEL', icon: XCircle, color: '#EF4444' },
   { label: 'Undo (Remove)', data: 'REMOVE', icon: Undo2, color: '#F59E0B' },
+];
+
+/** Page turning and the volunteer drink: smaller, they are not the checkout itself. */
+const SMALL_CONTROLS = [
   { label: 'Prev page', data: 'PAGE-PREV', icon: ChevronLeft, color: '#2C1E16' },
   { label: 'Next page', data: 'PAGE-NEXT', icon: ChevronRight, color: '#2C1E16' },
+  { label: 'Volunteer', data: 'VOLUNTEER', icon: HandHeart, color: '#A855F7' },
 ];
 
 /** Never changes, so it renders once instead of re-encoding six QR codes on every update. */
@@ -344,14 +349,17 @@ const ControlBarcodes = React.memo(function ControlBarcodes() {
           </div>
         ))}
       </div>
-      {/* Volunteer drink: smaller and set apart, it is not a customer action */}
-      <div className="flex flex-row items-center gap-1.5">
-        <div className="border-2 border-[#2C1E16] p-0.5 bg-white shadow-[2px_2px_0_0_#2C1E16]">
-          <QRCode value="VOLUNTEER" size={34} bgColor="#FFFFFF" fgColor="#2C1E16" />
-        </div>
-        <span className="text-xs font-black uppercase tracking-tight flex items-center gap-1">
-          <HandHeart className="w-3.5 h-3.5" style={{ color: '#A855F7' }} /> Volunteer
-        </span>
+      <div className="flex flex-row items-center gap-4">
+        {SMALL_CONTROLS.map((ctrl) => (
+          <div key={ctrl.label} className="flex flex-row items-center gap-1.5">
+            <div className="border-2 border-[#2C1E16] p-0.5 bg-white shadow-[2px_2px_0_0_#2C1E16]">
+              <QRCode value={ctrl.data} size={34} bgColor="#FFFFFF" fgColor="#2C1E16" />
+            </div>
+            <span className="text-xs font-black uppercase tracking-tight flex items-center gap-1">
+              <ctrl.icon className="w-3.5 h-3.5" style={{ color: ctrl.color }} /> {ctrl.label}
+            </span>
+          </div>
+        ))}
       </div>
     </div>
   );
