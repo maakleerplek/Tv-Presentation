@@ -31,11 +31,16 @@ export function Clock({ initialData }: { initialData?: ScreenData }) {
   // Key identifying the warning so we only flash once per event-end
   const flashedForRef = useRef<string | null>(null);
 
+  // The panel shows hours and minutes: wake up on the minute, not every second.
   useEffect(() => {
-    const tick = () => setNow(new Date());
+    let timer: ReturnType<typeof setTimeout>;
+    const tick = () => {
+      const d = new Date();
+      setNow(d);
+      timer = setTimeout(tick, 60_000 - (d.getSeconds() * 1000 + d.getMilliseconds()) + 50);
+    };
     tick();
-    const timer = setInterval(tick, 1000);
-    return () => clearInterval(timer);
+    return () => clearTimeout(timer);
   }, []);
 
   const activeEvent = useMemo(() => resolveEvent(data, now ?? undefined), [data, now]);
@@ -72,14 +77,17 @@ export function Clock({ initialData }: { initialData?: ScreenData }) {
       {showFlash && (
         <div
           className="fixed inset-0 z-[9999] flex flex-col items-center justify-center pointer-events-none"
-          style={{ animation: `closing-flash ${FLASH_SECONDS}s ease-in-out forwards` }}
         >
-          <div style={{ animation: `flash-text-in ${FLASH_SECONDS}s ease-in-out forwards` }} className="text-center px-8">
-            <AlertTriangle className="w-24 h-24 text-white mx-auto mb-6 drop-shadow-lg" />
-            <p className="text-white font-black uppercase tracking-widest text-5xl leading-tight drop-shadow-lg">
+          <div
+            className="absolute inset-0 bg-[rgb(239,68,68)]"
+            style={{ animation: `closing-flash ${FLASH_SECONDS}s ease-in-out forwards` }}
+          />
+          <div style={{ animation: `flash-text-in ${FLASH_SECONDS}s ease-in-out forwards` }} className="relative text-center px-8">
+            <AlertTriangle className="w-24 h-24 text-white mx-auto mb-6" />
+            <p className="text-white font-black uppercase tracking-widest text-5xl leading-tight">
               {activeEvent?.title ?? 'Evenement'}
             </p>
-            <p className="text-white font-black uppercase tracking-widest text-3xl mt-4 drop-shadow-lg opacity-90">
+            <p className="text-white font-black uppercase tracking-widest text-3xl mt-4 opacity-90">
               Eindigt over {minsLeft} min — {endTime?.toLocaleTimeString('nl-BE', { hour: '2-digit', minute: '2-digit' })}
             </p>
           </div>

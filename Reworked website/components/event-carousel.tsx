@@ -46,7 +46,7 @@ type CarouselDecoration = {
 type CarouselItem = (CalendarEvent | NewsItem) & CarouselDecoration;
 
 export function EventCarousel({ initialData }: { initialData?: ScreenData }) {
-  const { data, loading, error } = useScreenData(initialData);
+  const { data, loading } = useScreenData(initialData);
   const transitionTime = data?.config?.transitionTime ?? 15;
   const [currentIndex, setCurrentIndex] = useState(0);
   // 'cover' = fill cleanly, 'contain' = show full image (bars visible but needed)
@@ -93,25 +93,14 @@ export function EventCarousel({ initialData }: { initialData?: ScreenData }) {
     return () => ro.disconnect();
   }, [updateClamp]);
 
-  // Width / height of each image, learned when it loads (or is preloaded), so
-  // the frame can take the image's own shape; see imageFrameAspect().
+  // Width / height of each image, learned when it loads, so the frame can take
+  // the image's own shape; see imageFrameAspect().
   const [aspects, setAspects] = useState<Record<string, number>>({});
   const rememberAspect = useCallback((url: string, w: number, h: number) => {
     if (!w || !h) return;
-    setAspects(prev => (prev[url] ? prev : { ...prev, [url]: w / h }));
+    // Start over past 100 entries: the map otherwise grows with every image ever shown.
+    setAspects(prev => (prev[url] ? prev : { ...(Object.keys(prev).length > 100 ? {} : prev), [url]: w / h }));
   }, []);
-
-  // Preload the next slide's image into the browser cache while the current one is showing
-  useEffect(() => {
-    if (carouselItems.length < 2) return;
-    const nextIndex = (currentIndex + 1) % carouselItems.length;
-    let url = carouselItems[nextIndex]?.imageUrl || '';
-    if (url.startsWith('/')) url = `https://maakleerplek.be${url}`;
-    if (!url) return;
-    const img = new window.Image();
-    img.onload = () => rememberAspect(url, img.naturalWidth, img.naturalHeight);
-    img.src = url;
-  }, [currentIndex, carouselItems, rememberAspect]);
 
   // Use a simple ticker state to force CSS transition restart
   const [progressKey, setProgressKey] = useState(0);
@@ -133,7 +122,7 @@ export function EventCarousel({ initialData }: { initialData?: ScreenData }) {
     );
   }
 
-  if (error || carouselItems.length === 0) {
+  if (carouselItems.length === 0) {
     return (
       <div className="flex-1 relative flex flex-col bg-[#F5F2EB] items-center justify-center">
         <p className="text-[#2C1E16] font-black tracking-widest uppercase">Geen evenementen beschikbaar</p>
@@ -198,7 +187,6 @@ export function EventCarousel({ initialData }: { initialData?: ScreenData }) {
                   fill
                   sizes="(min-width: 1280px) 720px, 50vw"
                   quality={55}
-                  priority
                   onLoad={e => rememberAspect(displayImage, e.currentTarget.naturalWidth, e.currentTarget.naturalHeight)}
                   className="relative z-10 w-full h-full object-cover object-center"
                 />

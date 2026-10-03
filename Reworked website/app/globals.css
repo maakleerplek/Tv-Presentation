@@ -43,11 +43,13 @@
 }
 
 /* Closing flash */
+/* A solid red layer that only fades: animating background repainted the
+   whole 1920x1080 screen every frame on the Pi. */
 @keyframes closing-flash {
-  0%   { background: rgba(239,68,68,0); }
-  10%  { background: rgba(239,68,68,0.92); }
-  75%  { background: rgba(239,68,68,0.88); }
-  100% { background: rgba(239,68,68,0); }
+  0%   { opacity: 0; }
+  10%  { opacity: 0.92; }
+  75%  { opacity: 0.88; }
+  100% { opacity: 0; }
 }
 @keyframes flash-text-in {
   0%   { opacity: 0; transform: scale(0.85); }

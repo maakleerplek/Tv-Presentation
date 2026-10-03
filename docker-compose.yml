@@ -14,6 +14,7 @@ services:
       - "${HOST_PORT:-8083}:8083"
     depends_on:
       - frontend
+    mem_limit: 64m
 
   # ===== Next.js Frontend (Reworked Website) =====
   frontend:
@@ -34,6 +35,8 @@ services:
       # writable layer, and every `up --build` throws all of it away.
       - tv-db:/app/data
     # No ports exposed to the host — only nginx can reach this on the internal Docker network
+    # The server has 3 GB for every stack: a runaway container may not take the rest.
+    mem_limit: 768m
 
   # ===== Data Fetcher Backend (Node.js Scraper) =====
   data-fetcher:
@@ -44,8 +47,11 @@ services:
     restart: unless-stopped
     env_file:
       - .env
+    # Localhost only: the API needs no outside callers, and its image proxy
+    # talks to InvenTree with the token.
     ports:
-      - "8085:8080"
+      - "127.0.0.1:8085:8080"
+    mem_limit: 256m
 
 volumes:
   next-image-cache:

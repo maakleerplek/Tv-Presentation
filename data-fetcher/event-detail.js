@@ -24,7 +24,8 @@ const SITE_TIMEZONE = 'Europe/Brussels';
 export async function fetchEventDetail(url, fetchFn = fetch) {
     try {
         const response = await fetchFn(url, {
-            headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36' }
+            headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36' },
+            signal: AbortSignal.timeout(10_000),
         });
         if (!response.ok) {
             console.error(`[fetchEventDetail] Failed ${url}: ${response.status}`);
