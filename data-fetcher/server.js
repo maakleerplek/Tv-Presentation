@@ -131,9 +131,12 @@ const imageCache = new Map(); // url → { buf, contentType, cachedAt }
 let imageCacheBytes = 0;
 
 /** Only InvenTree's own files: the request carries the InvenTree token. */
+// Only InvenTree's uploaded files: with the token attached, any other path
+// (/api/user/, ...) would hand InvenTree's data to whoever asks the TV.
 function isInventreeUrl(url) {
     try {
-        return new URL(url).origin === new URL(INVENTREE_URL).origin;
+        const u = new URL(url);
+        return u.origin === new URL(INVENTREE_URL).origin && u.pathname.startsWith('/media/');
     } catch {
         return false;
     }

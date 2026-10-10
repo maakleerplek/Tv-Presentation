@@ -39,8 +39,7 @@ let dbInstance: DbLike | null = null;
  * a volume mounts a directory, not a file, and WAL mode puts `-wal` and
  * `-shm` alongside the database anyway. Without that mount the database
  * lives in the container's writable layer and every `docker compose build`
- * silently discards the changelog, the custom news items and the admin
- * credentials.
+ * silently discards the changelog, the custom news items and the settings.
  *
  * Databases written before this moved are migrated once, so an existing
  * deployment keeps its data.
@@ -133,22 +132,9 @@ function getDb(): DbLike {
         )
       `);
 
-      // Create admin users table
-      db.exec(`
-        CREATE TABLE IF NOT EXISTS admin_users (
-          id INTEGER PRIMARY KEY AUTOINCREMENT,
-          username TEXT UNIQUE NOT NULL,
-          password TEXT NOT NULL
-        )
-      `);
-
-      // Seed the admin user if it doesn't exist
-      const stmt = db.prepare(`SELECT 1 FROM admin_users WHERE username = 'admin'`);
-      const adminExists = stmt.get();
-      
-      if (!adminExists) {
-        db.prepare(`INSERT INTO admin_users (username, password) VALUES ('admin', '3EmmertjesWater')`).run();
-      }
+      // The admin password moved to ADMIN_PASSWORD in .env (lib/auth.ts); the
+      // old table held it in plain text.
+      db.exec(`DROP TABLE IF EXISTS admin_users`);
       dbInstance = db;
     } catch (error) {
       console.error('[DB] Failed to initialize SQLite:', error);
@@ -198,6 +184,15 @@ export function addCustomNews(title: string, description: string, url: string, i
   return info.lastInsertRowid; 
 }
 
+export function updateCustomNews(
+  id: number,
+  f: { title: string; description: string; url: string; imageUrl: string; tags: string },
+) {
+  getDb()
+    .prepare('UPDATE custom_news SET title = ?, description = ?, url = ?, image_url = ?, tags = ? WHERE id = ?')
+    .run(f.title, f.description, f.url, f.imageUrl, f.tags, id);
+}
+
 export function deleteCustomNews(id: number) {
   const db = getDb();
   const stmt = db.prepare('DELETE FROM custom_news WHERE id = ?');
@@ -225,17 +220,6 @@ export function addChangelogEntry(action: string, source: string, item_name: str
   `);
   const info = stmt.run(action, source, item_name, quantity, price ?? null);
   return info.lastInsertRowid;
-}
-
-export function verifyAdmin(password: string): boolean {
-  try {
-    const db = getDb();
-    const row = db.prepare(`SELECT password FROM admin_users WHERE username = 'admin'`).get() as { password?: string } | undefined;
-    return row?.password === password;
-  } catch (error) {
-    console.error('[DB] Error verifying admin:', error);
-    return false;
-  }
 }
 
 export function getSetting(key: string): string | null {
