@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeAll, afterAll } from 'bun:test';
-import { getCustomNews, addCustomNews, deleteCustomNews, verifyAdmin, resolveDbPath } from '../lib/db';
+import { getCustomNews, addCustomNews, updateCustomNews, deleteCustomNews, resolveDbPath } from '../lib/db';
 import { Database } from 'bun:sqlite';
 
 describe('Database Operations', () => {
@@ -32,12 +32,6 @@ describe('Database Operations', () => {
         db.close();
     });
 
-    it('should verify the default admin password', () => {
-        // verifyAdmin creates the table and seeds it if it doesn't exist
-        expect(verifyAdmin('3EmmertjesWater')).toBe(true);
-        expect(verifyAdmin('wrongpassword')).toBe(false);
-    });
-
     it('should add a custom news item', () => {
         const id = addCustomNews(
             'TEST_TITLE',
@@ -63,6 +57,15 @@ describe('Database Operations', () => {
         expect(testItem?.url).toBe('https://test.com');
         expect(testItem?.image_url).toBe('https://test.com/image.jpg');
         expect(testItem?.tags).toBe('test, tags');
+    });
+
+    it('should update the custom news item', () => {
+        updateCustomNews(testItemId, {
+            title: 'TEST_TITLE', description: 'EDITED', url: '', imageUrl: '', tags: '',
+        });
+        const testItem = getCustomNews().find(n => n.id === testItemId);
+        expect(testItem?.description).toBe('EDITED');
+        expect(testItem?.url).toBe('');
     });
 
     it('should delete the custom news item', () => {
