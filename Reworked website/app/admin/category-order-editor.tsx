@@ -39,7 +39,7 @@ export function CategoryOrderEditor({ saved }: { saved: string[] }) {
   function save() {
     startTransition(async () => {
       const res = await saveCategoryOrderAction(order);
-      setStatus(res.error ?? 'Saved. The TV picks it up within a minute.');
+      setStatus(res?.error ?? 'Saved. The TV picks it up within a minute.');
     });
   }
 

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useContext, createContext } from 'react';
+import { useState, useEffect } from 'react';
 import type { ScreenData } from '@/lib/types';
 
 export type { ScreenData };
@@ -9,13 +9,6 @@ export type { ScreenData };
 const POLL_INTERVAL_MS =
     parseInt(process.env.NEXT_PUBLIC_SCREEN_DATA_POLL_MINUTES || '5', 10) * 60 * 1000;
 const FETCH_TIMEOUT_MS = 30_000;
-
-/**
- * When a ScreenDataOverrideProvider wraps a subtree, useScreenData returns the
- * provided data directly with no polling.  Used by the preview page.
- * The Provider component itself lives in ScreenDataOverrideProvider.tsx (JSX).
- */
-export const ScreenDataOverrideContext = createContext<ScreenData | null>(null);
 
 interface Snapshot { data: ScreenData | null; error: Error | null }
 
@@ -54,19 +47,13 @@ function subscribe(listener: (s: Snapshot) => void, initialData?: ScreenData | n
 }
 
 export function useScreenData(initialData?: ScreenData | null) {
-    const override = useContext(ScreenDataOverrideContext);
-
     const [snap, setSnap] = useState<Snapshot>(() => ({ data: shared.data ?? initialData ?? null, error: null }));
     const [loading, setLoading] = useState(!snap.data);
 
     useEffect(() => {
-        // Preview / override mode: skip all polling
-        if (override) return;
         return subscribe(s => { setSnap(s); setLoading(false); }, initialData);
     // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
-    // Return override data if present, otherwise polled/initial data
-    if (override) return { data: override, loading: false, error: null };
     return { data: snap.data, loading, error: snap.error };
 }
