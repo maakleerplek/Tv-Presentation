@@ -20,7 +20,8 @@ export const TV_KEYS = {
  * pushes {"type": "busy" | "idle" | "next" | "prev"} over this WebSocket.
  * `?kiosk=ws://host:port` overrides it, `?kiosk=off` turns it off.
  */
-export const KIOSK_WS_DEFAULT = 'ws://localhost:8765';
+// 127.0.0.1, not localhost: on the Pi localhost is ::1 first, and the kiosk listens on IPv4 only.
+export const KIOSK_WS_DEFAULT = 'ws://127.0.0.1:8765';
 const KIOSK_WS_RETRY_MS = 5_000;
 
 type KioskMessage = 'busy' | 'idle' | 'next' | 'prev';
