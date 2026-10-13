@@ -19,6 +19,7 @@ let drinksCache = { data: null, timestamp: 0 };
 
 // Snapshot of the last known stock quantities: key → { stock, price }
 let previousSnapshot = null;
+let previousSnapshotAt = 0;   // when it was taken (ms)
 
 // The crawl in progress. The TV, /api/screen-data and the admin preview poll at
 // the same time; without this each started its own crawl, and two crawls that
@@ -274,12 +275,13 @@ async function crawlDrinks() {
                     // Parse numeric price from the formatted string (e.g. "€1.50" → 1.50)
                     const numericPrice = parseFloat(String(next.price).replace(/[^0-9.]/g, '')) || null;
                     const linePrice = numericPrice != null ? Math.round(Math.abs(delta) * numericPrice * 100) / 100 : null;
-                    reportStockChange(name, delta, linePrice).catch(() => {});
+                    reportStockChange(name, delta, linePrice, previousSnapshotAt).catch(() => {});
                 }
             }
         }
 
         previousSnapshot = buildSnapshot(drinks);
+        previousSnapshotAt = Date.now();
 
         drinksCache = { data: drinks, timestamp: Date.now() };
         return drinks;
