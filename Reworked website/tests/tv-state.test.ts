@@ -72,7 +72,7 @@ describe('navigation', () => {
     });
 });
 
-import { buildPages, wrapPage, pickPage, groupDrinks, ROW_PX, HEADER_PX, GAP_PX } from '@/components/drinks-list';
+import { buildPages, wrapPage, groupDrinks, ROW_PX, HEADER_PX, GAP_PX } from '@/components/drinks-list';
 
 import { mergeCategoryOrder, sanitizeCategoryOrder } from '@/lib/category-order';
 
@@ -138,20 +138,5 @@ describe('buildPages', () => {
         expect(wrapPage(5, 3)).toBe(2);
         expect(wrapPage(-1, 3)).toBe(2);
         expect(wrapPage(7, 0)).toBe(0);
-    });
-});
-
-describe('info page', () => {
-    test('comes after the last inventory page and wraps back to the first', () => {
-        expect(pickPage(0, 2, false)).toEqual({ info: false, index: 0 });
-        expect(pickPage(1, 2, false)).toEqual({ info: false, index: 1 });
-        expect(pickPage(2, 2, false)).toEqual({ info: true, index: 2 });
-        expect(pickPage(3, 2, false)).toEqual({ info: false, index: 0 });
-        expect(pickPage(-1, 2, false)).toEqual({ info: true, index: 2 });
-    });
-
-    test('gives way to the first inventory page while someone is shopping', () => {
-        expect(pickPage(2, 2, true)).toEqual({ info: false, index: 0 });
-        expect(pickPage(1, 2, true)).toEqual({ info: false, index: 1 });
     });
 });
