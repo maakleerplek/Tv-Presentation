@@ -1,7 +1,7 @@
 'use client';
 
 import React from 'react';
-import { Info, Tag, MapPin, CheckCircle2, XCircle, Undo2, ShoppingCart, HandHeart, Plus, Minus, RotateCcw, Sparkles, ChevronLeft, ChevronRight, Pause } from 'lucide-react';
+import { Tag, MapPin, ShoppingCart, HandHeart, Plus, Minus, RotateCcw, Sparkles, Pause } from 'lucide-react';
 
 import QRCode from 'react-qr-code';
 import { useScreenData } from '@/hooks/useScreenData';
@@ -12,14 +12,14 @@ import { useCategoryOrder } from '@/hooks/useCategoryOrder';
 import { DEFAULT_CATEGORY_ORDER, categoryRank } from '@/lib/category-order';
 import type { ScreenData, DrinkItem, ChangelogEntry } from '@/lib/types';
 import { PricingTable } from './pricing-table';
-import { InfoBoard } from './info-board';
+import { InfoBoard, BuySteps } from './info-board';
 import type { DrinkWithChange } from '@/hooks/useDrinksData';
 
 function HeaderRow({ category, location }: { category?: string | null; location?: string | null }) {
   return (
-    <div data-tv-header className="border-b-2 border-[#2C1E16] pb-0.5 mb-0">
-      {/* Row 1: category + location tags — always rendered so all columns stay vertically aligned */}
-      <div className="flex items-center gap-1.5 mb-0.5 min-h-[1rem]">
+    // Fixed height, so the headers of the three columns always line up.
+    <div data-tv-header className="h-[48px] flex flex-col justify-end border-b-2 border-[#2C1E16] pb-0.5">
+      <div className="flex items-center gap-1.5 mb-0.5 h-4">
         {category && (
           <span className="flex items-center gap-1 text-sm font-black uppercase tracking-widest text-[#2C1E16]">
             <Tag className="w-3.5 h-3.5 shrink-0" />{category}
@@ -31,43 +31,43 @@ function HeaderRow({ category, location }: { category?: string | null; location?
           </span>
         )}
       </div>
-      {/* Row 2: column headers — always show Item aligned with Stock/Prijs/Scan */}
-      <div className="grid grid-cols-[48px_1fr_auto_auto_52px] gap-1.5 items-end">
+      <div className="grid grid-cols-[56px_1fr_auto_auto_52px] gap-1.5 items-end">
         <div />
         <span className="text-xs text-[#2C1E16] font-black uppercase text-center">Item</span>
-        <span className="text-xs text-[#2C1E16] font-black uppercase text-center w-11">Stock</span>
-        <span className="text-xs text-[#2C1E16] font-black uppercase text-right w-12">Prijs</span>
+        <span className="text-xs text-[#2C1E16] font-black uppercase text-center w-10">Stock</span>
+        <span className="text-xs text-[#2C1E16] font-black uppercase text-right w-14">Prijs</span>
         <span className="text-xs text-[#2C1E16] font-black uppercase text-center">Scan</span>
       </div>
     </div>
   );
 }
 
-/** Polls hand out new objects every 3 s; only redraw a row (and its QR) when what it shows changed. */
+/** Polls hand out new objects every 3 s; only redraw a row when what it shows changed. */
 function sameRow(a: { drink: DrinkWithChange }, b: { drink: DrinkWithChange }) {
   const x = a.drink, y = b.drink;
   return x.name === y.name && x.imageUrl === y.imageUrl && x.stock === y.stock && x.price === y.price
     && x.barcode === y.barcode && x.IPN === y.IPN && x._change === y._change;
 }
 
+/** One item row. Fixed height, and a name small enough to never be cut off. */
 const DrinkRow = React.memo(function DrinkRow({ drink }: { drink: DrinkWithChange }) {
   const qrValue = drink.barcode || drink.IPN || null;
   return (
     <div
       data-tv-row
-      className={`grid grid-cols-[48px_1fr_auto_auto_52px] gap-1.5 items-center py-0.5 shrink-0 ${
+      className={`grid grid-cols-[56px_1fr_auto_auto_52px] gap-1.5 items-center h-[64px] shrink-0 ${
         drink._change === 'decreased' ? 'drink-sold' :
         drink._change === 'increased' ? 'drink-restocked' : ''
       }`}
     >
-      <div className="w-12 h-12 relative border-2 border-[#2C1E16] shrink-0 bg-white overflow-hidden">
+      <div className="w-14 h-14 relative border-2 border-[#2C1E16] shrink-0 bg-white overflow-hidden">
         {drink.imageUrl ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img
             src={drink.imageUrl}
             alt={drink.name}
-            width={48}
-            height={48}
+            width={56}
+            height={56}
             decoding="async"
             className="absolute inset-0 w-full h-full object-cover"
           />
@@ -77,12 +77,12 @@ const DrinkRow = React.memo(function DrinkRow({ drink }: { drink: DrinkWithChang
           </span>
         )}
       </div>
-      <span className="text-xs text-[#2C1E16] font-bold uppercase leading-tight text-center break-words min-w-0 self-center line-clamp-2">
+      <span className="text-xs text-[#2C1E16] font-bold uppercase leading-tight text-center break-words min-w-0 self-center">
         {drink.name}
       </span>
-      <span className="w-11 flex justify-center">
+      <span className="w-10 flex justify-center">
         <span
-          className={`text-xs font-black leading-none ${
+          className={`text-sm font-black leading-none ${
             drink._change === 'decreased' ? 'text-green-700' :
             drink._change === 'increased' ? 'text-blue-600' :
             'text-[#2C1E16]'
@@ -91,7 +91,7 @@ const DrinkRow = React.memo(function DrinkRow({ drink }: { drink: DrinkWithChang
           {drink.stock === Infinity ? '∞' : drink.stock}
         </span>
       </span>
-      <span className="text-xs font-black text-[#2C1E16] text-right w-12 leading-none">{drink.price}</span>
+      <span className="text-sm font-black text-[#2C1E16] text-right w-14 leading-none">{drink.price}</span>
       <div className="flex items-center justify-center">
         {qrValue ? (
           <div className="border-2 border-[#2C1E16] p-0.5 bg-white">
@@ -107,11 +107,10 @@ const DrinkRow = React.memo(function DrinkRow({ drink }: { drink: DrinkWithChang
 
 const rowKey = (d: DrinkWithChange) => `${d.IPN || d.barcode || d.name}::${d.location ?? ''}`;
 
-// Starting estimates in px for one item row and one category header. The TV
-// replaces them with the heights it measures on screen, since fonts and QR
-// padding make the real rows a few px taller than the Tailwind classes suggest.
-export const ROW_PX = 56;
-export const HEADER_PX = 42;
+// Heights in px of one item row (h-[64px]) and one category header (h-[48px]). The
+// TV still measures them on screen, in case fonts render a pixel off.
+export const ROW_PX = 64;
+export const HEADER_PX = 48;
 export const GAP_PX = 16;
 
 export interface RowSizes { rowPx: number; headerPx: number }
@@ -176,17 +175,6 @@ export function buildPages<T>(
 /** The server hands out an unbounded page number; wrap it, negatives included. */
 export function wrapPage(page: number, count: number): number {
   return count === 0 ? 0 : ((page % count) + count) % count;
-}
-
-/**
- * Which page to show. The info board comes after the last inventory page. While
- * someone is shopping it gives way to the first inventory page, so the QR codes
- * stay on screen.
- */
-export function pickPage(page: number, inventoryPages: number, busy: boolean): { info: boolean; index: number } {
-  const index = wrapPage(page, inventoryPages + 1);
-  if (index < inventoryPages) return { info: false, index };
-  return busy ? { info: false, index: 0 } : { info: true, index };
 }
 
 /**
@@ -292,16 +280,16 @@ const ChangelogPanel = React.memo(function ChangelogPanel({ entries }: { entries
 
   if (entries.length === 0) {
     return (
-      <div className="flex flex-col min-w-0 flex-1 pr-4">
+      <div className="flex flex-col min-w-0 flex-1">
         <span className="text-sm font-black uppercase tracking-widest text-[#2C1E16]">Recent activity</span>
       </div>
     );
   }
 
   return (
-    <div className="flex flex-col min-w-0 flex-1 pr-4">
+    <div className="flex flex-col min-w-0 flex-1">
       <span className="text-sm font-black uppercase tracking-widest text-[#2C1E16] mb-0.5">Recent activity</span>
-      {entries.slice(0, 9).map((entry) => {
+      {entries.slice(0, 14).map((entry) => {
         const Icon = ACTION_ICONS[entry.action] ?? ShoppingCart;
         const color = ACTION_COLORS[entry.action] ?? '#2C1E16';
         const { item, detail } = formatEntryLine(entry);
@@ -320,55 +308,19 @@ const ChangelogPanel = React.memo(function ChangelogPanel({ entries }: { entries
   );
 });
 
-const CONTROLS = [
-  { label: 'Confirm', data: 'CONFIRM', icon: CheckCircle2, color: '#22C55E' },
-  { label: 'Cancel', data: 'CANCEL', icon: XCircle, color: '#EF4444' },
-  { label: 'Undo (Remove)', data: 'REMOVE', icon: Undo2, color: '#F59E0B' },
-];
-
-/** Page turning and the volunteer drink: smaller, they are not the checkout itself. */
-const SMALL_CONTROLS = [
-  { label: 'Prev page', data: 'PAGE-PREV', icon: ChevronLeft, color: '#2C1E16' },
-  { label: 'Next page', data: 'PAGE-NEXT', icon: ChevronRight, color: '#2C1E16' },
-  { label: 'Volunteer', data: 'VOLUNTEER', icon: HandHeart, color: '#A855F7' },
-];
-
-/** Never changes, so it renders once instead of re-encoding six QR codes on every update. */
-const ControlBarcodes = React.memo(function ControlBarcodes() {
+/** Recent sales and restocks, for the left column of the TV. */
+export function RecentActivity() {
+  const changelog = useChangelog();
   return (
-    <div className="flex flex-col items-center gap-1.5 shrink-0">
-      <div className="flex flex-row items-center gap-5">
-        {CONTROLS.map((ctrl) => (
-          <div key={ctrl.label} className="flex flex-col items-center gap-0.5">
-            <div className="border-2 border-[#2C1E16] p-1 bg-white shadow-[2px_2px_0_0_#2C1E16]">
-              <QRCode value={ctrl.data} size={60} bgColor="#FFFFFF" fgColor="#2C1E16" />
-            </div>
-            <span className="text-xs font-black uppercase tracking-tight flex items-center gap-1">
-              <ctrl.icon className="w-3.5 h-3.5" style={{ color: ctrl.color }} /> {ctrl.label}
-            </span>
-          </div>
-        ))}
-      </div>
-      <div className="flex flex-row items-center gap-4">
-        {SMALL_CONTROLS.map((ctrl) => (
-          <div key={ctrl.label} className="flex flex-row items-center gap-1.5">
-            <div className="border-2 border-[#2C1E16] p-0.5 bg-white shadow-[2px_2px_0_0_#2C1E16]">
-              <QRCode value={ctrl.data} size={34} bgColor="#FFFFFF" fgColor="#2C1E16" />
-            </div>
-            <span className="text-xs font-black uppercase tracking-tight flex items-center gap-1">
-              <ctrl.icon className="w-3.5 h-3.5" style={{ color: ctrl.color }} /> {ctrl.label}
-            </span>
-          </div>
-        ))}
-      </div>
+    <div className="border-t-2 border-[#2C1E16] px-4 pt-4 pb-3 flex-1 min-h-0 overflow-hidden flex">
+      <ChangelogPanel entries={changelog} />
     </div>
   );
-});
+}
 
 export function DrinksList({ initialData }: { initialData?: ScreenData }) {
   const { data, loading } = useScreenData(initialData);
   const drinks = useDrinksData(initialData?.drinks);
-  const changelog = useChangelog();
   const tvPage = useTvPage();
   const categoryOrder = useCategoryOrder();
 
@@ -416,30 +368,19 @@ export function DrinksList({ initialData }: { initialData?: ScreenData }) {
     );
   }
 
-  const shown = pickPage(tvPage.page, pages.length, tvPage.busy);
-  const pageIndex = shown.index;
-  const page = shown.info ? [] : pages[pageIndex] ?? [];
+  const pageIndex = wrapPage(tvPage.page, pages.length);
+  const page = pages[pageIndex] ?? [];
 
   return (
     <div className="flex-1 bg-[#F5F2EB] flex flex-col h-full overflow-hidden relative">
 
-      <div className="p-2 border-b-2 border-[#2C1E16] bg-[#C8A98B] shrink-0">
-        <h2 className="text-[#2C1E16] uppercase tracking-widest text-xl font-black flex items-center justify-center gap-2">
-          {shown.info
-            ? <><Info className="w-5 h-5" /> Welcome to the High Tech Lab</>
-            : <><ShoppingCart className="w-5 h-5" /> For sale · {pageIndex + 1}/{pages.length}</>}
-          {!tvPage.cycling && <Pause className="w-4 h-4" />}
-        </h2>
-        <p className="text-[#2C1E16] text-sm font-black uppercase tracking-wider text-center mt-0.5">
-          {shown.info ? 'Where everything is and how to buy it' : 'Scan the QR code with the scanner right of the TV'}
-        </p>
-      </div>
+      {/* No title bar; a paused cycle still shows, for the admin. */}
+      {!tvPage.cycling && <Pause className="absolute top-2 right-2 w-4 h-4 text-[#2C1E16]" />}
 
       {/* Only the current page is rendered: lighter for the Pi driving the TV.
           The key remounts it on a page change, which replays the slide-in. */}
       <div ref={areaRef} data-area={areaPx ?? ''} data-sizes={`${sizes.rowPx}/${sizes.headerPx}`} className="flex-1 min-h-0 overflow-hidden p-4">
         <div key={pageIndex} className="tv-page-in flex flex-col gap-4 h-full">
-          {shown.info && <InfoBoard />}
           {page.map((sec, si) => {
             const c1 = Math.ceil(sec.items.length / 3);
             const c2 = Math.ceil((sec.items.length - c1) / 2);
@@ -467,13 +408,17 @@ export function DrinksList({ initialData }: { initialData?: ScreenData }) {
         </div>
       </div>
 
-      <PricingTable initialData={data || undefined} />
-
-      {/* Control Barcodes + Changelog */}
-      <div className="px-3 py-1.5 border-t-2 border-[#2C1E16] bg-[#F5F2EB] flex flex-row items-center gap-4 shrink-0">
-        <ChangelogPanel entries={changelog} />
-        <ControlBarcodes />
+      {/* How to buy, and the floor plan permanently bottom right */}
+      <div className="h-[370px] border-t-2 border-[#2C1E16] bg-[#F5F2EB] flex flex-row shrink-0">
+        <div className="w-[300px] shrink-0 p-2">
+          <BuySteps />
+        </div>
+        <div className="flex-1 min-w-0 border-l-2 border-[#2C1E16] p-2">
+          <InfoBoard />
+        </div>
       </div>
+
+      <PricingTable initialData={data || undefined} />
     </div>
   );
 }

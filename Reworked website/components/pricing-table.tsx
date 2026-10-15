@@ -18,7 +18,7 @@ function shortEuro(price: string) {
   return price.replace(/\.00$/, '');
 }
 
-function MachineCell({ item }: { item: EquipmentPrice }) {
+function MachineCell({ item, showMinimum }: { item: EquipmentPrice; showMinimum: boolean }) {
   return (
     <div className="flex-1 min-w-0 flex items-center gap-2.5 px-4 py-1.5 border-l-2 border-[#2C1E16]">
       <MachineIcon name={item.name} />
@@ -30,7 +30,7 @@ function MachineCell({ item }: { item: EquipmentPrice }) {
           {item.price}
           {item.unit && <span className="text-sm font-black text-[#2C1E16]"> / {item.unit}</span>}
         </span>
-        {item.minimum && (
+        {showMinimum && item.minimum && (
           <span className="text-xs font-black uppercase tracking-wider text-[#2C1E16] leading-none">
             min. {shortEuro(item.minimum)}
           </span>
@@ -47,6 +47,10 @@ export function PricingTable({ initialData }: { initialData?: ScreenData }) {
 
   if (items.length === 0) return null;
 
+  // One shared minimum is said once in the label, instead of under every machine.
+  const minimums = [...new Set(items.map(i => i.minimum).filter(Boolean))];
+  const shared = minimums.length === 1 ? minimums[0] : null;
+
   return (
     <div className="flex flex-row items-stretch border-t-2 border-[#2C1E16] bg-[#F5F2EB] shrink-0">
       <div className="flex items-center gap-2 px-4 bg-[#C8A98B] shrink-0">
@@ -54,8 +58,13 @@ export function PricingTable({ initialData }: { initialData?: ScreenData }) {
         <h2 className="text-[#2C1E16] uppercase tracking-widest text-xs font-black leading-tight">
           Machine<br />usage
         </h2>
+        {shared && (
+          <span className="text-sm font-black uppercase tracking-wider text-[#2C1E16] leading-tight border-l-2 border-[#2C1E16] pl-2">
+            Min. {shortEuro(shared)}<br />per use
+          </span>
+        )}
       </div>
-      {items.map((item) => <MachineCell key={item.name} item={item} />)}
+      {items.map((item) => <MachineCell key={item.name} item={item} showMinimum={!shared} />)}
     </div>
   );
 }
