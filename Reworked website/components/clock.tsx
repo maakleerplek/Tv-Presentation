@@ -95,7 +95,7 @@ export function Clock({ initialData }: { initialData?: ScreenData }) {
       )}
 
       {/* Clock panel */}
-      <div className="border-b-2 border-[#2C1E16] p-4 flex flex-col items-center justify-center bg-[#F5F2EB] h-48 shrink-0 relative">
+      <div className="border-b-2 border-[#2C1E16] p-4 flex flex-col items-center justify-center bg-[#F5F2EB] h-36 shrink-0 relative">
         <div className="text-6xl font-black tracking-tighter text-[#2C1E16]">
           {timeStr}
         </div>

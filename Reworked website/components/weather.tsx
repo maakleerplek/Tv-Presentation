@@ -56,7 +56,7 @@ export function Weather({ initialData }: { initialData?: WeatherData }) {
   }, [initialData]);
 
   // ── Render ───────────────────────────────────────────────────────
-  const base = 'border-b-2 border-[#2C1E16] p-4 bg-[#E6D5B8] flex-[1.2] flex flex-col justify-center items-center text-center';
+  const base = 'border-b-2 border-[#2C1E16] px-4 py-8 bg-[#E6D5B8] shrink-0 flex flex-col justify-center items-center text-center';
 
   if (error) {
     return (
@@ -92,7 +92,7 @@ export function Weather({ initialData }: { initialData?: WeatherData }) {
           </div>
         </div>
       </div>
-      <div className="flex flex-col xl:flex-row items-center justify-center gap-x-4 gap-y-2 text-lg font-black">
+      <div className="flex flex-row items-center justify-center gap-x-4 text-lg font-black">
         <div className="flex items-center gap-2 text-[#2C1E16]">
           <Wind className="w-5 h-5 shrink-0" />
           <span>{weather.windSpeed} km/h</span>

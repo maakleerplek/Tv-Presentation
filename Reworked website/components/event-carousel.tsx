@@ -173,8 +173,8 @@ export function EventCarousel({ initialData }: { initialData?: ScreenData }) {
                 shows whole instead of losing a fifth top and bottom in the fixed 1200:630
                 frame. The text below gives up or gains the height. The shape is kept
                 between 1.3:1 and 2.2:1 (see imageFrameAspect) and the frame never takes
-                more than 60% of the column, so the title and QR code always fit; only
-                images outside that range are still cropped from the centre. */}
+                more than 60% of the column, so the title and QR code always fit; images
+                outside that range, or taller than the cap, are shown whole with bars, never cropped. */}
             <div
               className="w-full max-h-[60%] shrink-0 border-b-2 border-[#2C1E16] min-h-0 overflow-hidden relative flex items-center justify-center"
               style={{ aspectRatio: imageFrameAspect(aspects[displayImage]) }}
@@ -188,7 +188,7 @@ export function EventCarousel({ initialData }: { initialData?: ScreenData }) {
                   sizes="(min-width: 1280px) 720px, 50vw"
                   quality={55}
                   onLoad={e => rememberAspect(displayImage, e.currentTarget.naturalWidth, e.currentTarget.naturalHeight)}
-                  className="relative z-10 w-full h-full object-cover object-center"
+                  className="relative z-10 w-full h-full object-contain object-center"
                 />
               ) : (
                 <Image
