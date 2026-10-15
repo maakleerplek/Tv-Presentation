@@ -134,7 +134,7 @@ export function EventCarousel({ initialData }: { initialData?: ScreenData }) {
 
   // Resolve image URL — already absolute from the scraper; guard against stray relative paths
   let displayImage = currentItem.imageUrl || '';
-  if (displayImage.startsWith('/')) {
+  if (displayImage.startsWith('/') && !displayImage.startsWith('/api/uploads/')) {
     displayImage = `https://maakleerplek.be${displayImage}`;
   }
   const hasImage = !!displayImage;

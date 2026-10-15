@@ -3,7 +3,8 @@
 import { cookies, headers } from 'next/headers';
 import { redirect } from 'next/navigation';
 import { revalidatePath } from 'next/cache';
-import { addCustomNews, updateCustomNews, deleteCustomNews, setCategoryOrder } from '@/lib/db';
+import { addCustomNews, updateCustomNews, deleteCustomNews, getCustomNews, setCategoryOrder } from '@/lib/db';
+import { saveUpload, deleteUpload } from '@/lib/uploads';
 import { sanitizeCategoryOrder } from '@/lib/category-order';
 import { passwordMatches, createSession, sessionValid, endSession, SESSION_MAX_AGE_S } from '@/lib/auth';
 
@@ -54,15 +55,29 @@ export async function saveNewsAction(_prev: FormState, formData: FormData): Prom
   const description = String(formData.get('description') ?? '').trim();
   if (!title || !description) return { error: 'Title and description are required' };
 
+  // An uploaded file wins over the link; the link field keeps an earlier upload's own path.
+  let imageUrl = String(formData.get('imageUrl') ?? '').trim();
+  if (!imageUrl.startsWith('/')) imageUrl = normalizeUrl(imageUrl);
+  const file = formData.get('imageFile');
+  if (file instanceof File && file.size > 0) {
+    const res = await saveUpload(file);
+    if ('error' in res) return { error: res.error };
+    imageUrl = res.url;
+  }
+
   const fields = {
     title,
     description,
     url: normalizeUrl(formData.get('url')),
-    imageUrl: normalizeUrl(formData.get('imageUrl')),
+    imageUrl,
     tags: String(formData.get('tags') ?? '').trim(),
   };
   const id = Number(formData.get('id'));
-  if (id) updateCustomNews(id, fields);
+  if (id) {
+    const old = getCustomNews().find(n => n.id === id)?.image_url;
+    updateCustomNews(id, fields);
+    if (old !== imageUrl) deleteUpload(old);
+  }
   else addCustomNews(fields.title, fields.description, fields.url, fields.imageUrl, fields.tags);
 
   revalidatePath('/admin');
@@ -72,7 +87,9 @@ export async function saveNewsAction(_prev: FormState, formData: FormData): Prom
 
 export async function deleteNewsAction(id: number): Promise<FormState> {
   if (!(await checkAuth())) return { error: 'Signed out, sign in again' };
+  const old = getCustomNews().find(n => n.id === id)?.image_url;
   deleteCustomNews(id);
+  deleteUpload(old);
   revalidatePath('/admin');
   revalidatePath('/');
   return { success: true };

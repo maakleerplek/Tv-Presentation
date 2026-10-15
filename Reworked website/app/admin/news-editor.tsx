@@ -51,6 +51,8 @@ export function NewsEditor({ items }: { items: CustomNewsRow[] }) {
           <input name="url" defaultValue={editing?.url} placeholder="maakleerplek.be/..." className={input} /></label>
         <label className="flex flex-col gap-1"><span className={label}>Image URL (16:9 works best)</span>
           <input name="imageUrl" defaultValue={editing?.image_url ?? ''} placeholder="https://..." className={input} /></label>
+        <label className="flex flex-col gap-1"><span className={label}>Or upload an image (JPG, PNG, WebP, GIF, max 8 MB)</span>
+          <input name="imageFile" type="file" accept="image/jpeg,image/png,image/webp,image/gif" className={input} /></label>
         <label className="flex flex-col gap-1"><span className={label}>Tags, comma separated</span>
           <input name="tags" defaultValue={editing?.tags} placeholder="Workshop, Event" className={input} /></label>
 
