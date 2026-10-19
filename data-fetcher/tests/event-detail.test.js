@@ -76,10 +76,10 @@ describe('parseEventDetailHtml — description', () => {
         expect(parseEventDetailHtml(makeJsonLdHtml(null)).description).toBe('');
     });
 
-    test('truncates long descriptions to 400 chars with ellipsis', () => {
-        const html = makeJsonLdHtml({ ...LASERCUTTER, description: 'a'.repeat(500) });
+    test('truncates very long descriptions to 1500 chars with ellipsis', () => {
+        const html = makeJsonLdHtml({ ...LASERCUTTER, description: 'a'.repeat(2000) });
         const result = parseEventDetailHtml(html);
-        expect(result.description.length).toBeLessThanOrEqual(401); // 400 chars + '…'
+        expect(result.description.length).toBe(1501); // 1500 chars + '…'
         expect(result.description.endsWith('…')).toBe(true);
     });
 });
@@ -178,5 +178,25 @@ describe('parseEventDetailHtml — price', () => {
     test('scans the body for a euro amount only when JSON-LD is absent', () => {
         const html = makeJsonLdHtml(null, { mainExtra: '<p>Deelname: € 25</p>' });
         expect(parseEventDetailHtml(html).price).toBe('€25');
+    });
+});
+
+describe('description from the page text', () => {
+    test('keeps paragraphs, line breaks, lists and bold from article .prose', () => {
+        const html = `<html><head><script type="application/ld+json">{"@type":"Event","description":"flat text"}</script></head>
+<body><main><article><div class="prose prose-lg">
+  <p>First   paragraph with <strong>bold</strong>.</p>
+  <p>Line one<br>Line two</p>
+  <ul><li>apples</li><li>pears</li></ul>
+  <ol><li>step</li></ol>
+</div></article></main></body></html>`;
+        expect(parseEventDetailHtml(html).description).toBe(
+            'First paragraph with **bold**.\n\nLine one\nLine two\n\n- apples\n- pears\n\n1. step',
+        );
+    });
+
+    test('falls back to JSON-LD without a .prose block, no longer cut at 400 characters', () => {
+        const long = 'x'.repeat(600);
+        expect(parseEventDetailHtml(makeJsonLdHtml({ description: long })).description).toBe(long);
     });
 });

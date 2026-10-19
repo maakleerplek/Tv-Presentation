@@ -13,6 +13,33 @@ import * as cheerio from 'cheerio';
 import { stripHtml, truncate } from './utils.js';
 import { resolveMaakleerplekUrl } from './config.js';
 
+/**
+ * The event text as the site shows it (`article .prose`), as plain text the TV
+ * formats: paragraphs split by a blank line, <br> as a line break, list items
+ * as "- " / "1. " lines and <strong>/<b> as **bold**.
+ */
+export function proseToText($, el) {
+    const inline = node => $(node).contents().map((_, c) => {
+        if (c.type === 'text') return c.data;
+        if (c.name === 'br') return '\n';
+        const inner = inline(c);
+        return (c.name === 'strong' || c.name === 'b') && inner.trim() ? `**${inner.trim()}**` : inner;
+    }).get().join('');
+    const clean = t => t.split('\n').map(l => l.replace(/\s+/g, ' ').trim()).filter(Boolean).join('\n');
+
+    const blocks = [];
+    $(el).children().each((_, c) => {
+        if (c.name === 'ul' || c.name === 'ol') {
+            const lines = $(c).children('li').map((i, li) => `${c.name === 'ol' ? `${i + 1}.` : '-'} ${clean(inline(li)).replace(/\n/g, ' ')}`).get();
+            if (lines.length) blocks.push(lines.join('\n'));
+        } else {
+            const text = clean(inline(c));
+            if (text) blocks.push(text);
+        }
+    });
+    return blocks.join('\n\n');
+}
+
 /** Times on the site are local to the venue, JSON-LD publishes them in UTC. */
 const SITE_TIMEZONE = 'Europe/Brussels';
 
@@ -124,7 +151,11 @@ export function parseEventDetailHtml(html, url = 'unknown') {
     const event = findJsonLd($, 'Event');
 
     // ── Description ────────────────────────────────────────────────
+    // The page's own text keeps its paragraphs and lists; JSON-LD and og: are one run of text.
+    const prose = $('article .prose').first();
+    const proseText = prose.length ? proseToText($, prose) : '';
     let description =
+        proseText ||
         event?.description ||
         $('meta[property="og:description"]').attr('content') ||
         $('meta[name="description"]').attr('content') ||
@@ -139,8 +170,6 @@ export function parseEventDetailHtml(html, url = 'unknown') {
     }
 
     if (!description) console.warn(`[Scraper] Missing description for ${url}`);
-
-    if (description.length > 400) description = description.slice(0, 400) + '…';
 
     // ── Image ──────────────────────────────────────────────────────
     const jsonLdImage = Array.isArray(event?.image) ? event.image[0] : event?.image;
@@ -192,7 +221,7 @@ export function parseEventDetailHtml(html, url = 'unknown') {
     }
 
     return {
-        description: truncate(stripHtml(description), 1500),
+        description: truncate(proseText ? description : stripHtml(description), 1500),
         imageUrl,
         time,
         location,
