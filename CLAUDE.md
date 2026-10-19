@@ -1,7 +1,5 @@
 # CLAUDE.md
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
-
 ## Overview
 
 Full-screen TV display for maakleerplek, a makerspace in Leuven. Shows time, weather, events, news, drinks inventory, and machine pricing on a 4K display (Raspberry Pi + Chromium).
@@ -56,6 +54,8 @@ The root page (`app/page.tsx`) is a Server Component that fetches all data at re
 - `lib/db.ts` — SQLite access via `bun:sqlite`. Stores custom news items and admin credentials. Uses `eval('require')` to prevent Next.js from bundling `bun:sqlite` at build time.
 - `lib/types.ts` — Shared TypeScript types (`ScreenData`, `CalendarEvent`, `NewsItem`, etc.)
 - `hooks/useScreenData.ts` — Client-side polling hook. All interactive components should consume this.
+- `hooks/useChangelog.ts` (15 s poll), `hooks/useDrinksData.ts`, `hooks/ScreenDataOverrideProvider.tsx` (overrides the data `useScreenData` returns).
+- `app/api/` — `screen-data`, `drinks-data`, `changelog`, `weather`, `proxy-image`.
 - `app/page.tsx` — Root layout: 3-column grid (left: clock/weather/status; center: carousel; right: drinks) + footer.
 - `app/admin/` — Password-protected admin panel for adding/deleting custom news items. Auth via Server Actions and cookies.
 
@@ -63,6 +63,8 @@ The root page (`app/page.tsx`) is a Server Component that fetches all data at re
 - `server.js` — Express entry point. `/api/screen-data` aggregates all scrapers concurrently and returns the full payload. Pre-warms caches on startup.
 - `scrapers/calendar.js`, `scrapers/news.js`, `scrapers/pricing.js`, `scrapers/drinks.js` — Purpose-built scrapers using Cheerio. Calendar and news read the Next.js site at `/nl/agenda` and `/nl/verhalen`; the WordPress `/wp-json` API they used before September 2026 no longer exists.
 - `categorise.js` — Classifies calendar events as `workshops` vs `recurringEvents`.
+- `event-detail.js` — Reads one event page: schema.org JSON-LD first, Open Graph tags as fallback.
+- `changelog-reporter.js` — Detects InvenTree stock changes and POSTs them to the frontend's `/api/changelog`. Skips events already logged by stock-frontend/interface-stock in the last 2 min.
 - `config.js` — All env vars. `scraper-config.js` — Target URLs.
 - `utils.js` — Cache validity helpers.
 
@@ -74,6 +76,7 @@ Tailwind CSS v4 with no `tailwind.config.js` — configuration is done inside `a
 - Data-fetcher caches scraped results in memory (`CACHE_DURATION_MINUTES`, default 15 min).
 - All Client Components accept an `initialData` prop to avoid loading state on first render.
 - `NEXT_PUBLIC_SCREEN_DATA_POLL_MINUTES` (build-time constant) controls how often clients re-poll.
+- SQLite lives in the `tv-db` volume (`/app/data`). Without it, custom news and admin credentials are lost on every rebuild.
 
 ### Environment Variables
 Copy `.env.example` to `.env`. Key variables:
@@ -86,4 +89,5 @@ Copy `.env.example` to `.env`. Key variables:
 - `TIP_1`, `TIP_2`, … — Footer tips, numbered sequentially.
 
 ## CI/CD
-GitHub Actions (`.github/workflows/`) auto-creates a Prerelease on pushes to `master` or PRs targeting it, tagged as `master-<sha>` or `pr-<n>-<sha>`. Tests run as part of the workflow.
+- `test.yml`, `build.yml` — run on push/PR to `main` and `master`.
+- `prerelease.yml` — `master` only. Runs the tests, then creates a Prerelease tagged `master-<sha>` or `pr-<n>-<sha>`.
