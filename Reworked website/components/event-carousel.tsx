@@ -1,12 +1,20 @@
 'use client';
 
-import { useState, useEffect, useLayoutEffect, useRef, useMemo, useCallback } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import Image from 'next/image';
 import QRCode from 'react-qr-code';
 import { Calendar, Globe, MapPin, Newspaper, Repeat, Tag } from 'lucide-react';
 import { useScreenData } from '@/hooks/useScreenData';
-import { priorityOf, formatDutchDate } from '@/lib/utils';
+import { priorityOf, formatDutchDate, parseDescription, type DescSpan } from '@/lib/utils';
 import type { CalendarEvent, NewsItem, ScreenData } from '@/lib/types';
+
+// One line of a description: URLs as a bold underlined short link, **bold** as bold.
+function DescLine({ spans }: { spans: DescSpan[] }) {
+  return <>{spans.map((s, i) =>
+    s.url ? <span key={i} className="font-black underline decoration-2 underline-offset-2 break-all">{s.text}</span>
+    : s.bold ? <strong key={i} className="font-black">{s.text}</strong>
+    : <span key={i}>{s.text}</span>)}</>;
+}
 
 // Helper to shuffle an array (Fisher-Yates)
 // The share-image format nearly every event and news image comes in (1200:630),
@@ -49,8 +57,6 @@ export function EventCarousel({ initialData }: { initialData?: ScreenData }) {
   const { data, loading } = useScreenData(initialData);
   const transitionTime = data?.config?.transitionTime ?? 15;
   const [currentIndex, setCurrentIndex] = useState(0);
-  // 'cover' = fill cleanly, 'contain' = show full image (bars visible but needed)
-  const descViewportRef = useRef<HTMLDivElement>(null);
 
   // Build the unshuffled list (safe for SSR — no randomness)
   const baseItems = useMemo(() => {
@@ -69,30 +75,6 @@ export function EventCarousel({ initialData }: { initialData?: ScreenData }) {
   }, [baseItems.length]);
 
   // Compute line-clamp so text stops above the QR area
-  const [lineClamp, setLineClamp] = useState<number | undefined>(undefined);
-  const descTextRef = useRef<HTMLParagraphElement>(null);
-
-  const updateClamp = useCallback(() => {
-    const viewport = descViewportRef.current;
-    const text = descTextRef.current;
-    if (!viewport || !text) return;
-    const lineH = parseFloat(getComputedStyle(text).lineHeight);
-    if (!lineH) return;
-    setLineClamp(Math.max(1, Math.floor(viewport.clientHeight / lineH)));
-  }, []);
-
-  useLayoutEffect(() => {
-    let r1: number, r2: number;
-    r1 = requestAnimationFrame(() => { r2 = requestAnimationFrame(updateClamp); });
-    return () => { cancelAnimationFrame(r1); cancelAnimationFrame(r2); };
-  }, [updateClamp, currentIndex]);
-
-  useEffect(() => {
-    const ro = new ResizeObserver(updateClamp);
-    if (descViewportRef.current) ro.observe(descViewportRef.current);
-    return () => ro.disconnect();
-  }, [updateClamp]);
-
   // Width / height of each image, learned when it loads, so the frame can take
   // the image's own shape; see imageFrameAspect().
   const [aspects, setAspects] = useState<Record<string, number>>({});
@@ -253,15 +235,23 @@ export function EventCarousel({ initialData }: { initialData?: ScreenData }) {
               {/* Description + QR */}
               <div className="flex-1 min-h-0 flex flex-col gap-3 overflow-hidden">
                 {/* Text — clamps to available height, never overlaps QR */}
-                <div ref={descViewportRef} className="flex-1 min-h-0 overflow-hidden">
-                  {currentItem.description && (
-                    <p
-                      ref={descTextRef}
-                      className="text-sm xl:text-base text-[#2C1E16] font-medium leading-normal"
-                      style={lineClamp ? { display: '-webkit-box', WebkitLineClamp: lineClamp, WebkitBoxOrient: 'vertical', overflow: 'hidden' } : undefined}
-                    >
-                      {translatedDescription}
-                    </p>
+                {/* Text: overflow fades out at the bottom instead of a hard cut */}
+                <div
+                  className="flex-1 min-h-0 overflow-hidden flex flex-col gap-2.5 text-sm xl:text-base text-[#2C1E16] font-medium leading-normal"
+                  style={{ maskImage: 'linear-gradient(to bottom, black 80%, transparent)' }}
+                >
+                  {currentItem.description && parseDescription(translatedDescription).map((block, i) =>
+                    block.kind === 'ul' ? (
+                      <ul key={i} className="flex flex-col gap-1">
+                        {block.lines.map((line, j) => (
+                          <li key={j} className="flex gap-2"><span className="font-black">•</span><span><DescLine spans={line} /></span></li>
+                        ))}
+                      </ul>
+                    ) : (
+                      <p key={i}>
+                        {block.lines.map((line, j) => <span key={j}>{j > 0 && <br />}<DescLine spans={line} /></span>)}
+                      </p>
+                    ),
                   )}
                 </div>
 
