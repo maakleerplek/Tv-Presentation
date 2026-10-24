@@ -107,6 +107,15 @@ cd data-fetcher
 node --no-warnings --watch server.js
 ```
 
+### Auto-deploy (htl-server)
+
+`master` is production. Every 5 minutes cron runs `scripts/autodeploy.sh`: once CI
+on a new master commit is green it pulls and runs `docker compose up -d --build`,
+and rolls back to the previous commit if a container does not come up healthy.
+Log: `.git/autodeploy.log`. Install once:
+`(crontab -l; echo "*/5 * * * * $PWD/scripts/autodeploy.sh") | crontab -`
+
+
 ## Tests
 
 ```bash
