@@ -15,8 +15,8 @@ export default async function Page() {
   return (
     <div className="h-screen w-screen bg-[#F5F2EB] text-[#2C1E16] overflow-hidden flex flex-col font-sans selection:bg-[#2C1E16] selection:text-[#F5F2EB] relative">
       <AdminHoverBar />
-      <main className="flex-1 grid grid-cols-[2fr_3.5fr_6.5fr] min-h-0">
-        {/* Left Section - 2/12 (~16%) */}
+      <main className="flex-1 grid grid-cols-[1.7fr_3.5fr_6.5fr] min-h-0">
+        {/* Left Section - ~15% */}
         <aside className="border-r-2 border-[#2C1E16] flex flex-col h-full">
           <Clock initialData={screenData || undefined} />
           <Weather initialData={weatherData || undefined} />
