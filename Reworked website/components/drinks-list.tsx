@@ -91,7 +91,7 @@ const DrinkRow = React.memo(function DrinkRow({ drink }: { drink: DrinkWithChang
           {drink.stock === Infinity ? '∞' : drink.stock}
         </span>
       </span>
-      <span className="text-sm font-black text-[#2C1E16] text-right w-14 leading-none">{drink.price}</span>
+      <span className="text-sm font-black text-[#2C1E16] text-right w-14 leading-none truncate">{drink.price}</span>
       <div className="flex items-center justify-center">
         {qrValue ? (
           <div className="border-2 border-[#2C1E16] p-0.5 bg-white">

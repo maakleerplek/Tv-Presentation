@@ -139,10 +139,8 @@ function extractPrice(partDetail, salePrices) {
         warnedNoPrice.add(partDetail.pk);
         console.warn(`[Drinks] No sale price for part ${partDetail.pk} (${partDetail.name})`);
     }
-    if (partDetail.description &&
-        partDetail.description.toLowerCase() !== partDetail.name.toLowerCase()) {
-        return partDetail.description;
-    }
+    // Never the description: for filament that is a paragraph of marketing
+    // text, which overflowed the price column and pushed the rows apart.
     return '-';
 }
 
