@@ -15,9 +15,6 @@
 import express from 'express';
 import cors    from 'cors';
 
-// Global bypass for self-signed certificates (required for the local Inventree instance)
-process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
-
 import { scrapeCalendar } from './scrapers/calendar.js';
 import { scrapeNews     } from './scrapers/news.js';
 import { fetchMachinePricing } from './scrapers/pricing.js';
