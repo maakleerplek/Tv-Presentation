@@ -65,6 +65,7 @@ export function PricingTable({ initialData }: { initialData?: ScreenData }) {
         )}
       </div>
       {items.map((item) => <MachineCell key={item.name} item={item} showMinimum={!shared} />)}
+      <MachineCell item={{ name: '3D print · own filament', price: '€0.03', unit: 'g' }} showMinimum={false} />
     </div>
   );
 }
