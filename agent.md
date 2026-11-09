@@ -4,7 +4,7 @@
 
 A full-screen TV presentation app for the maakleerplek community space / makerspace.
 Displays a layout with **current info (time, weather, event)**, **news carousel**, **drink menu**, and **rotating tips** at the bottom.
-Designed for a 4K TV via Chromecast (rendered at 1080p, upscaled).
+Displayed on a 4K TV via a Raspberry Pi (`10.72.3.105`) running FullPageOS + Chromium kiosk (not Chromecast).
 
 ## Architecture
 

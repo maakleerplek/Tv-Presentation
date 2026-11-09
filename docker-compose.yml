@@ -7,7 +7,7 @@ services:
       context: ./nginx
       dockerfile: Dockerfile
       args:
-        HOST_IP: ${HOST_IP:-10.72.3.141}
+        HOST_IP: ${HOST_IP:-10.72.3.68}
     container_name: tv-nginx
     restart: unless-stopped
     ports:

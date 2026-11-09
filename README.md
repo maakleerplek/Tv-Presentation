@@ -101,6 +101,39 @@ The project uses Tailwind CSS v4, which leverages native CSS features like `@the
 - **InvenTree** — source for the drinks menu
 - **Docker Compose** — runs both services together
 
+## Hardware — Raspberry Pi (`10.72.3.105`)
+
+The display runs on a Raspberry Pi at `10.72.3.105` using **FullPageOS** (Chromium kiosk). It connects to the TV via HDMI-CEC.
+
+**SSH access:**
+```bash
+ssh pi@10.72.3.105   # password auth, no key
+```
+
+**TV power — systemd services** (`Interface-stock/systemd/`):
+
+| Service | Timer | Schedule |
+|---------|-------|----------|
+| `tv-on.service` | `tv-on.timer` | Daily at 10:00 |
+| `tv-off.service` | `tv-off.timer` | Daily at 00:00 |
+
+Scripts: `Interface-stock/scripts/tv-on.sh` / `tv-off.sh` — use `cec-ctl` via `/dev/cec0`.
+
+```bash
+# Manual trigger
+sudo systemctl start tv-on.service
+sudo systemctl start tv-off.service
+
+# Check status
+systemctl status tv-on.timer tv-off.timer
+```
+
+> **Fix applied 2026-05-28:** Scripts were missing execute permission (`-rw-r--r--`), causing `status=203/EXEC` failures since May 21. Fixed with `chmod +x Interface-stock/scripts/tv-on.sh tv-off.sh`.
+
+**Scripts on Pi:** `~/scripts/` — FullPageOS helpers (start_chromium_browser, refresh, rotate, fullscreen).
+
+---
+
 ## CI / CD
 
 A GitHub Actions workflow is set up to automatically create and update a **Prerelease** whenever code is pushed to a PR targeting `master` or directly to `master`. The prerelease is tagged dynamically (e.g. `pr-42-abc1234` or `master-abc1234`) and automatically includes test verification.
