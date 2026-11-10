@@ -66,14 +66,14 @@ async function main() {
         }
 
         // One sale price break, at quantity 1.
-        const breaks = list(await api('GET', `/api/part/sale-price/?${query({ part: part.pk })}`));
+        const breaks = list(await api('GET', `/api/pricing/sale-price/?${query({ part: part.pk })}`));
         const one = breaks.find(b => parseFloat(b.quantity) === 1);
         if (!one) {
             console.log(`+ sale price ${m.name}: €${m.price}`);
-            await api('POST', '/api/part/sale-price/', { part: part.pk, quantity: 1, price: m.price, price_currency: 'EUR' });
+            await api('POST', '/api/pricing/sale-price/', { part: part.pk, quantity: 1, price: m.price, price_currency: 'EUR' });
         } else if (parseFloat(one.price) !== m.price) {
             console.log(`~ sale price ${m.name}: €${one.price} → €${m.price}`);
-            await api('PATCH', `/api/part/sale-price/${one.pk}/`, { price: m.price, price_currency: 'EUR' });
+            await api('PATCH', `/api/pricing/sale-price/${one.pk}/`, { price: m.price, price_currency: 'EUR' });
         }
 
         const param = list(await api('GET', `/api/parameter/?${query(

@@ -107,7 +107,7 @@ async function fetchCategoryNames(partIds, headers) {
 export async function fetchSalePrices(headers, base = INVENTREE_URL) {
     try {
         // All pages: past 500 price breaks the rest showed no price.
-        const rows  = await fetchAllPages(`${base}/api/part/sale-price/?`, headers);
+        const rows  = await fetchAllPages(`${base}/api/pricing/sale-price/?`, headers);
         const best  = new Map();
         for (const b of rows) {
             const qty   = parseFloat(b.quantity);

@@ -36,7 +36,7 @@ describe('fetchMachinePricing', () => {
         globalThis.fetch = async (url) => {
             const u = String(url);
             if (u.includes('/api/part/category/')) return json([{ pk: 8, name: 'Other' }, { pk: 9, name: 'Machinegebruik' }]);
-            if (u.includes('/api/part/sale-price/')) return json([
+            if (u.includes('/api/pricing/sale-price/')) return json([
                 { part: 1, quantity: '1', price: '0.50' },
                 { part: 3, quantity: '1', price: '0.10' },
             ]);
