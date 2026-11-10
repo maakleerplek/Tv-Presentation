@@ -4,25 +4,6 @@ Full-screen TV display for [maakleerplek](https://maakleerplek.be/) — a public
 
 ![Screenshot of the TV display](Public/image.png)
 
-## Layout
-
-The screen is optimized for a 4K display and divided into three main columns:
-
-```
-┌─────────────┬──────────────────────┬──────────────────────┐
-│ Clock       │                      │ Inventory (InvenTree)│
-│ Weather     │   Event/News Carousel│                      │
-│ Status      │                      │                      │
-├─────────────┴──────────────────────┴──────────────────────┤
-│ Bezoek QR URL │      HTL Logo      │  HTL stock QR URL    │
-└────────────────────────────────────────────────────────────┘
-```
-
-- **Left:** Time, date, local weather, and currently running or next upcoming event.
-- **Center:** A rotating carousel of upcoming workshops, recurring events, and recent news articles.
-- **Right:** Live inventory from InvenTree (drinks, snacks & materials).
-- **Footer:** QR codes to the website and the HTL stock app.
-
 ## Features
 
 ### Machine prices
