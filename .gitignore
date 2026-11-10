@@ -30,3 +30,4 @@ pnpm-debug.log*
 
 # SQLite database (mounted as a Docker volume in production)
 Reworked website/data/
+*.tsbuildinfo

@@ -81,12 +81,34 @@ Tailwind CSS v4 with no `tailwind.config.js` — configuration is done inside `a
 ### Environment Variables
 Copy `.env.example` to `.env`. Key variables:
 - `DATA_FETCHER_INTERNAL_URL` / `DATA_FETCHER_EXTERNAL_URL` — Next.js tries internal Docker URL first, falls back to external for local dev.
-- `INVENTREE_URL` / `INVENTREE_TOKEN` — InvenTree API access (TLS verification disabled in data-fetcher).
+- `INVENTREE_URL` / `INVENTREE_TOKEN` — InvenTree API access (used by the data-fetcher only).
 - `INVENTREE_DRINKS_LOCATIONS` — Comma-separated location names to show in the drinks panel.
 - `TRANSLATION_ENABLED` / `TRANSLATION_SOURCE_LANG` / `TRANSLATION_TARGET_LANG` / `LIBRETRANSLATE_URL` — Translation pipeline; MyMemory is the free fallback.
 - `EVENT_PRIORITY` — Comma-separated keywords controlling which event appears in the "Nu bezig / Volgend" status panel.
 - `CALENDAR_MONTHS_AHEAD` — How many agenda months past the current one to pull (one HTTP request each).
 - `TIP_1`, `TIP_2`, … — Footer tips, numbered sequentially.
+
+## Conventions
+- Server Components by default; add `'use client'` only for hooks, browser APIs or event listeners. `page.tsx`, `layout.tsx` stay Server Components.
+- Every interactive component (Clock, Carousel, ...) takes an `initialData` prop and reads data through the shared `useScreenData` hook (one poller for the whole page).
+- All server-side fetches live in `lib/data.ts`; do not scatter `fetch` calls.
+- TypeScript strict; the build fails on type errors. Use the `@/` alias for cross-directory imports, named exports (default only where Next.js requires it), `cn()` from `@/lib/utils` for conditional classes.
+- Error handling: API routes use try/catch and return `NextResponse.json({ error }, { status: 500 })`; the data-fetcher logs with tags such as `[Calendar]`, `[News]`, `[Drinks]`.
+- Fonts: Space Grotesk (sans) and JetBrains Mono via `next/font/google` in `app/layout.tsx`.
+
+## Layout and performance
+- Target is a Raspberry Pi running Chromium on a 4K TV (1080p canvas, upscaled). Keep client-side JS minimal and prefer CSS animations over JS animation libraries.
+- Use flex/grid containment (`shrink-0`, `min-h-0`, `overflow-hidden`) so nothing overflows the fixed canvas.
+
+## Docker and deploy
+- `docker-compose.yml`: `nginx` (`tv-nginx`, `${HOST_PORT:-8083}`), `frontend` (`tv-frontend`, port 3000, no host port, only reachable via nginx), `data-fetcher` (`tv-data-fetcher`, 8080 inside, published as `127.0.0.1:8085`). Both app images run on Bun.
+- `master` is production. `scripts/autodeploy.sh` runs from cron every 5 minutes and pulls (log: `.git/autodeploy.log`, details in `README.md`).
+
+## Architecture rules
+- Max ~400 lines per file; split before it grows past that.
+- All InvenTree calls go through the data-fetcher. The frontend never calls InvenTree directly (`app/api/proxy-image` goes via the data-fetcher).
+- Nothing is copied between repos (stock-frontend, interface-stock); share through an API instead.
+- Known problems: caches stack (data-fetcher 15 min + Next.js `revalidate` 5 min + client poll 5 min), so changes can take up to ~25 min to show; news scraping relies on link-exclusion heuristics and breaks on site redesigns; event times sometimes need a second fetch from the detail page; `eslint.ignoreDuringBuilds: true` in `next.config.ts` hides lint errors in CI; two ESLint configs coexist (`.eslintrc.json` and `eslint.config.mjs`, the flat one wins).
 
 ## CI/CD
 - `test.yml`, `build.yml` — run on push/PR to `main` and `master`.
