@@ -1,6 +1,6 @@
 #!/bin/bash
 # autodeploy.sh — master is production: deploy it as soon as CI on it is green.
-# Same file in Interface-stock, Stock-management-frontend and Tv-Presentation.
+# Same file in htl-kiosk, htl-stock and htl-tv.
 # Runs every 5 minutes (cron on htl-server, systemd timer on the Pi); pull-based,
 # so nothing has to reach the HTL network from outside.
 #

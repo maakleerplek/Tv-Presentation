@@ -1,3 +1,6 @@
+# Pinned: volumes are named after the project; the repo/folder was renamed from Tv-Presentation.
+name: tv-presentation
+
 services:
   # ===== nginx Reverse Proxy =====
   # HTTP:  http://<HOST_IP>  (port 80)  or  http://<HOST_IP>:8083

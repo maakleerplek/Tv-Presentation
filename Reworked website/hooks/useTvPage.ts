@@ -5,7 +5,7 @@ import { initialState, navigate, reportKiosk, view, CYCLE_MS, KIOSK_STALE_MS, ty
 
 /**
  * Keys the old Pi scanner pressed in this browser (xdotool, see
- * Interface-stock barcode_inventree.py). Kept as a fallback next to the
+ * htl-kiosk barcode_inventree.py). Kept as a fallback next to the
  * WebSocket below.
  */
 export const TV_KEYS = {
@@ -16,7 +16,7 @@ export const TV_KEYS = {
 } as const;
 
 /**
- * The touch kiosk (Interface-stock kiosk/src/tv.rs) runs on the same Pi and
+ * The touch kiosk (htl-kiosk kiosk/src/tv.rs) runs on the same Pi and
  * pushes {"type": "busy" | "idle" | "next" | "prev"} over this WebSocket.
  * `?kiosk=ws://host:port` overrides it, `?kiosk=off` turns it off.
  */

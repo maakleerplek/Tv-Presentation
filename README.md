@@ -1,4 +1,4 @@
-# Tv-Presentation
+# htl-tv
 
 Full-screen TV display for [maakleerplek](https://maakleerplek.be/) — a public makerspace in Leuven. Shows the current time, weather, upcoming events, news, a drinks/materials inventory, and machine usage rates on a 4K TV.
 
@@ -59,8 +59,8 @@ External projects can report stock actions that are then shown as a live "Recent
 The endpoint is available at the TV presentation URL (default port 8083). Failures are silently ignored so they never block the calling workflow.
 
 **Integrations already included:**
-- `stock-management-frontend` — set `VITE_TV_PRESENTATION_URL` in `.env`
-- `interface-stock` — set `TV_PRESENTATION_URL` in `.env`
+- [htl-stock](https://github.com/maakleerplek/htl-stock): set `VITE_TV_PRESENTATION_URL` in `.env`
+- [htl-kiosk](https://github.com/maakleerplek/htl-kiosk): set `TV_PRESENTATION_URL` in `.env`
 
 ## Quick Start
 
@@ -69,7 +69,7 @@ The endpoint is available at the TV presentation URL (default port 8083). Failur
 cp .env.example .env
 
 # 2. Build and run
-docker compose up --build
+docker compose up -d --build
 ```
 
 - Frontend: `http://localhost:8083`
