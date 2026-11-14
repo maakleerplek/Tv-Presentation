@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import type { DrinkItem } from '@/lib/types';
 
 const POLL_INTERVAL_MS = 3_000;
@@ -14,14 +15,10 @@ function drinkKey(d: DrinkItem) {
     return `${d.name}::${d.location ?? ''}`;
 }
 
-/** Same rows with the same stock, price and picture: nothing to redraw. */
-function sameList(a: DrinkItem[], b: DrinkItem[]) {
-    if (a.length !== b.length) return false;
-    return a.every((d, i) => {
-        const e = b[i];
-        return drinkKey(d) === drinkKey(e) && d.stock === e.stock && d.price === e.price
-            && d.imageUrl === e.imageUrl && d.category === e.category;
-    });
+async function fetchDrinks(): Promise<DrinkItem[]> {
+    const res = await fetch('/api/drinks-data', { signal: AbortSignal.timeout(FETCH_TIMEOUT_MS) });
+    if (!res.ok) throw new Error('drinks-data failed');
+    return res.json();
 }
 
 export function useDrinksData(initialDrinks?: DrinkItem[]) {
@@ -31,66 +28,42 @@ export function useDrinksData(initialDrinks?: DrinkItem[]) {
     const prevRef = useRef<Map<string, number>>(
         new Map((initialDrinks ?? []).map(d => [drinkKey(d), d.stock])),
     );
-    const lastRef = useRef<DrinkItem[]>(initialDrinks ?? []);
+
+    // TanStack never overlaps refetches of one query, so a slow InvenTree cannot stack requests.
+    // A failed poll keeps the last data; unchanged data keeps its reference (structural sharing).
+    const { data } = useQuery({
+        queryKey: ['drinks'],
+        queryFn: fetchDrinks,
+        initialData: initialDrinks?.length ? initialDrinks : undefined,
+        staleTime: POLL_INTERVAL_MS,
+        refetchInterval: POLL_INTERVAL_MS,
+    });
 
     useEffect(() => {
-        let mounted = true;
-        let pollTimer: ReturnType<typeof setTimeout> | undefined;
-        let clearTimer: ReturnType<typeof setTimeout> | undefined;
+        if (!data) return;
+        const prev = prevRef.current;
+        prevRef.current = new Map(data.map(d => [drinkKey(d), d.stock]));
 
-        async function fetchDrinks() {
-            try {
-                // A timeout, and the next poll only after this one ended: with a
-                // slow InvenTree, setInterval stacked requests behind each other.
-                const res = await fetch('/api/drinks-data', { signal: AbortSignal.timeout(FETCH_TIMEOUT_MS) });
-                if (!res.ok) return;
-                const fresh: DrinkItem[] = await res.json();
-
-                if (!mounted || sameList(fresh, lastRef.current)) return;
-                lastRef.current = fresh;
-
-                const prev = prevRef.current;
-                prevRef.current = new Map(fresh.map(d => [drinkKey(d), d.stock]));
-
-                let changed = false;
-                setDrinks(fresh.map(d => {
-                    const oldStock = prev.get(drinkKey(d));
-                    let change: DrinkChange = null;
-                    let delta: number | null = null;
-                    if (oldStock !== undefined) {
-                        if (d.stock < oldStock) { change = 'decreased'; delta = d.stock - oldStock; }
-                        else if (d.stock > oldStock) { change = 'increased'; delta = d.stock - oldStock; }
-                    }
-                    if (change) changed = true;
-                    return { ...d, _change: change, _delta: delta };
-                }));
-
-                // Clear change flags after the animation completes
-                if (changed) {
-                    clearTimeout(clearTimer);
-                    clearTimer = setTimeout(() => {
-                        if (!mounted) return;
-                        setDrinks(prev => prev.map(d => (d._change ? { ...d, _change: null, _delta: null } : d)));
-                    }, 2000);
-                }
-            } catch {
-                // silent — keep showing last known data
-            } finally {
-                if (mounted) pollTimer = setTimeout(fetchDrinks, POLL_INTERVAL_MS);
+        let changed = false;
+        setDrinks(data.map(d => {
+            const oldStock = prev.get(drinkKey(d));
+            let change: DrinkChange = null;
+            let delta: number | null = null;
+            if (oldStock !== undefined && d.stock !== oldStock) {
+                change = d.stock < oldStock ? 'decreased' : 'increased';
+                delta = d.stock - oldStock;
+                changed = true;
             }
-        }
+            return { ...d, _change: change, _delta: delta };
+        }));
 
-        // Fetch right away only when the server render brought no drinks.
-        if (!initialDrinks?.length) fetchDrinks();
-        else pollTimer = setTimeout(fetchDrinks, POLL_INTERVAL_MS);
-
-        return () => {
-            mounted = false;
-            clearTimeout(pollTimer);
-            clearTimeout(clearTimer);
-        };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, []);
+        // Clear change flags after the animation completes
+        if (!changed) return;
+        const t = setTimeout(() => {
+            setDrinks(cur => cur.map(d => (d._change ? { ...d, _change: null, _delta: null } : d)));
+        }, 2000);
+        return () => clearTimeout(t);
+    }, [data]);
 
     return drinks;
 }
