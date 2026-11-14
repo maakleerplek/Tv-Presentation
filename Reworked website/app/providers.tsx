@@ -9,6 +9,8 @@ export function Providers({ children }: { children: React.ReactNode }) {
         defaultOptions: {
             queries: {
                 retry: false,
+                // The Pi's Wi-Fi blips; 'online' mode would pause polling until an online event.
+                networkMode: 'always',
                 gcTime: 60_000,
                 refetchOnWindowFocus: false,
                 refetchIntervalInBackground: true,

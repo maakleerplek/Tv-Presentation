@@ -6,7 +6,7 @@ import type { ChangelogEntry } from '@/lib/types';
 const POLL_INTERVAL_MS = 15_000;
 
 async function fetchChangelog(): Promise<ChangelogEntry[]> {
-    const res = await fetch('/api/changelog');
+    const res = await fetch('/api/changelog', { signal: AbortSignal.timeout(10_000) });
     if (!res.ok) throw new Error('changelog failed');
     return res.json();
 }

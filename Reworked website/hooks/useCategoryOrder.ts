@@ -6,7 +6,7 @@ import { DEFAULT_CATEGORY_ORDER } from '@/lib/category-order';
 const POLL_INTERVAL_MS = 60_000;
 
 async function fetchOrder(): Promise<string[]> {
-    const res = await fetch('/api/tv-settings', { cache: 'no-store' });
+    const res = await fetch('/api/tv-settings', { cache: 'no-store', signal: AbortSignal.timeout(10_000) });
     if (!res.ok) throw new Error('tv-settings failed');
     const json = await res.json();
     if (!Array.isArray(json.categoryOrder)) throw new Error('no categoryOrder');
